@@ -1,26 +1,13 @@
 #!/usr/bin/env python3.5
 
 """
-# CubePostprocessor
+# filaswitch
 
-Just a post processor make life easier with Cube 2 from 3DSystems.
-
-Support KISSlicer 1.5b, Cura 15.04.04 and Slic3r 1.2.9.
-
-With all slicer g-code, it cleans the file after processing (removes comments and extra lines, makes sure EOL is Windows)
-
-With KISS
- - allows for solid and infill extrusion amount tuning
-
-With Cura
- - change first layer temp 10 C higher than rest of the print
-
-With Slicer
- - converts Makerware (Makerbot) style g-code to Cube (BfB) format
+G-code post processor for adding proper purge tower for 2 extruder - one hotend setup.
 
 Disclaimer: i'm not responsible if anything, good or bad, happens due to use of this script.
 
-Version 0.7
+Version 0.1
 """
 
 
@@ -71,10 +58,11 @@ if __name__ == "__main__":
     debug = False
     if len(sys.argv) < 2:
         log.error("Need argument for file to process")
-        exit(1)
+        #exit(1)
+    g_file = '/media/Roinaa/3DModels/_dev/3DBenchy_dc.gcode'
     if len(sys.argv) == 3 and sys.argv[2] == "--debug":
         debug = True
 
-    print_type = detect_file_type(sys.argv[1])
+    print_type = detect_file_type(g_file)
     pf = print_type(debug=debug)
-    result_file = pf.process(sys.argv[1])
+    result_file = pf.process(g_file)

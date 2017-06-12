@@ -1,6 +1,6 @@
 
 class Extruder:
-    def __init__(self, tool=0):
+    def __init__(self, tool, nozzle, retract):
         self.tool = tool
-        self.nozzle = None
-        self.retract = None
+        self.nozzle = nozzle
+        self.retract = retract
