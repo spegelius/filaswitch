@@ -58,8 +58,9 @@ if __name__ == "__main__":
     debug = False
     if len(sys.argv) < 2:
         log.error("Need argument for file to process")
-        #exit(1)
-    g_file = '/media/Roinaa/3DModels/_dev/3DBenchy_dc.gcode'
+        exit(1)
+    #g_file = '/media/Roinaa/3DModels/_dev/3DBenchy_dc.gcode'
+    g_file = sys.argv[1]
     if len(sys.argv) == 3 and sys.argv[2] == "--debug":
         debug = True
 
