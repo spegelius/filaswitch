@@ -22,6 +22,16 @@ class Layer:
         """
         self.lines.append((cmd, comment, line_index))
 
+    def is_empty_layer(self):
+        """
+        Check if layer is empty, i.e. no commands
+        :return: true or false
+        """
+        for cmd, _, _ in self.lines:
+            if cmd:
+                return False
+        return True
+
     def insert_line(self, index, cmd, comment):
         self.lines.insert(index, (cmd, comment, index))
 
@@ -31,7 +41,7 @@ class Layer:
         :return: true or false
         """
         for cmd, _, _ in self.lines:
-            if cmd and gcode.is_tool_change(cmd):
+            if cmd and gcode.is_tool_change(cmd) is not None:
                 return True
         return False
 

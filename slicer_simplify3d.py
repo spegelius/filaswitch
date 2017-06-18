@@ -97,6 +97,63 @@ class Simplify3dGCodeFile(GCodeFile):
         pass
         # TODO: needed?
 
+    def filter_layers(self, last_switch_height):
+        """
+        Filter layers so that only layers needed for purge tower processing
+        are returned.
+        Layers that are left out:
+        - empty (no command lines)
+        - non-tool
+        :param last_switch_height: z height of last switch layer
+        :return: tuple of layer, tower_needed, has_tool_change
+        """
+        layers = []
+        z_positions = []
+
+        # step 1: filter out empty layers and add z_positions to array
+        for layer in self.layers:
+            if layer.z > last_switch_height:
+                break
+            if layer.is_empty_layer():
+                continue
+            if layer.z not in z_positions:
+                z_positions.append(layer.z)
+            layers.append(layer)
+
+        # step 2: go through the z position list and store layers with info if infill is needed for the layer
+        z_groups = []
+        for z in z_positions:
+            z_group = []
+            z_layers = []
+            tower_z_ok = False
+            for l in layers:
+                if l.z == z:
+                    z_layers.append(l)
+
+            # first check tool change layers
+            for l in z_layers:
+                if l.has_tool_changes():
+                    tower_z_ok= True
+                    z_group.append((l, True, True))
+
+            # then check other layers, only after tower_z_ok is prepared
+            for l in z_layers:
+                if not l.has_tool_changes():
+                    if not tower_z_ok:
+                        tower_z_ok = True
+                        z_group.append((l, True, False))
+                    else:
+                        z_group.append((l, False, False))
+            z_groups.append(z_group)
+
+        # step 3: pack groups to list
+        layers = []
+        for z_group in z_groups:
+            for l, needed, has_tool in z_group:
+                #print(l.z, needed, has_tool)
+                layers.append((l, needed, has_tool))
+        return layers
+
 
 if __name__ == "__main__":
     s = Simplify3dGCodeFile(True)

@@ -1,3 +1,4 @@
+import math
 import re
 
 
@@ -42,6 +43,14 @@ class GCode:
             return b"; " + comment
         else:
             return cmd + b"    ; " + comment
+
+    def calculate_path_length(self, prev_position, new_position):
+        """ Calculate path length from given coordinates"""
+        x_len = prev_position[0] - new_position[0]
+        y_len = prev_position[1] - new_position[1]
+
+        path_len = math.sqrt((x_len * x_len) + (y_len * y_len))
+        return path_len
 
     def is_tool_change(self, line):
         """
@@ -92,6 +101,18 @@ class GCode:
             self.last_match = float(m.groups()[0]), float(m.groups()[1])
         return self.last_match
 
+    def is_head_move(self, line):
+        """
+        Match given line against heade move regex
+        :param line: g-code line
+        :return: None or head position and speed
+        """
+        self.last_match = None
+        m = self.MOVE_HEAD_RE.match(line)
+        if m:
+            self.last_match = float(m.groups()[0]), float(m.groups()[1]), float(m.groups()[2])
+        return self.last_match
+
 
 if __name__ == "__main__":
     obj = GCode()
@@ -100,3 +121,5 @@ if __name__ == "__main__":
     print(obj.read_gcode_line(b"; juu"))
     print(obj.read_gcode_line(b"; juu ; joo"))
     print(obj.is_z_move(b"G1 Z5.500 F1500"))
+    print(obj.is_tool_change(b"T0"))
+    print(obj.is_tool_change(b"T1"))

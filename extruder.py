@@ -14,3 +14,17 @@ class Extruder:
             Values in mm.
         """
         return move_lenght * self.feed_rate
+
+    def get_retract_gcode(self):
+        """
+        Get retraction g-code line
+        :return: retraction byte string
+        """
+        return ("G1 E%.4f F%.1f" % (-self.retract, self.retract_speed)).encode(), b"retract"
+
+    def get_prime_gcode(self):
+        """
+        Get prime g-code line
+        :return: prime byt string
+        """
+        return ("G1 E%.4f F%.1f" % (self.retract, self.retract_speed)).encode(), b"prime"

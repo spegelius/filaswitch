@@ -110,14 +110,6 @@ class GCodeFile:
             log.error("Could not save file, error: %s" % e)
             return 1
 
-    def calculate_path_length(self, prev_position, new_position):
-        """ Calculate path length from given coordinates"""
-        x_len = prev_position[0] - new_position[0]
-        y_len = prev_position[1] - new_position[1]
-
-        path_len = math.sqrt((x_len * x_len) + (y_len * y_len))
-        return path_len
-
     def calculate_extrusion_length(self, prev_position, new_position):
         """ Calculates extrusion length"""
         length = abs(prev_position - new_position)
@@ -167,7 +159,7 @@ class GCodeFile:
 
         log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
 
-        self.switch_tower = SwitchTower(x_min, y_max+5)
+        self.switch_tower = SwitchTower(x_min, y_max+5, self.debug)
         # TODO: check against bed dimensions
 
     def add_switch_raft(self):
@@ -188,42 +180,68 @@ class GCodeFile:
         For layers that don't have tool change, add g-code for sparse infill.
         :return:
         """
-
-        current_z = 0
-        z_hop = 0
         e_pos = 0
-        e_speed = 0
         z_speed = 0
-        old_e = self.extruders[0]
+        z_hop = 0
+        active_e = self.extruders[0]
+        tower_added = False
 
-        for layer in self.layers:
+        def update_retract_position(pos, new_pos):
+            if new_pos < 0:
+                pos += new_pos
+            return pos
 
-            if layer.z > self.last_switch_height:
+        for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
+
+            # skip processing if no more tool changes or layer is 'empty'
+            if layer.z > self.last_switch_height or layer.is_empty_layer():
+                print('break')
                 break
 
             index = 0
             while True:
                 try:
-                    cmd, comment, _ = layer.lines[index]
-                    if not cmd:
-                        index += 1
-                        continue
-                    if gcode.is_z_move(cmd):
-                        current_z, z_speed = gcode.last_match
-                    elif gcode.is_tool_change(cmd):
-                        z_hop = current_z - layer.z
-                        new_e = self.extruders[gcode.last_match]
-                        layer.delete_line(index)
-                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, old_e, new_e, z_hop, z_speed):
+                    # add infill if not a tool change layer
+                    if not has_tool_changes and index == 0 and layer.num != 1 and tower_needed:
+                        # update purge tower with sparse infill
+                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop, z_speed):
                             layer.insert_line(index, cmd, comment)
                             index += 1
+
+                    cmd, comment, _ = layer.lines[index]
+                    if not cmd:
+                        # need command
+                        index += 1
+                        continue
+
+                    if gcode.is_z_move(cmd):
+                        # store current z position and z-hop
+                        current_z, z_speed = gcode.last_match
+                        z_hop = current_z - layer.z
+                    elif has_tool_changes and gcode.is_tool_change(cmd) is not None:
+                        # add tool change g-code
+                        new_e = self.extruders[gcode.last_match]
+                        layer.delete_line(index)
+                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e, new_e, z_hop, z_speed):
+                            layer.insert_line(index, cmd, comment)
+                            index += 1
+                        tower_added = True
+                        active_e = new_e
                     elif gcode.is_extruder_move(cmd):
-                        e_pos = gcode.last_match[0]
-                        e_speed = gcode.last_match[1]
+                        # store extruder position
+                        e_pos = update_retract_position(e_pos, gcode.last_match[0])
+                    elif gcode.is_extrusion_move(cmd):
+                        # store extruder position and if move is after added tool change, add prime g-code
+                        e_pos = update_retract_position(e_pos, gcode.last_match[2])
+                        if tower_added:
+                            layer.insert_line(index,
+                                              *active_e.get_prime_gcode())
+                            index += 1
+                            tower_added = False
+
                 except IndexError:
                     break
                 index += 1
-
 
     def parse_layers(self, lines):
         """
@@ -260,6 +278,20 @@ class GCodeFile:
                         line_index = 0
             current_layer.add_line(cmd, comment, line_index)
             line_index += 1
+
+        #i = 0
+        #for l in self.layers:
+            #print(l.z, l.has_tool_changes(), l.is_empty_layer())
+            #if l.is_empty_layer():
+            #    i += 1
+        #print(i)
+
+    def filter_layers(self, last_switch_height):
+        """
+        Implement this in slicer specific implementation
+        :return: filtered layer list
+        """
+        raise NotImplemented
 
     def process(self, gcode_file):
         """ Runs processing """
