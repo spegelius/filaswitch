@@ -279,11 +279,15 @@ class GCodeFile:
             current_layer.add_line(cmd, comment, line_index)
             line_index += 1
 
+        # last layer
+        self.layers.append(current_layer)
+
         #i = 0
         #for l in self.layers:
             #print(l.z, l.has_tool_changes(), l.is_empty_layer())
             #if l.is_empty_layer():
             #    i += 1
+            #print(l.lines[:-5])
         #print(i)
 
     def filter_layers(self, last_switch_height):
