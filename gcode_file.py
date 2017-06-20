@@ -189,6 +189,10 @@ class GCodeFile:
         def update_retract_position(pos, new_pos):
             if new_pos < 0:
                 pos += new_pos
+            else:
+                pos = 0
+            if pos > 10:
+                raise ValueError("Extruder position over 10 negative. IS this ok?")
             return pos
 
         for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
@@ -230,7 +234,7 @@ class GCodeFile:
                     elif gcode.is_extruder_move(cmd):
                         # store extruder position
                         e_pos = update_retract_position(e_pos, gcode.last_match[0])
-                    elif gcode.is_extrusion_move(cmd):
+                    elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and if move is after added tool change, add prime g-code
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
                         if tower_added:

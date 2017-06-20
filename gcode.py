@@ -5,8 +5,8 @@ import re
 class GCode:
     EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")
     Z_MOVE_RE = re.compile(b"^G1 Z([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    EXTRUSION_MOVE_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E(\d+\.\d+)")
-    EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E(\d+\.\d+) F(\d+\.*\d*)$")
+    EXTRUSION_MOVE_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+)")
+    EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+) F(\d+\.*\d*)$")
     MOVE_HEAD_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) F(\d+\.*\d*)$")
     SPEED_RE = re.compile(b"^G1 F(\d+\.*\d*)$")
     EXTRUDER_POSITION_RE = re.compile(b"^G92 E0$")
@@ -77,6 +77,19 @@ class GCode:
             self.last_match = float(g[0]), float(g[1]), float(g[2])
         return self.last_match
 
+    def is_extrusion_speed_move(self, line):
+        """
+        Match given line against extrusion speed move regex
+        :param line: g-code line
+        :return: None or tuple with X, Y, E positions and speed
+        """
+        self.last_match = None
+        m = self.EXTRUSION_MOVE_SPEED_RE.match(line)
+        if m:
+            g = m.groups()
+            self.last_match = float(g[0]), float(g[1]), float(g[2]), float(g[3])
+        return self.last_match
+
     def is_z_move(self, line):
         """
         Match given line against z move regex
@@ -123,3 +136,5 @@ if __name__ == "__main__":
     print(obj.is_z_move(b"G1 Z5.500 F1500"))
     print(obj.is_tool_change(b"T0"))
     print(obj.is_tool_change(b"T1"))
+    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E-2.5000"))
+    print(obj.is_extrusion_speed_move(b"G1 X80.349 Y81.849 E-2.5000 F3000"))
