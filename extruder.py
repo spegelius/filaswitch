@@ -15,16 +15,18 @@ class Extruder:
         """
         return move_lenght * self.feed_rate
 
-    def get_retract_gcode(self):
+    def get_retract_gcode(self, change=0):
         """
         Get retraction g-code line
+        :param change: add this to the length
         :return: retraction byte string
         """
-        return ("G1 E%.4f F%.1f" % (-self.retract, self.retract_speed)).encode(), b"retract"
+        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), b"retract"
 
-    def get_prime_gcode(self):
+    def get_prime_gcode(self, change=0):
         """
         Get prime g-code line
+        :param change: add this to the length
         :return: prime byt string
         """
-        return ("G1 E%.4f F%.1f" % (self.retract, self.retract_speed)).encode(), b"prime"
+        return ("G1 E%.4f F%.1f" % (self.retract+change, self.retract_speed)).encode(), b"prime"
