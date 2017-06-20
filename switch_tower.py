@@ -80,73 +80,79 @@ class SwitchTower:
         self.last_tower_z = self.last_tower_z + layer.height
         yield None, b"TOWER START"
 
-        retraction = e_pos + old_e.retract
+        ## handle retraction
+        retraction = -old_e.retract - e_pos
+        if retraction > 0:
+            retraction = 0
         log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
         if retraction:
-            yield ("G1 E%s F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
+            yield ("G1 E%.4f F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
+
         if not z_hop:
             z_hop = layer.z + old_e.z_hop
             yield ("G1 Z%.3f F%.1f" % (z_hop, z_speed)).encode(), b"z-hop"
         if self.flipflop_purge:
             yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y+0.5)).encode(), b"move to purge zone"
         else:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.5, self.start_pos_y)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.8, self.start_pos_y)).encode(), b"move to purge zone"
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
         yield b"G91", b"relative positioning"
-        yield old_e.get_prime_gcode()
+        yield old_e.get_prime_gcode(change=-1)
 
         ## prepurge
         if self.flipflop_purge:
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
             yield b"G1 Y0.6 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1 F3000", b"Y shift"
+            yield b"G1 Y1.4 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
             yield b"G1 Y0.6 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"
-            yield b"G1 E-15 F1500", b"25mm/s reshaping"
-            yield b"G4 P2000", b"2s cooling period"
-            yield b"G1 E-95 F1500", b"25mm/s long retract"
+            yield b"G1 Y1.4 F3000", b"Y shift"
+
         else:
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1 F3000", b"Y shift"
+            yield b"G1 Y1.4 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
             yield b"G1 Y0.6 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1 F3000", b"Y shift"
+            yield b"G1 Y1.4 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
             yield b"G1 Y0.6 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"
-            yield b"G1 E-15 F1500", b"25mm/s reshaping"
-            yield b"G4 P2000", b"2s cooling period"
-            yield b"G1 E-95 F1500", b"25mm/s long retract"
+
+        ## pull filament back
+        yield ("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"
+        yield b"G1 E-15 F1500", b"25mm/s reshaping"
+        yield b"G4 P2000", b"2s cooling period"
+        yield b"G1 E-95 F1500", b"25mm/s long retract"
 
         yield ("T%s" % new_e.tool).encode(), b"change tool"
 
         ## feed new filament
-        yield b"G1 E123 F1500", b"25mm/s feed"
+        yield b"G1 E125 F1500", b"25mm/s feed"
         yield ("G1 X%.3f E%.4f F1500" % (self.width-10, new_e.get_feed_length(self.width-10))).encode(), b"prime trail"
 
         ## purge
         purge_lines = int((self.height - 2)/2)
-
+        purge_x_feed = new_e.get_feed_length(self.width)*1.2
         for _ in range(purge_lines):
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F2000" % (-self.width, new_e.get_feed_length(self.width))).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
                 yield b"G1 Y1 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F2000" % (self.width, new_e.get_feed_length(self.width))).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
             else:
                 yield b"G1 Y1 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F2000" % (-self.width, new_e.get_feed_length(self.width))).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
                 yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F2000" % (self.width, new_e.get_feed_length(self.width))).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
 
+        wipe_line_length = -(self.width-0.4)
         yield b"G1 Y1 F3000", b"Y shift"
-        yield ("G1 X%.3f E%.4f F1500" % (-self.width+2, new_e.get_feed_length(self.width-2))).encode(), b"purge trail"
-        yield ("G1 X-2 E%.4f F%s" % (-new_e.retract, new_e.retract_speed)).encode(), b"purge trail"
+        yield ("G1 X%.3f E%.4f F3000" % (wipe_line_length, new_e.get_feed_length(wipe_line_length))).encode(), b"purge trail"
+        yield b"G1 X-0.2 F3000", b"wipe"
+        yield new_e.get_retract_gcode()
+        yield b"G1 X-0.2 F3000", b"wipe"
         yield b"G1 X4 F3000", b"wipe"
 
         yield b"G90", b"absolute positioning"
@@ -186,37 +192,41 @@ class SwitchTower:
 
         ## infill
         infill_x = self.width/5
-        infill_y = self.height-1
-        infill_path_length = gcode.calculate_path_length((0,0), (infill_x, self.height-1))
+        infill_y = self.height-0.3
+        infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
         infill_length = extruder.get_feed_length(infill_path_length)
-        infill_height = self.height-0.3
+
         if self.flipflop_infill:
-            yield ("G1 X%.3f E%.4f F2000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F2000" % (self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
-            yield ("G1 X%.3f E%.4f F2000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F2000" % (-infill_height, extruder.get_feed_length(infill_height))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (-infill_y, extruder.get_feed_length(infill_y))).encode(), b"Y shift"
             flip = True
-            for _ in range(5):
-                if flip:
-                    yield ("G1 X%.3f Y%s E%.4f F2000" % (infill_x, infill_y, infill_length)).encode(), b"infill"
-                else:
-                    yield ("G1 X%.3f Y%s E%.4f F2000" % (infill_x, -infill_y, infill_length)).encode(), b"infill"
-                flip = not flip
         else:
-            yield ("G1 X%.3f E%.4f F2000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F2000" % (-self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
-            yield ("G1 X%.3f E%.4f F2000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F2000" % (infill_height, extruder.get_feed_length(infill_height))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (-self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (infill_y, extruder.get_feed_length(infill_y))).encode(), b"Y shift"
             flip = False
-            for _ in range(5):
-                if flip:
-                    yield ("G1 X%.3f Y%s E%.4f F2000" % (infill_x, infill_y, infill_length)).encode(), b"infill"
-                else:
-                    yield ("G1 X%.3f Y%s E%.4f F2000" % (infill_x, -infill_y, infill_length)).encode(), b"infill"
-                flip = not flip
+
+        for _ in range(5):
+            if flip:
+                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, infill_y, infill_length)).encode(), b"infill"
+            else:
+                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, -infill_y, infill_length)).encode(), b"infill"
+            flip = not flip
+
+        if self.flipflop_infill:
+            yield b"G1 Y0.2 F3000", b"wipe"
+        else:
+            yield b"G1 Y-0.2 F3000", b"wipe"
 
         yield extruder.get_retract_gcode()
-        yield b"G1 X4 F3000", b"wipe"
+
+        if self.flipflop_infill:
+            yield b"G1 Y1 F3000", b"wipe"
+        else:
+            yield b"G1 Y-1 F3000", b"wipe"
 
         yield b"G90", b"absolute positioning"
         yield b"G92 E0", b"reset extruder position"
