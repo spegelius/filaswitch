@@ -92,12 +92,12 @@ class SwitchTower:
             z_hop = layer.z + old_e.z_hop
             yield ("G1 Z%.3f F%.1f" % (z_hop, z_speed)).encode(), b"z-hop"
         if self.flipflop_purge:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y+0.5)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.5)).encode(), b"move to purge zone"
         else:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.8, self.start_pos_y)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.6, self.start_pos_y)).encode(), b"move to purge zone"
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
         yield b"G91", b"relative positioning"
-        yield old_e.get_prime_gcode(change=-1)
+        yield old_e.get_prime_gcode(change=-0.5)
 
         ## prepurge
         if self.flipflop_purge:
@@ -134,15 +134,15 @@ class SwitchTower:
 
         ## purge
         purge_lines = int((self.height - 2)/2)
-        purge_x_feed = new_e.get_feed_length(self.width)*1.2
+        purge_x_feed = new_e.get_feed_length(self.width)*1.3
         for _ in range(purge_lines):
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b"Y shift"
                 yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
-                yield b"G1 Y1 F3000", b"Y shift"
+                yield b"G1 Y0.9 F3000", b"Y shift"
                 yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
             else:
-                yield b"G1 Y1 F3000", b"Y shift"
+                yield b"G1 Y0.9 F3000", b"Y shift"
                 yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
                 yield b"G1 Y0.6 F3000", b"Y shift"
                 yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
