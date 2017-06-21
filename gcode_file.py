@@ -184,15 +184,21 @@ class GCodeFile:
         z_speed = 0
         z_hop = 0
         active_e = self.extruders[0]
-        tower_added = False
+        # flag to indicate if prime is needed after purge tower g-code
+        prime_needed = False
 
         def update_retract_position(pos, new_pos):
-            if new_pos < 0:
-                pos += new_pos
-            else:
+            """
+            Update E position value. In case of negative value we want to have
+            cumulative status to understand how much retraction is done. In case of positive
+            value we don't care, so 0 i ok.
+            :param pos: current position
+            :param new_pos: new position
+            :return: updated position
+            """
+            pos += new_pos
+            if pos > -0.00001:
                 pos = 0
-            if pos > 10:
-                raise ValueError("Extruder position over 10 negative. IS this ok?")
             return pos
 
         for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
@@ -229,19 +235,22 @@ class GCodeFile:
                         for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e, new_e, z_hop, z_speed):
                             layer.insert_line(index, cmd, comment)
                             index += 1
-                        tower_added = True
+                        prime_needed = True
                         active_e = new_e
+                        # always full retract after purge tower
+                        e_pos = -new_e.retract
                     elif gcode.is_extruder_move(cmd):
                         # store extruder position
                         e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
-                        # store extruder position and if move is after added tool change, add prime g-code
-                        e_pos = update_retract_position(e_pos, gcode.last_match[2])
-                        if tower_added:
+                        # store extruder position and add prime if needed
+                        if prime_needed and e_pos < 0:
+                            prime_change_len = -(e_pos + active_e.retract)
                             layer.insert_line(index,
-                                              *active_e.get_prime_gcode())
+                                          *active_e.get_prime_gcode(change=prime_change_len))
                             index += 1
-                            tower_added = False
+                        prime_needed = False
+                        e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                 except IndexError:
                     break
