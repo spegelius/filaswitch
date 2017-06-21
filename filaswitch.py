@@ -23,8 +23,10 @@ from slicer_simplify3d import Simplify3dGCodeFile
 
 import utils
 
+dir = os.path.dirname(os.path.realpath(__file__))
+
 fmt = logging.Formatter(fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-filehandler = logging.FileHandler("process.log")
+filehandler = logging.FileHandler(os.path.join(dir, "filaswitch.log"))
 filehandler.setFormatter(fmt)
 streamhandler = logging.StreamHandler(stream=sys.stdout)
 streamhandler.setFormatter(fmt)
