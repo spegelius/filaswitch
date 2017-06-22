@@ -14,7 +14,7 @@ class SwitchTower:
         else:
             log.setLevel(logging.INFO)
         self.width = 50
-        self.height = 15
+        self.height = 14 # use even values
         self.raft_width = self.width + 4
         self.raft_height = self.height + 2
         self.angle = 0
@@ -92,7 +92,7 @@ class SwitchTower:
             z_hop = layer.z + old_e.z_hop
             yield ("G1 Z%.3f F%.1f" % (z_hop, z_speed)).encode(), b"z-hop"
         if self.flipflop_purge:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.5)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.2)).encode(), b"move to purge zone"
         else:
             yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.6, self.start_pos_y)).encode(), b"move to purge zone"
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
@@ -102,7 +102,7 @@ class SwitchTower:
         ## prepurge
         if self.flipflop_purge:
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y0.6 F3000", b"Y shift"
+            yield b"G1 Y0.9 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
             yield b"G1 Y1.4 F3000", b"Y shift"
             yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
@@ -133,23 +133,27 @@ class SwitchTower:
         yield ("G1 X%.3f E%.4f F1500" % (self.width-10, new_e.get_feed_length(self.width-10))).encode(), b"prime trail"
 
         ## purge
-        purge_lines = int((self.height - 2)/2)
-        purge_x_feed = new_e.get_feed_length(self.width)*1.3
+        purge_line_length = self.width + 0.6
+        purge_lines = int((self.height)/2)-1
+        purge_x_feed = new_e.get_feed_length(purge_line_length)*1.3
         for _ in range(purge_lines):
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b"purge trail"
                 yield b"G1 Y0.9 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b"purge trail"
             else:
                 yield b"G1 Y0.9 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (-self.width, purge_x_feed)).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b"purge trail"
                 yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (self.width, purge_x_feed)).encode(), b"purge trail"
+                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b"purge trail"
 
-        wipe_line_length = -(self.width-0.4)
-        yield b"G1 Y1 F3000", b"Y shift"
-        yield ("G1 X%.3f E%.4f F3000" % (wipe_line_length, new_e.get_feed_length(wipe_line_length))).encode(), b"purge trail"
+        wipe_line_length = purge_line_length-0.4
+        if self.flipflop_purge:
+            yield b"G0.5 Y1 F3000", b"Y shift"
+        else:
+            yield b"G1 Y1 F3000", b"Y shift"
+        yield ("G1 X%.3f E%.4f F3000" % (-wipe_line_length, new_e.get_feed_length(wipe_line_length))).encode(), b"purge trail"
         yield b"G1 X-0.2 F3000", b"wipe"
         yield new_e.get_retract_gcode()
         yield b"G1 X-0.2 F3000", b"wipe"
