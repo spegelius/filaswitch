@@ -15,12 +15,14 @@ Prerequisites
 ### Simplify3D configuration
 
 * Open process and show advanced settings
-##### Advanced-tab
-* Set Tool Change Retraction distance to 0.0
+##### G-code-tab
+* select Relative extrusion distances (IMPORTANT)
 ##### Scripts-tab 
 * Add following G-Code lines to Simplify3D scripts
 * Starting Script: Enclose your starting script with:
 > ; START SCRIPT START
+##### Advanced-tab
+* Set Tool Change Retraction distance to 0.0
 
 > [you start g-code lines here...]
 
