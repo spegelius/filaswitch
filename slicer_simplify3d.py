@@ -152,6 +152,7 @@ class Simplify3dGCodeFile(GCodeFile):
             for l, needed, has_tool in z_group:
                 #print(l.z, needed, has_tool)
                 layers.append((l, needed, has_tool))
+        layers = sorted(layers, key=lambda x: x[0].num)
         return layers
 
 

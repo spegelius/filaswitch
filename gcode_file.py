@@ -159,7 +159,7 @@ class GCodeFile:
 
         log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
 
-        self.switch_tower = SwitchTower(x_min, y_max+5, self.debug)
+        self.switch_tower = SwitchTower(x_min, y_max+5, debug=self.debug)
         # TODO: check against bed dimensions
 
     def add_switch_raft(self):
@@ -202,12 +202,6 @@ class GCodeFile:
             return pos
 
         for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
-
-            # skip processing if no more tool changes or layer is 'empty'
-            if layer.z > self.last_switch_height or layer.is_empty_layer():
-                print('break')
-                break
-
             index = 0
             while True:
                 try:
@@ -249,7 +243,7 @@ class GCodeFile:
                             layer.insert_line(index,
                                           *active_e.get_prime_gcode(change=prime_change_len))
                             index += 1
-                        prime_needed = False
+                            prime_needed = False
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                 except IndexError:
@@ -301,6 +295,7 @@ class GCodeFile:
             #if l.is_empty_layer():
             #    i += 1
             #print(l.lines[:-5])
+            #print(l.num)
         #print(i)
 
     def filter_layers(self, last_switch_height):

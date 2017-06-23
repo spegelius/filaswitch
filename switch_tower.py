@@ -87,7 +87,7 @@ class SwitchTower:
         if retraction > 0:
             retraction = 0
         log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
-        if retraction:
+        if retraction != 0.0:
             yield ("G1 E%.4f F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
 
         if not z_hop:
