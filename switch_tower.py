@@ -46,21 +46,23 @@ class SwitchTower:
         yield b"G91", b"relative positioning"
 
         # box
+
         yield ("G1 X%.3f E%.4f F2000" % (self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b"purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.2, first_extruder.get_feed_length(self.raft_height))).encode(), b"Y shift"
+        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.2, first_extruder.get_feed_length(self.raft_height+0.2))).encode(), b"Y shift"
         yield ("G1 X%.3f E%.4f F2000" % (-self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b"purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.3), first_extruder.get_feed_length(self.raft_height - 0.5))).encode(), b"Y shift"
+        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.3), first_extruder.get_feed_length(self.raft_height-0.3))).encode(), b"Y shift"
 
         yield b"G1 X0.2 Y-0.4 F2000", None
 
+        raft_feed = first_extruder.get_feed_length(self.raft_height) * 1.3
         for _ in range(int(self.raft_width/2)):
-            yield ("G1 X1 Y%.3f E0.65 F1000" % self.raft_height).encode(), b"raft1"
+            yield ("G1 X1 Y%.3f E%.4f F1000" % (self.raft_height, raft_feed)).encode(), b"raft1"
             yield b"G1 X1 F1000", b"raft2"
-            yield ("G1 X-1 Y-%.3f E0.65 F1000" % self.raft_height).encode(), b"raft3"
+            yield ("G1 X-1 Y%.3f E%.4f F1000" % (-self.raft_height, raft_feed)).encode(), b"raft3"
             yield b"G1 X1 F1000", b"raft4"
 
         if retract:
-            yield ("G1 E-%.2f F%.1f" % (first_extruder.retract, first_extruder.retract_speed)).encode(), b"retract"
+            yield first_extruder.get_retract_gcode(), b"retract"
         yield b"G90", b"absolute positioning"
         yield None, b"TOWER RAFT END"
         self.last_tower_z = 0.2
