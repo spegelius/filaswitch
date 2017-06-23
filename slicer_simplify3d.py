@@ -26,6 +26,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.extruder_retract_dist = []
         self.extruder_retract_speed = []
         self.extruder_zhop = []
+        self.relative_e = False
 
     def process(self, gcode_file):
         super().process(gcode_file)
@@ -68,6 +69,11 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"extruderRetractionSpeed" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_retract_speed.append(float(d))
+            elif b"relativeEdistances" in comment:
+                self.relative_e = comment.split(b",")[-1] == b"1"
+
+        if not self.relative_e:
+            raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
 
     def parse_print_settings(self):
         """ S3D specific settings """
