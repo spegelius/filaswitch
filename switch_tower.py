@@ -67,6 +67,21 @@ class SwitchTower:
         yield None, b"TOWER RAFT END"
         self.last_tower_z = 0.2
 
+    def _get_z_hop(self, layer, z_hop, z_speed, extruder):
+        """
+        Get g-code for z-hop
+        :param layer: current layer
+        :param z-hop position
+        :param z_speed: z-axis speed
+        :param extruder: current extruder
+        :return: G-code for z-hop or None
+        """
+        if extruder.z_hop:
+            new_z_hop = self.last_tower_z + extruder.z_hop
+            if new_z_hop != layer.z + z_hop:
+                return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b"z-hop"
+        return None
+
     def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed):
         """
         G-code for switch tower
@@ -79,7 +94,6 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         log.debug("Adding purge tower")
-        self.last_tower_z = self.last_tower_z + layer.height
         yield None, b"TOWER START"
 
         ## handle retraction
@@ -90,9 +104,11 @@ class SwitchTower:
         if retraction != 0.0:
             yield ("G1 E%.4f F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
 
-        if not z_hop:
-            z_hop = layer.z + old_e.z_hop
-            yield ("G1 Z%.3f F%.1f" % (z_hop, z_speed)).encode(), b"z-hop"
+        hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
+        if hop:
+            yield hop
+
+        self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_purge:
             yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.2)).encode(), b"move to purge zone"
         else:
@@ -163,6 +179,9 @@ class SwitchTower:
 
         yield b"G90", b"absolute positioning"
         yield b"G92 E0", b"reset extruder position"
+        hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
+        if hop:
+            yield hop
         yield None, b"TOWER END"
 
         self.flipflop_purge = not self.flipflop_purge
@@ -178,16 +197,17 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         log.debug("Adding purge tower infill")
-        self.last_tower_z = self.last_tower_z + layer.height
         yield None, b"TOWER INFILL START"
 
         retraction = e_pos + extruder.retract
         log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
         if retraction:
             yield ("G1 E%s F%.1f" % (retraction, extruder.retract_speed)).encode(), b"retract"
-        if not z_hop:
-            z_hop = layer.z + extruder.z_hop
-            yield ("G1 Z%.3f F%.1f" % (z_hop, z_speed)).encode(), b"z-hop"
+        hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
+        if hop:
+            yield hop
+
+        self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_infill:
             yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y)).encode(), b"move to purge zone"
         else:
@@ -235,6 +255,9 @@ class SwitchTower:
             yield b"G1 Y-1 F3000", b"wipe"
 
         yield b"G90", b"absolute positioning"
+        hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
+        if hop:
+            yield hop
         yield b"G92 E0", b"reset extruder position"
         yield None, b"TOWER INFILL END"
 
