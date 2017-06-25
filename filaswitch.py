@@ -13,8 +13,10 @@ Version 0.1
 
 import logging
 import os
-import subprocess
 import sys
+import tkinter as tk
+import tkinter.filedialog as fdialog
+from tkinter.messagebox import showerror
 
 #from slicer_cura import CuraPrintFile
 #from slicer_kisslicer import KissPrintFile
@@ -53,19 +55,75 @@ def detect_file_type(gcode_file):
         #    return Slic3rPrintFile
 
         else:
-            log.error("No supported gcode file detected. Is comments enabled on Kisslicer or '; CURA' header added to Cura start.gcode?")
+            log.error("No supported gcode file detected.")
             exit(1)
+
+
+class TopFrame(tk.Frame):
+    def __init__(self, master=None, info_frame=None):
+        super().__init__(master)
+        self.master.title("FilaSwitch")
+        self.master.rowconfigure(5, weight=1)
+        self.master.columnconfigure(5, weight=1)
+        #self.grid(sticky=tk.W + tk.E + tk.N + tk.S)
+
+        self.info_frame = info_frame
+
+        self.pack()
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.f_button = tk.Button(self)
+        self.f_button["text"] = "Select S3d g-code file for post-processing"
+        self.f_button["command"] = self.load_file
+        self.f_button.pack(side="top")
+
+        self.quit = tk.Button(self, text="QUIT", fg="red",
+                              command=top.destroy)
+        self.quit.pack(side="bottom")
+
+    def load_file(self):
+        g_file = fdialog.askopenfilename(filetypes=(("G-code files", "*.gcode"),("all files","*.*")))
+        if g_file:
+            try:
+                print_type = detect_file_type(g_file)
+                pf = print_type(debug=debug)
+                result_file = pf.process(g_file)
+                if self.info_frame:
+                    self.info_frame.update_status("New file saved: %s" % result_file)
+            except:
+                showerror("File open error", "Cannot open file %s" % g_file)
+            return
+
+
+class BottomFrame(tk.Frame):
+
+    def __init__(self, master=None):
+        super().__init__(master)
+        self.pack(side=tk.BOTTOM)
+        self.create_widgets()
+
+    def create_widgets(self):
+        self.status = tk.Text(self)
+        self.status.pack(side="top")
+        self.update_status("Idling...")
+
+    def update_status(self, text):
+        self.status.insert(tk.END, text + os.linesep)
 
 if __name__ == "__main__":
     debug = False
     if len(sys.argv) < 2:
-        log.error("Need argument for file to process")
-        exit(1)
-    #g_file = '/media/Roinaa/3DModels/_dev/3DBenchy_dc.gcode'
-    g_file = sys.argv[1]
-    if len(sys.argv) == 3 and sys.argv[2] == "--debug":
-        debug = True
+        # GUI mode
+        top = tk.Tk()
+        info = BottomFrame(master=top)
+        app = TopFrame(master=top, info_frame=info)
+        top.mainloop()
+    else:
+        g_file = sys.argv[1]
+        if len(sys.argv) == 3 and sys.argv[2] == "--debug":
+            debug = True
 
-    print_type = detect_file_type(g_file)
-    pf = print_type(debug=debug)
-    result_file = pf.process(g_file)
+        print_type = detect_file_type(g_file)
+        pf = print_type(debug=debug)
+        result_file = pf.process(g_file)
