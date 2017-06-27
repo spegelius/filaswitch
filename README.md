@@ -6,7 +6,9 @@ Disclaimer: i'm not responsible if anything bad happens due to use of this scrip
 
 Prerequisites
 -------------
-* Python 3.5 to run this script
+* Python 3.5 to run this script.
+    * In Windows, make sure python is added to %PATH%
+    * In Linux, python3.5 should be available (Ubuntu). You do need package 'python3-tk', so use apt-get to install it
 * Simplify3D 3.1.1 (older versions not tested)
 * 3D Printer with 2 extruders - one nozzle setup
 * Printer profile in S3D configured for dual extrusion
@@ -38,8 +40,17 @@ Prerequisites
 Usage:
 --------------------
 
-Post processing:
-* after slicing your dual-color model, run the script:
-* python filaswitch.py yourgcodefile.gcode
+First slice your dual-color model in Simplify3D
 
-Result is anew file, with _fs.gcode ending. You're ready to print :).
+###Post processing (GUI):
+* Open the GUI, in Windows use filaswitch.bat, in Linux use shell (python3 filaswitch.py)
+* Click the 'Select g-code file...' button
+* Browse and select the file
+* Check info screen
+* Done
+
+###Post processing (cli):
+* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux)
+* python filaswitch.py \path\to\yourgcodefile.gcode
+
+Result is a new file, with _fs.gcode ending. You're ready to print :).
