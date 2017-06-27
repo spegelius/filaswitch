@@ -1,17 +1,9 @@
-
-import logging
-import math
 import os
-import re
-import statistics
-
-import utils
 
 from gcode import GCode
 from layer import Layer, FirstLayer
 from switch_tower import SwitchTower
 
-log = logging.getLogger("filaswitch")
 
 gcode = GCode()
 
@@ -24,12 +16,13 @@ SLICER_SLIC3R = "Slic3r"
 class GCodeFile:
     slicer_type = None
 
-    def __init__(self, debug=False):
-        self.debug = debug
-        if debug:
-            log.setLevel(logging.DEBUG)
-        else:
-            log.setLevel(logging.INFO)
+    def __init__(self, logger):
+        """
+        G-code file base class. Not to be used directly
+        :param logger: Logger object
+        """
+
+        self.log = logger
         self.settings = {}
         self.gcode_file = None
         self.material = None
@@ -74,7 +67,7 @@ class GCodeFile:
         try:
             gf = open(gcode_file, 'rb')
         except Exception as e:
-            log.error("Cannot open file %s" % gcode_file)
+            self.log.error("Cannot open file %s" % gcode_file)
             return 1
 
         # remove extra EOL and empty lines
@@ -97,17 +90,16 @@ class GCodeFile:
         :return: new file path
         """
         #self.remove_comments()
-        _dir, fname = os.path.split(self.gcode_file)
-        name, ext = os.path.splitext(fname)
-        newfile = os.path.join(_dir,  name + "_fs" + ext)
+        _dir, f_name = os.path.split(self.gcode_file)
+        name, ext = os.path.splitext(f_name)
+        new_file = os.path.join(_dir,  name + "_fs" + ext)
         try:
-            with open(newfile, "wb") as nf:
+            with open(new_file, "wb") as nf:
                 result = b"\r\n".join(self.read_all_lines())
                 nf.write(result)
-                log.info("Wrote new file: %s" % newfile)
-                return newfile
+                return new_file
         except Exception as e:
-            log.error("Could not save file, error: %s" % e)
+            self.log.error("Could not save file, error: %s" % e)
             return 1
 
     def calculate_extrusion_length(self, prev_position, new_position):
@@ -157,9 +149,9 @@ class GCodeFile:
         x_min = min(x)
         y_min = min(y)
 
-        log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
+        self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
 
-        self.switch_tower = SwitchTower(x_min, y_max+5, debug=self.debug)
+        self.switch_tower = SwitchTower(x_min, y_max+5, self.log)
         # TODO: check against bed dimensions
 
     def add_switch_raft(self):

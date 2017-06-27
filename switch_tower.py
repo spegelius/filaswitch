@@ -1,18 +1,19 @@
-import logging
 from gcode import GCode
 
+
 gcode = GCode()
-log = logging.getLogger("switch_tower")
 
 
 class SwitchTower:
 
-    def __init__(self, start_pos_x, start_pos_y, debug=False):
-        self.debug = debug
-        if debug:
-            log.setLevel(logging.DEBUG)
-        else:
-            log.setLevel(logging.INFO)
+    def __init__(self, start_pos_x, start_pos_y, logger):
+        """
+        Filament switc tower functionality
+        :param start_pos_x: start position x coordinate
+        :param start_pos_y: start position y coordinate
+        :param logger: Logger object
+        """
+        self.log = logger
         self.width = 50
         self.height = 14 # use even values
         self.raft_width = self.width + 4
@@ -93,14 +94,14 @@ class SwitchTower:
         :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
-        log.debug("Adding purge tower")
+        self.log.debug("Adding purge tower")
         yield None, b"TOWER START"
 
         ## handle retraction
         retraction = -old_e.retract - e_pos
         if retraction > 0:
             retraction = 0
-        log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
+        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
         if retraction != 0.0:
             yield ("G1 E%.4f F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
 
@@ -196,11 +197,11 @@ class SwitchTower:
         :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
-        log.debug("Adding purge tower infill")
+        self.log.debug("Adding purge tower infill")
         yield None, b"TOWER INFILL START"
 
         retraction = e_pos + extruder.retract
-        log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
+        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
         if retraction:
             yield ("G1 E%s F%.1f" % (retraction, extruder.retract_speed)).encode(), b"retract"
         hop = self._get_z_hop(layer, z_hop, z_speed, extruder)

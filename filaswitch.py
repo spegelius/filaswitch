@@ -10,8 +10,6 @@ Disclaimer: i'm not responsible if anything, good or bad, happens due to use of 
 Version 0.1
 """
 
-
-import logging
 import os
 import sys
 import tkinter as tk
@@ -23,19 +21,11 @@ from tkinter.messagebox import showerror
 from slicer_simplify3d import Simplify3dGCodeFile
 #from slicer_slic3r import Slic3rPrintFile
 
+from logger import Logger
+
 import utils
 
 dir = os.path.dirname(os.path.realpath(__file__))
-
-fmt = logging.Formatter(fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
-filehandler = logging.FileHandler(os.path.join(dir, "filaswitch.log"))
-filehandler.setFormatter(fmt)
-streamhandler = logging.StreamHandler(stream=sys.stdout)
-streamhandler.setFormatter(fmt)
-log = logging.getLogger("filaswitch")
-log.setLevel(logging.INFO)
-log.addHandler(filehandler)
-log.addHandler(streamhandler)
 
 
 def detect_file_type(gcode_file):
@@ -60,8 +50,9 @@ def detect_file_type(gcode_file):
 
 
 class TopFrame(tk.Frame):
-    def __init__(self, master=None, info_frame=None):
+    def __init__(self, logger, master=None, info_frame=None):
         super().__init__(master)
+        self.log = logger
         self.master.title("FilaSwitch")
         self.master.rowconfigure(5, weight=1)
         self.master.columnconfigure(5, weight=1)
@@ -73,24 +64,24 @@ class TopFrame(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        self.f_button = tk.Button(self)
-        self.f_button["text"] = "Select S3d g-code file for post-processing"
+        self.f_button = tk.Button(self,padx=10, pady=10)
+        self.f_button["text"] = "Select g-code file..."
         self.f_button["command"] = self.load_file
-        self.f_button.pack(side="top")
+        self.f_button.pack(side="top", pady=5)
 
         self.quit = tk.Button(self, text="QUIT", fg="red",
                               command=top.destroy)
-        self.quit.pack(side="bottom")
+        self.quit.pack(side="bottom", pady=5)
 
     def load_file(self):
         g_file = fdialog.askopenfilename(filetypes=(("G-code files", "*.gcode"),("all files","*.*")))
         if g_file:
             try:
                 print_type = detect_file_type(g_file)
-                pf = print_type(debug=debug)
+                pf = print_type(self.log)
                 result_file = pf.process(g_file)
                 if self.info_frame:
-                    self.info_frame.update_status("New file saved: %s" % result_file)
+                    self.log.info("New file saved: %s" % result_file)
             except:
                 showerror("File open error", "Cannot open file %s" % g_file)
             return
@@ -104,8 +95,8 @@ class BottomFrame(tk.Frame):
         self.create_widgets()
 
     def create_widgets(self):
-        self.status = tk.Text(self)
-        self.status.pack(side="top")
+        self.status = tk.Text(self, height=10, width=90)
+        self.status.pack(side="bottom")
         self.update_status("Idling...")
 
     def update_status(self, text):
@@ -116,14 +107,17 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         # GUI mode
         top = tk.Tk()
+        #top.geometry("300x300+30+30")
         info = BottomFrame(master=top)
-        app = TopFrame(master=top, info_frame=info)
+        log = Logger(dir, gui=info)
+        app = TopFrame(log, master=top, info_frame=info)
         top.mainloop()
     else:
         g_file = sys.argv[1]
         if len(sys.argv) == 3 and sys.argv[2] == "--debug":
             debug = True
 
+        log = Logger(dir, gui=False, debug=debug)
         print_type = detect_file_type(g_file)
-        pf = print_type(debug=debug)
+        pf = print_type(log)
         result_file = pf.process(g_file)
