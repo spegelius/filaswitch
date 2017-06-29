@@ -195,6 +195,7 @@ class GCodeFile:
 
         for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
             index = 0
+            #print("layer", layer.num, e_pos)
             while True:
                 try:
                     # add infill if not a tool change layer
@@ -236,6 +237,7 @@ class GCodeFile:
                                           *active_e.get_prime_gcode(change=prime_change_len))
                             index += 1
                             prime_needed = False
+                            e_pos = 0
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                 except IndexError:

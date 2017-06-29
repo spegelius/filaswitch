@@ -83,6 +83,20 @@ class SwitchTower:
                 return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b"z-hop"
         return None
 
+    def _get_retraction(self, e_pos, extruder):
+        """
+        Get g-code for retraction. Calculate needed retraction length from current e position
+        :param e_pos: extruder position
+        :param extruder: extruder object
+        :return: retraction g-code
+        """
+        retraction = extruder.retract + e_pos
+        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
+        if retraction > 0.00001:
+            if retraction > extruder.retract:
+                retraction = extruder.retract
+            return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b"tower retract"
+
     def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed):
         """
         G-code for switch tower
@@ -98,13 +112,11 @@ class SwitchTower:
         yield None, b"TOWER START"
 
         ## handle retraction
-        retraction = -old_e.retract - e_pos
-        if retraction > 0:
-            retraction = 0
-        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
-        if retraction != 0.0:
-            yield ("G1 E%.4f F%.1f" % (retraction, old_e.retract_speed)).encode(), b"retract"
+        retraction = self._get_retraction(e_pos, old_e)
+        if retraction:
+            yield retraction
 
+        ## handle z-hop
         hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
         if hop:
             yield hop
@@ -116,7 +128,7 @@ class SwitchTower:
             yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.6, self.start_pos_y)).encode(), b"move to purge zone"
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
         yield b"G91", b"relative positioning"
-        yield old_e.get_prime_gcode(change=-0.5)
+        yield old_e.get_prime_gcode(change=-0.1)
 
         ## prepurge
         if self.flipflop_purge:
@@ -200,10 +212,12 @@ class SwitchTower:
         self.log.debug("Adding purge tower infill")
         yield None, b"TOWER INFILL START"
 
-        retraction = e_pos + extruder.retract
-        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
+        ## handle retraction
+        retraction = self._get_retraction(e_pos, extruder)
         if retraction:
-            yield ("G1 E%s F%.1f" % (retraction, extruder.retract_speed)).encode(), b"retract"
+            yield retraction
+
+        ## handle z-hop
         hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
         if hop:
             yield hop
