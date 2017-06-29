@@ -2,8 +2,54 @@ import os
 
 
 def is_windows():
-    """ Check if OS is Windows"""
+    """
+    Check if OS is Windows
+    """
     win = ['nt']
     if os.name in win:
         return True
     return False
+
+
+def load_status(status_file):
+    """
+    Load status data from file
+    :param status_file: file path
+    :return:
+    """
+    try:
+        status = {}
+        with open(status_file, 'r') as sf:
+            for line in sf.readlines():
+                line.strip()
+                if line:
+                    vals = line.split(":")
+                    status[vals[0]] = vals[1]
+    except FileNotFoundError:
+        return {}
+    except:
+        raise IOError("Cannot open file %s" %status_file)
+    return status
+
+
+def save_status_file(status_file: str, status: dict):
+    """
+    Write status data to file
+    :param status_file: file path
+    :param status: status dict
+    :return: none
+    """
+    try:
+        if os.path.exists(status_file):
+            os.remove(status_file)
+
+        with open(status_file, 'w') as sf:
+            sf.writelines(["%s:%s" %(key, val) for key, val in status.items()])
+    except Exception as e:
+        print(e)
+        raise
+
+
+if __name__ == "__main__":
+    save_status_file(".teststatus", {"data1": "dtaa"})
+    print(load_status(".teststatus"))
