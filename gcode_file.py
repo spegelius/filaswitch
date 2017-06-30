@@ -16,10 +16,11 @@ SLICER_SLIC3R = "Slic3r"
 class GCodeFile:
     slicer_type = None
 
-    def __init__(self, logger):
+    def __init__(self, logger, hw_config):
         """
         G-code file base class. Not to be used directly
         :param logger: Logger object
+        :param config: system configuration (PEEK, PTFE, E3Dv6)
         """
 
         self.log = logger
@@ -35,6 +36,9 @@ class GCodeFile:
         self.layer_height = None
 
         self.last_switch_height = None
+
+        self.hw_config = hw_config
+        self.log.info("HW config: %s" % self.hw_config)
 
     def parse_header(self):
         """
@@ -150,8 +154,9 @@ class GCodeFile:
         y_min = min(y)
 
         self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
+        self.log.info("Tower lower left coordinate: X%.3f, Y%.3f (autodetect)" %(x_min, y_max+5))
 
-        self.switch_tower = SwitchTower(x_min, y_max+5, self.log)
+        self.switch_tower = SwitchTower(x_min, y_max+5, self.log, self.hw_config)
         # TODO: check against bed dimensions
 
     def add_switch_raft(self):

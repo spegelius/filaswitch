@@ -3,19 +3,33 @@ from gcode import GCode
 
 gcode = GCode()
 
+# hw configs
+PEEK = "PEEK"
+PTFE = "PTFE"
+E3DV6 = "E3DV6"
+
+HW_CONFIGS = [PTFE, E3DV6, PEEK]
 
 class SwitchTower:
 
-    def __init__(self, start_pos_x, start_pos_y, logger):
+    def __init__(self, start_pos_x, start_pos_y, logger, hw_config):
         """
         Filament switc tower functionality
         :param start_pos_x: start position x coordinate
         :param start_pos_y: start position y coordinate
         :param logger: Logger object
+        :param config: system configuration (PEEK, PTFE, E3Dv6)
         """
+
         self.log = logger
+
         self.width = 50
         self.height = 14 # use even values
+
+        self.hw_config = hw_config
+        if self.hw_config == E3DV6:
+            self.height += 1
+
         self.raft_width = self.width + 4
         self.raft_height = self.height + 2
         self.angle = 0
@@ -28,8 +42,150 @@ class SwitchTower:
         self.flipflop_purge = False
         self.flipflop_infill = False
 
-        self.prepurge_feed_rate = lambda x: x*(4.5/50)
-        self.prepurge_feed_length = self.prepurge_feed_rate(self.width)
+        # is prepurge position positive or negative
+        self.prepurge_sign = 1
+
+        self.pre_switch_lines = {}
+        self.post_switch_lines = []
+
+        self.init_pre_switch_gcode()
+        self.init_post_switch_gcode()
+
+
+    def init_pre_switch_gcode(self):
+        # TODO: read from file
+        self.pre_switch_lines[True] = []
+        self.pre_switch_lines[False] = []
+
+        if self.hw_config == PEEK:
+            # flip
+
+            prepurge_feed_rate = lambda x: x * (4.5 / 50)
+            prepurge_feed_length = prepurge_feed_rate(self.width)
+
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"))
+            self.pre_switch_lines[True].append((b"G1 E-15 F1500", b"25mm/s reshaping"))
+            self.pre_switch_lines[True].append((b"G4 P2000", b"2s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-95 F1500", b"25mm/s long retract"))
+
+            # flop
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"))
+            self.pre_switch_lines[False].append((b"G1 E-15 F1500", b"25mm/s reshaping"))
+            self.pre_switch_lines[False].append((b"G4 P2000", b"2s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-95 F1500", b"25mm/s long retract"))
+
+        elif self.hw_config == PTFE:
+
+            prepurge_feed_rate = lambda x: x * (4.5 / 50)
+            prepurge_feed_length = prepurge_feed_rate(self.width)
+
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+
+            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b"rapid retract"))
+            self.pre_switch_lines[True].append((b"G4 P2500", b"2.5s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+
+            # flop
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+
+            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b"rapid retract"))
+            self.pre_switch_lines[False].append((b"G4 P2500", b"2.5s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+
+        elif self.hw_config == E3DV6:
+
+            prepurge_feed_rate = lambda x: x * (4.5 / 50)
+            prepurge_feed_length = prepurge_feed_rate(self.width)
+
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+
+            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b"rapid retract"))
+            self.pre_switch_lines[True].append((b"G4 P2500", b"2.5s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+
+            # flop
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+
+            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b"rapid retract"))
+            self.pre_switch_lines[False].append((b"G4 P2500", b"2.5s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+
+    def init_post_switch_gcode(self):
+        # TODO: read from file
+        if self.hw_config == PEEK:
+            primetrail_feed_rate = lambda x: x * (1.6 / 40)
+            primetrail_length = primetrail_feed_rate(self.width)
+
+            self.post_switch_lines.append((b"G1 E125 F1500", b"25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F1500" % (self.width - 10, primetrail_length)).encode(), b"prime trail"))
+            self.prepurge_sign = 1
+        elif self.hw_config == PTFE:
+            primetrail_feed_rate = lambda x: x * (5 / 50)
+            primetrail_length = primetrail_feed_rate(self.width)
+
+            self.post_switch_lines.append((b"G1 E100 F3000", b"50mm/s feed"))
+            self.post_switch_lines.append((b"G1 E54 F1500", b"25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (self.width, primetrail_length)).encode(), b"prime trail"))
+            self.prepurge_sign = 1
+
+        elif self.hw_config == E3DV6:
+            primetrail_feed_rate = lambda x: x * (5 / 50)
+            primetrail_length = primetrail_feed_rate(self.width)
+
+            self.post_switch_lines.append((b"G1 E100 F3000", b"50mm/s feed"))
+            self.post_switch_lines.append((b"G1 E54 F1500", b"25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (-self.width, primetrail_length)).encode(), b"prime trail"))
+            self.prepurge_sign = -1
 
     def get_raft_lines(self, first_extruder, retract):
         """
@@ -130,43 +286,22 @@ class SwitchTower:
         yield b"G91", b"relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
-        ## prepurge
-        if self.flipflop_purge:
-            yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y0.9 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1.4 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y0.6 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1.4 F3000", b"Y shift"
-
-        else:
-            yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1.4 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y0.6 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y1.4 F3000", b"Y shift"
-            yield ("G1 X%.3f E%.4f F6000" % (-self.width, self.prepurge_feed_length)).encode(), b"purge trail"
-            yield b"G1 Y0.6 F3000", b"Y shift"
-
-        ## pull filament back
-        yield ("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"
-        yield b"G1 E-15 F1500", b"25mm/s reshaping"
-        yield b"G4 P2000", b"2s cooling period"
-        yield b"G1 E-95 F1500", b"25mm/s long retract"
+        ## pre-switch purge
+        for line in self.pre_switch_lines[self.flipflop_purge]:
+            yield line
 
         yield ("T%s" % new_e.tool).encode(), b"change tool"
 
         ## feed new filament
-        yield b"G1 E125 F1500", b"25mm/s feed"
-        yield ("G1 X%.3f E%.4f F1500" % (self.width-10, new_e.get_feed_length(self.width-10))).encode(), b"prime trail"
+        for line in self.post_switch_lines:
+            yield line
 
-        ## purge
+        ## post-switch purge
         purge_line_length = self.width + 0.6
         purge_lines = int((self.height)/2)-1
-        purge_x_feed = new_e.get_feed_length(purge_line_length)*1.3
+        purge_x_feed = abs(new_e.get_feed_length(purge_line_length)*1.3)
+        # switch direction depending of prepurge orientation
+        purge_line_length *= self.prepurge_sign
         for _ in range(purge_lines):
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b"Y shift"
@@ -179,7 +314,9 @@ class SwitchTower:
                 yield b"G1 Y0.6 F3000", b"Y shift"
                 yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b"purge trail"
 
-        wipe_line_length = purge_line_length-0.4
+        # wipe line. also switch direction
+        wipe_line_length = purge_line_length - self.prepurge_sign * 0.4
+
         if self.flipflop_purge:
             yield b"G0.5 Y1 F3000", b"Y shift"
         else:

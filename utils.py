@@ -21,13 +21,15 @@ def load_status(status_file):
         status = {}
         with open(status_file, 'r') as sf:
             for line in sf.readlines():
-                line.strip()
+                line = line.strip()
+                line = line.strip("\n")
                 if line:
                     vals = line.split(":")
                     status[vals[0]] = vals[1]
     except FileNotFoundError:
         return {}
-    except:
+    except Exception as e:
+        print(e)
         raise IOError("Cannot open file %s" %status_file)
     return status
 
@@ -44,7 +46,7 @@ def save_status_file(status_file: str, status: dict):
             os.remove(status_file)
 
         with open(status_file, 'w') as sf:
-            sf.writelines(["%s:%s" %(key, val) for key, val in status.items()])
+            sf.writelines(["%s:%s\n" %(key, val) for key, val in status.items()])
     except Exception as e:
         print(e)
         raise

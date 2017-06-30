@@ -19,8 +19,8 @@ class Simplify3dGCodeFile(GCodeFile):
 
     LAYER_START_RE = re.compile(b"layer (\d+), Z = (\d+\.*\d*)")
 
-    def __init__(self, logger):
-        super().__init__(logger)
+    def __init__(self, logger, hw_config):
+        super().__init__(logger, hw_config)
         self.extruder_diameter = []
         self.extruder_use_retract = []
         self.extruder_retract_dist = []

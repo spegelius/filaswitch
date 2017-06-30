@@ -9,7 +9,7 @@ Disclaimer: i'm not responsible if anything, good or bad, happens due to use of 
 
 Version 0.1
 """
-
+import argparse
 import os
 import sys
 import tkinter as tk
@@ -22,12 +22,13 @@ from slicer_simplify3d import Simplify3dGCodeFile
 #from slicer_slic3r import Slic3rPrintFile
 
 from logger import Logger
+from switch_tower import PEEK, PTFE, E3DV6, HW_CONFIGS
 
 import utils
 
-dir = os.path.dirname(os.path.realpath(__file__))
+prog_dir = os.path.dirname(os.path.realpath(__file__))
 
-status_file = os.path.join(dir, '.status')
+status_file = os.path.join(prog_dir, '.status')
 status = utils.load_status(status_file)
 
 def detect_file_type(gcode_file, log):
@@ -61,19 +62,34 @@ class TopFrame(tk.Frame):
         #self.grid(sticky=tk.W + tk.E + tk.N + tk.S)
 
         self.info_frame = info_frame
-
-        self.pack()
+        self.grid(row=0, column=0, columnspan=5)
         self.create_widgets()
 
     def create_widgets(self):
-        self.f_button = tk.Button(self,padx=10, pady=10)
-        self.f_button["text"] = "Select g-code file..."
+
+        # labels
+        self.hwlabel = tk.Label(self, text="1. Select HW config").grid(row=0, column=0, sticky=tk.W)
+        self.gc_label = tk.Label(self, text="2. Select g-code to process").grid(row=1, column=0, sticky=tk.W)
+
+        self.var = tk.StringVar(self)
+        last_hwconfig = status.get("last_hwconfig")
+        print(last_hwconfig)
+        if last_hwconfig and last_hwconfig in HW_CONFIGS:
+            self.var.set(last_hwconfig)
+        else:
+            self.var.set(PTFE)
+
+        self.option = tk.OptionMenu(self, self.var, *HW_CONFIGS)
+        self.option.grid(row=0, column=1, sticky=tk.W)
+
+        self.f_button = tk.Button(self)
+        self.f_button["text"] = "Browse..."
         self.f_button["command"] = self.load_file
-        self.f_button.pack(side="top", pady=5)
+        self.f_button.grid(row=1, column=1, sticky=tk.W)
 
         self.quit = tk.Button(self, text="QUIT", fg="red",
                               command=self.master.destroy)
-        self.quit.pack(side="bottom", pady=5)
+        self.quit.grid(row=2, column=1, sticky=tk.W)
 
     def load_file(self):
         last_dir = status.get("last_dir")
@@ -86,13 +102,14 @@ class TopFrame(tk.Frame):
         if gcode_file:
             try:
                 print_type = detect_file_type(gcode_file, self.log)
-                pf = print_type(self.log)
+                pf = print_type(self.log, self.var.get())
                 result_file = pf.process(gcode_file)
                 if self.info_frame:
                     self.log.info("New file saved: %s" % result_file)
                 # save last used dir for later use
                 file_dir = os.path.dirname(gcode_file)
                 status["last_dir"] = file_dir
+                status["last_hwconfig"] = self.var.get()
             except Exception as e:
                 self.log.error(str(e))
                 showerror("File open error", "Cannot open file %s" % gcode_file)
@@ -103,12 +120,12 @@ class BottomFrame(tk.Frame):
 
     def __init__(self, master=None):
         super().__init__(master)
-        self.pack(side=tk.BOTTOM)
+        self.grid(row=3)
         self.create_widgets()
 
     def create_widgets(self):
         self.status = tk.Text(self, height=10, width=90)
-        self.status.pack(side="bottom")
+        self.status.grid(row=3, columnspan=2)
         self.update_status("Idling...")
 
     def update_status(self, text):
@@ -116,25 +133,29 @@ class BottomFrame(tk.Frame):
 
 
 def main():
-    debug = False
+
     if len(sys.argv) < 2:
         # GUI mode
         top = tk.Tk()
+        #top.grid_rowconfigure(0, minsize=50)
+        #top.grid_rowconfigure(1, minsize=50)
         # top.geometry("300x300+30+30")
         info = BottomFrame(master=top)
-        log = Logger(dir, gui=info)
+        log = Logger(prog_dir, gui=info)
         app = TopFrame(log, master=top, info_frame=info)
         top.mainloop()
         utils.save_status_file(status_file, status)
     else:
-        g_file = sys.argv[1]
-        if len(sys.argv) == 3 and sys.argv[2] == "--debug":
-            debug = True
+        parser = argparse.ArgumentParser()
+        parser.add_argument("file", help="Path to g-code file to process")
+        parser.add_argument("hw_config", help="Extruder configuration: PEEK, PTFE or E3Dv6", choices=[PEEK,PTFE,E3DV6])
+        parser.add_argument("--debug", help="Show debug prints", action="store_true")
+        args = parser.parse_args()
 
-        log = Logger(dir, gui=False, debug=debug)
-        print_type = detect_file_type(g_file, log)
-        pf = print_type(log)
-        result_file = pf.process(g_file)
+        log = Logger(prog_dir, gui=False, debug=args.debug)
+        print_type = detect_file_type(args.file, log)
+        pf = print_type(log, args.hw_config)
+        result_file = pf.process(args.file)
         log.info("New file saved: %s" % result_file)
 
 
