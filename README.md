@@ -24,7 +24,9 @@ Prerequisites
 * Starting Script: Enclose your starting script with:
 > ; START SCRIPT START
 ##### Advanced-tab
-* Set Tool Change Retraction distance to 0.0
+* Set Tool Change Retraction distance to 0.0 or make sure it is not more than your normal retraction
+    * also check retraction speed to match the normal retraction speed
+* Disable 'Perform retraction during wipe movement'
 
 > [you start g-code lines here...]
 
@@ -44,13 +46,13 @@ First slice your dual-color model in Simplify3D
 
 ###Post processing (GUI):
 * Open the GUI, in Windows use filaswitch.bat, in Linux use shell (python3 filaswitch.py)
-* Click the 'Select g-code file...' button
-* Browse and select the file
+* Select your HW configuration; PTFE, E3DV6 or PEEK
+* Click the 'Browse...'to select the g-code file
 * Check info screen
 * Done
 
 ###Post processing (cli):
-* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux)
-* python filaswitch.py \path\to\yourgcodefile.gcode
+* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux) PTFE|E3DV6|PEEK
+* python filaswitch.py \path\to\yourgcodefile.gcode PTFE|E3DV6|PEEK
 
 Result is a new file, with _fs.gcode ending. You're ready to print :).
