@@ -139,6 +139,15 @@ class GCode:
             self.last_match = float(m.groups()[0]), float(m.groups()[1]), float(m.groups()[2])
         return self.last_match
 
+    def generate_head_move_gcode(self, x, y, speed):
+        """
+        Generate g-code line for head move
+        :param x: x coordinate
+        :param y: y coordinate
+        :param speed: movement speed
+        :return: byte string
+        """
+        return ("G1 X%.3f Y%.3f F%d" % (x, y, speed)).encode()
 
 if __name__ == "__main__":
     obj = GCode()

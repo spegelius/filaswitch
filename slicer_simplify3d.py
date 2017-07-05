@@ -1,7 +1,7 @@
 import logging
 import re
 from extruder import Extruder
-
+from switch_tower import PEEK
 from gcode import GCode
 
 
@@ -18,6 +18,7 @@ class Simplify3dGCodeFile(GCodeFile):
     slicer_type = SLICER_SIMPLIFY3D
 
     LAYER_START_RE = re.compile(b"layer (\d+), Z = (\d+\.*\d*)")
+    VERSION_RE = re.compile(b".*Version (\d)\.(\d)\.(\d)")
 
     def __init__(self, logger, hw_config):
         super().__init__(logger, hw_config)
@@ -27,9 +28,12 @@ class Simplify3dGCodeFile(GCodeFile):
         self.extruder_retract_speed = []
         self.extruder_zhop = []
         self.relative_e = False
+        self.retract_while_wiping = False
+        self.version = None
 
     def process(self, gcode_file):
         super().process(gcode_file)
+        self.fix_retract_during_wipe()
         return self.save_new_file()
 
     def get_extruders(self):
@@ -44,12 +48,22 @@ class Simplify3dGCodeFile(GCodeFile):
                                          self.extruder_zhop[i])
 
     def parse_header(self):
-        """ Parse S3D header for print settings """
+        """
+         Parse S3D header for print settings
+        :return: none
+        """
 
-        for cmd, comment, line_index in self.layers[0].lines:
+        for cmd, comment in self.layers[0].lines:
 
             if not comment:
                 pass
+            elif b"Simplify3D(R)" in comment:
+                # parse version
+                try:
+                    m = self.VERSION_RE.match(comment)
+                    self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
+                except Exception as e:
+                    print(e)
             elif b"printMaterial" in comment:
                 self.material = comment.split(b",")[-1]
             elif b"extruderDiameter" in comment:
@@ -71,20 +85,27 @@ class Simplify3dGCodeFile(GCodeFile):
                     self.extruder_retract_speed.append(float(d))
             elif b"relativeEdistances" in comment:
                 self.relative_e = comment.split(b",")[-1] == b"1"
+            elif b"retractWhileWiping" in comment:
+                self.retract_while_wiping = comment.split(b",")[-1] == b"1"
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
+        if not self.version:
+            self.log.warning("Could not detect Simplify3D version. Use at your own risk")
+        else:
+            self.log.info("Simplify3D version %d.%d.%d" % self.version)
 
     def parse_print_settings(self):
         """ S3D specific settings """
 
         super().parse_print_settings()
 
-        for cmd, comment, line_index in self.layers[0].lines:
+        for cmd, comment, line_index in self.layers[0].read_lines():
             # find first tool change and remove it if it's T0. No need to
             # do tool change as e already have T0 active
             if cmd and gcode.is_tool_change(cmd) == 0:
                 self.layers[0].delete_line(line_index)
+                break
 
     def check_layer_change(self, line, current_layer):
         """
@@ -161,7 +182,60 @@ class Simplify3dGCodeFile(GCodeFile):
         layers = sorted(layers, key=lambda x: x[0].num)
         return layers
 
+    def fix_retract_during_wipe(self):
+        """
+        Fix S3D 3.1.1 bug where option "Retract during wipe" causes over-extrusion
+        :return: none
+        """
+        if not self.retract_while_wiping:
+            # not needed
+            return
+        if not self.version == (3,1,1):
+            self.log.warning("Not applying fix for 'Retract during wipe'; S3D version not 3.1.1")
+            return
+
+        self.log.info("Fixing S3D 3.1.1 bug with 'Retract during wipe'-feature")
+        for layer in self.layers:
+
+            wipe_on = False
+            wipe_indexes = []
+            wipe_speed = 0
+            wipe_length = 0.0
+
+            extruder = self.extruders[0]
+
+            for cmd, comment, index in layer.read_lines():
+                if not cmd:
+                    continue
+                if gcode.is_extrusion_speed_move(cmd):
+                    # detect retract/wipe
+                    if gcode.last_match[2] < 0:
+                        wipe_on = True
+                        wipe_speed = gcode.last_match[3]
+                        wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
+                        wipe_length += gcode.last_match[2]
+                elif gcode.is_extrusion_move(cmd) and wipe_on:
+                    wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
+                    wipe_length += gcode.last_match[2]
+                elif gcode.is_head_move(cmd) and wipe_on:
+                    # retract/wipe ended
+                    wipe_on = False
+                elif gcode.is_extruder_move(cmd) and wipe_indexes:
+                    # check if prime move
+                    if gcode.last_match[0] > 0 and abs(extruder.retract - gcode.last_match[0]) < 0.001:
+                        # replace retract/wipes with wipes and add full retract
+                        for index, x, y, speed in wipe_indexes:
+                            layer.replace_line(index, gcode.generate_head_move_gcode(x,y,speed), b"fixed wipe")
+                        first_wipe = wipe_indexes[0][0]
+                        layer.insert_line(first_wipe, *extruder.get_retract_gcode())
+                        wipe_indexes = []
+                        wipe_on = False
+                        wipe_length = 0
+                elif gcode.is_tool_change(cmd) is not None:
+                    # tool change, set active extruder
+                    extruder = self.extruders[gcode.last_match]
+
 
 if __name__ == "__main__":
-    s = Simplify3dGCodeFile(True)
+    s = Simplify3dGCodeFile(True, PEEK)
     print(s.check_layer_change(b"; layer 1, Z = 1", None))

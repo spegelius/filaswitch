@@ -13,34 +13,51 @@ class Layer:
 
         self.line_index = 0
 
-    def add_line(self, cmd, comment, line_index):
+    def add_line(self, cmd, comment):
         """
         Adds lines to line list
         :param cmd: g-code command
         :param comment: comment
         :return:
         """
-        self.lines.append((cmd, comment, line_index))
+        self.lines.append((cmd, comment))
 
     def is_empty_layer(self):
         """
         Check if layer is empty, i.e. no commands
         :return: true or false
         """
-        for cmd, _, _ in self.lines:
+        for cmd, _ in self.lines:
             if cmd:
                 return False
         return True
 
     def insert_line(self, index, cmd, comment):
-        self.lines.insert(index, (cmd, comment, index))
+        """
+        Insert line to given index position
+        :param index: index
+        :param cmd: g-code command
+        :param comment: g-code comment
+        :return: none
+        """
+        self.lines.insert(index, (cmd, comment))
+
+    def replace_line(self, index, cmd, comment):
+        """
+        Replace line in given index position
+        :param index: index
+        :param cmd: g-code command
+        :param comment: g-code comment
+        :return: none
+        """
+        self.lines[index] = (cmd, comment)
 
     def has_tool_changes(self):
         """
         Check if layer has tool changes
         :return: true or false
         """
-        for cmd, _, _ in self.lines:
+        for cmd, _ in self.lines:
             if cmd and gcode.is_tool_change(cmd) is not None:
                 return True
         return False
@@ -69,6 +86,16 @@ class Layer:
                 self.line_index += 1
             except IndexError:
                 return
+
+    def read_lines(self):
+        """
+        Read lines, return also line index
+        :return: list of line values (cmd, comment and index)
+        """
+        index = 0
+        for line in self.lines:
+            yield line[0], line[1], index
+            index += 1
 
 
 class FirstLayer(Layer):

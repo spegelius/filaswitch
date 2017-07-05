@@ -51,10 +51,10 @@ class GCodeFile:
     def parse_print_settings(self):
         """ Parse print settings """
 
-        for line in self.layers[0].lines:
+        for cmd, comment, index in self.layers[0].read_lines():
 
-            if line[1] == b"START SCRIPT END":
-                self.layers[0].start_gcode_end = line[2]
+            if comment == b"START SCRIPT END":
+                self.layers[0].start_gcode_end = index
                 break
 
         if not self.layers[0].start_gcode_end:
@@ -85,7 +85,7 @@ class GCodeFile:
         :return: list of lines
         """
         for layer in self.layers:
-            for cmd, comment, _ in layer.lines:
+            for cmd, comment in layer.lines:
                 yield gcode.format_to_string(cmd, comment)
 
     def save_new_file(self):
@@ -105,18 +105,6 @@ class GCodeFile:
         except Exception as e:
             self.log.error("Could not save file, error: %s" % e)
             return 1
-
-    def calculate_extrusion_length(self, prev_position, new_position):
-        """ Calculates extrusion length"""
-        length = abs(prev_position - new_position)
-        return length
-
-    def calculate_feed_rate(self, path_len, extrusion_length):
-        """ Calculates feed rate from path length vs. extrusion length"""
-        if not path_len or not extrusion_length:
-            return 0.005 # hat constant instead of 0 extrusion. Bug in Slic3r? TODO: check this
-        rate = 1 / (path_len / extrusion_length)
-        return rate
 
     def get_extruders(self):
         """ Implement this in slicer specific implementation"""
@@ -140,7 +128,7 @@ class GCodeFile:
         y = []
 
         for layer in self.layers:
-            for cmd, _, _ in layer.lines:
+            for cmd, _ in layer.lines:
                 if not cmd:
                     continue
                 ret = gcode.is_extrusion_move(cmd)
@@ -210,7 +198,7 @@ class GCodeFile:
                             layer.insert_line(index, cmd, comment)
                             index += 1
 
-                    cmd, comment, _ = layer.lines[index]
+                    cmd, comment = layer.lines[index]
                     if not cmd:
                         # need command
                         index += 1
@@ -258,7 +246,6 @@ class GCodeFile:
         prev_layer = None
         prev_height = 0
         current_layer = FirstLayer(1, 0.2, 0.2)
-        line_index = 0
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
             if comment:
@@ -281,9 +268,7 @@ class GCodeFile:
                         self.layers.append(current_layer)
                         prev_layer = current_layer
                         current_layer = Layer(ret[0], ret[1], height)
-                        line_index = 0
-            current_layer.add_line(cmd, comment, line_index)
-            line_index += 1
+            current_layer.add_line(cmd, comment)
 
         # last layer
         self.layers.append(current_layer)
