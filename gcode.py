@@ -52,6 +52,19 @@ class GCode:
         path_len = math.sqrt((x_len * x_len) + (y_len * y_len))
         return path_len
 
+    def calculate_feed_rate(self, path_len, extrusion_length):
+        """
+        Calculate the feed rate for given path
+        :param path_len: length of path
+        :param extrusion_length: length of extrusion
+        :return: feed rate (mm of filament/1 mm path)
+        """
+        if not path_len or not extrusion_length:
+            return 0
+        rate = 1 / (path_len / extrusion_length)
+        #rate = path_len / extrusion_length
+        return rate
+
     def is_tool_change(self, line):
         """
         Match given line against tool change regex
