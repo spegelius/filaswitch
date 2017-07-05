@@ -63,102 +63,102 @@ class SwitchTower:
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
 
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
 
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"))
-            self.pre_switch_lines[True].append((b"G1 E-15 F1500", b"25mm/s reshaping"))
-            self.pre_switch_lines[True].append((b"G4 P2000", b"2s cooling period"))
-            self.pre_switch_lines[True].append((b"G1 E-95 F1500", b"25mm/s long retract"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b" drip trail"))
+            self.pre_switch_lines[True].append((b"G1 E-15 F1500", b" 25mm/s reshaping"))
+            self.pre_switch_lines[True].append((b"G4 P2000", b" 2s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-95 F1500", b" 25mm/s long retract"))
 
             # flop
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
 
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b"drip trail"))
-            self.pre_switch_lines[False].append((b"G1 E-15 F1500", b"25mm/s reshaping"))
-            self.pre_switch_lines[False].append((b"G4 P2000", b"2s cooling period"))
-            self.pre_switch_lines[False].append((b"G1 E-95 F1500", b"25mm/s long retract"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F1500" % (10, -20)).encode(), b" drip trail"))
+            self.pre_switch_lines[False].append((b"G1 E-15 F1500", b" 25mm/s reshaping"))
+            self.pre_switch_lines[False].append((b"G4 P2000", b" 2s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-95 F1500", b" 25mm/s long retract"))
 
         elif self.hw_config == PTFE:
 
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
 
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
 
-            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b"rapid retract"))
-            self.pre_switch_lines[True].append((b"G4 P2500", b"2.5s cooling period"))
-            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b" rapid retract"))
+            self.pre_switch_lines[True].append((b"G4 P2500", b" 2.5s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b" 50mm/s long retract"))
 
             # flop
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
 
-            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b"rapid retract"))
-            self.pre_switch_lines[False].append((b"G4 P2500", b"2.5s cooling period"))
-            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b" rapid retract"))
+            self.pre_switch_lines[False].append((b"G4 P2500", b" 2.5s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b" 50mm/s long retract"))
 
         elif self.hw_config == E3DV6:
 
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
 
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b"Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.9 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
 
-            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b"rapid retract"))
-            self.pre_switch_lines[True].append((b"G4 P2500", b"2.5s cooling period"))
-            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+            self.pre_switch_lines[True].append((b"G1 E-20 F3000", b" rapid retract"))
+            self.pre_switch_lines[True].append((b"G4 P2500", b" 2.5s cooling period"))
+            self.pre_switch_lines[True].append((b"G1 E-140 F3000", b" 50mm/s long retract"))
 
             # flop
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
-            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b"purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b"Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
+            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
 
-            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b"rapid retract"))
-            self.pre_switch_lines[False].append((b"G4 P2500", b"2.5s cooling period"))
-            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b"50mm/s long retract"))
+            self.pre_switch_lines[False].append((b"G1 E-20 F3000", b" rapid retract"))
+            self.pre_switch_lines[False].append((b"G4 P2500", b" 2.5s cooling period"))
+            self.pre_switch_lines[False].append((b"G1 E-140 F3000", b" 50mm/s long retract"))
 
     def init_post_switch_gcode(self):
         # TODO: read from file
@@ -166,25 +166,25 @@ class SwitchTower:
             primetrail_feed_rate = lambda x: x * (1.6 / 40)
             primetrail_length = primetrail_feed_rate(self.width)
 
-            self.post_switch_lines.append((b"G1 E125 F1500", b"25mm/s feed"))
-            self.post_switch_lines.append((("G1 X%.3f E%.4f F1500" % (self.width - 10, primetrail_length)).encode(), b"prime trail"))
+            self.post_switch_lines.append((b"G1 E125 F1500", b" 25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F1500" % (self.width - 10, primetrail_length)).encode(), b" prime trail"))
             self.prepurge_sign = 1
         elif self.hw_config == PTFE:
             primetrail_feed_rate = lambda x: x * (5 / 50)
             primetrail_length = primetrail_feed_rate(self.width)
 
-            self.post_switch_lines.append((b"G1 E100 F3000", b"50mm/s feed"))
-            self.post_switch_lines.append((b"G1 E54 F1500", b"25mm/s feed"))
-            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (self.width, primetrail_length)).encode(), b"prime trail"))
+            self.post_switch_lines.append((b"G1 E100 F3000", b" 50mm/s feed"))
+            self.post_switch_lines.append((b"G1 E54 F1500", b" 25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (self.width, primetrail_length)).encode(), b" prime trail"))
             self.prepurge_sign = 1
 
         elif self.hw_config == E3DV6:
             primetrail_feed_rate = lambda x: x * (5 / 50)
             primetrail_length = primetrail_feed_rate(self.width)
 
-            self.post_switch_lines.append((b"G1 E100 F3000", b"50mm/s feed"))
-            self.post_switch_lines.append((b"G1 E54 F1500", b"25mm/s feed"))
-            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (-self.width, primetrail_length)).encode(), b"prime trail"))
+            self.post_switch_lines.append((b"G1 E100 F3000", b" 50mm/s feed"))
+            self.post_switch_lines.append((b"G1 E54 F1500", b" 25mm/s feed"))
+            self.post_switch_lines.append((("G1 X%.3f E%.4f F900" % (-self.width, primetrail_length)).encode(), b" prime trail"))
             self.prepurge_sign = -1
 
     def get_raft_lines(self, first_extruder, retract):
@@ -194,34 +194,33 @@ class SwitchTower:
         :param retract: to retract or not
         :return: list of cmd, comment tuples
         """
-        yield None, b"TOWER RAFT START"
+        yield None, b" TOWER RAFT START"
         if first_extruder.z_hop:
             z_hop = 0.2 + first_extruder.z_hop
-            yield ("G1 Z%.3f F2000" % z_hop).encode(), b"z-hop"
-        yield ("G1 X%.3f Y%.3f F9000" % (self.raft_pos_x, self.raft_pos_y)).encode(), b"move to purge zone"
-        yield b"G1 Z0.2 F1500", b"move z close"
-        yield b"G91", b"relative positioning"
+            yield ("G1 Z%.3f F2000" % z_hop).encode(), b" z-hop"
+        yield ("G1 X%.3f Y%.3f F9000" % (self.raft_pos_x, self.raft_pos_y)).encode(), b" move to purge zone"
+        yield b"G1 Z0.2 F1500", b" move z close"
+        yield b"G91", b" relative positioning"
 
         # box
-
-        yield ("G1 X%.3f E%.4f F2000" % (self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b"purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.2, first_extruder.get_feed_length(self.raft_height+0.2))).encode(), b"Y shift"
-        yield ("G1 X%.3f E%.4f F2000" % (-self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b"purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.3), first_extruder.get_feed_length(self.raft_height-0.3))).encode(), b"Y shift"
+        yield ("G1 X%.3f E%.4f F2000" % (self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b" purge wall"
+        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.2, first_extruder.get_feed_length(self.raft_height+0.2))).encode(), b" Y shift"
+        yield ("G1 X%.3f E%.4f F2000" % (-self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b" purge wall"
+        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.3), first_extruder.get_feed_length(self.raft_height-0.3))).encode(), b" Y shift"
 
         yield b"G1 X0.2 Y-0.4 F2000", None
 
         raft_feed = first_extruder.get_feed_length(self.raft_height) * 1.3
         for _ in range(int(self.raft_width/2)):
-            yield ("G1 X1 Y%.3f E%.4f F1000" % (self.raft_height, raft_feed)).encode(), b"raft1"
-            yield b"G1 X1 F1000", b"raft2"
-            yield ("G1 X-1 Y%.3f E%.4f F1000" % (-self.raft_height, raft_feed)).encode(), b"raft3"
-            yield b"G1 X1 F1000", b"raft4"
+            yield ("G1 X1 Y%.3f E%.4f F1000" % (self.raft_height, raft_feed)).encode(), b" raft1"
+            yield b"G1 X1 F1000", b" raft2"
+            yield ("G1 X-1 Y%.3f E%.4f F1000" % (-self.raft_height, raft_feed)).encode(), b" raft3"
+            yield b"G1 X1 F1000", b" raft4"
 
         if retract:
-            yield first_extruder.get_retract_gcode(), b"retract"
-        yield b"G90", b"absolute positioning"
-        yield None, b"TOWER RAFT END"
+            yield first_extruder.get_retract_gcode()
+        yield b"G90", b" absolute positioning"
+        yield None, b" TOWER RAFT END"
         self.last_tower_z = 0.2
 
     def _get_z_hop(self, layer, z_hop, z_speed, extruder):
@@ -236,7 +235,7 @@ class SwitchTower:
         if extruder.z_hop:
             new_z_hop = self.last_tower_z + extruder.z_hop
             if new_z_hop != layer.z + z_hop:
-                return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b"z-hop"
+                return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b" z-hop"
         return None
 
     def _get_retraction(self, e_pos, extruder):
@@ -251,7 +250,7 @@ class SwitchTower:
         if retraction > 0.00001:
             if retraction > extruder.retract:
                 retraction = extruder.retract
-            return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b"tower retract"
+            return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b" tower retract"
 
     def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed):
         """
@@ -265,32 +264,32 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         self.log.debug("Adding purge tower")
-        yield None, b"TOWER START"
+        yield None, b" TOWER START"
 
-        ## handle retraction
+        # handle retraction
         retraction = self._get_retraction(e_pos, old_e)
         if retraction:
             yield retraction
 
-        ## handle z-hop
+        # handle z-hop
         hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
         if hop:
             yield hop
 
         self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_purge:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.2)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x-0.6, self.start_pos_y+0.2)).encode(), b" move to purge zone"
         else:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.6, self.start_pos_y)).encode(), b"move to purge zone"
-        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
-        yield b"G91", b"relative positioning"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x+0.6, self.start_pos_y)).encode(), b" move to purge zone"
+        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
+        yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
         ## pre-switch purge
         for line in self.pre_switch_lines[self.flipflop_purge]:
             yield line
 
-        yield ("T%s" % new_e.tool).encode(), b"change tool"
+        yield ("T%s" % new_e.tool).encode(), b" change tool"
 
         ## feed new filament
         for line in self.post_switch_lines:
@@ -304,35 +303,35 @@ class SwitchTower:
         purge_line_length *= self.prepurge_sign
         for _ in range(purge_lines):
             if self.flipflop_purge:
-                yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b"purge trail"
-                yield b"G1 Y0.9 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b"purge trail"
+                yield b"G1 Y0.6 F3000", b" Y shift"
+                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b" purge trail"
+                yield b"G1 Y0.9 F3000", b" Y shift"
+                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b" purge trail"
             else:
-                yield b"G1 Y0.9 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b"purge trail"
-                yield b"G1 Y0.6 F3000", b"Y shift"
-                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b"purge trail"
+                yield b"G1 Y0.9 F3000", b" Y shift"
+                yield ("G1 X%.3f E%.4f F3000" % (-purge_line_length, purge_x_feed)).encode(), b" purge trail"
+                yield b"G1 Y0.6 F3000", b" Y shift"
+                yield ("G1 X%.3f E%.4f F3000" % (purge_line_length, purge_x_feed)).encode(), b" purge trail"
 
         # wipe line. also switch direction
         wipe_line_length = purge_line_length - self.prepurge_sign * 0.4
 
         if self.flipflop_purge:
-            yield b"G0.5 Y1 F3000", b"Y shift"
+            yield b"G0.5 Y1 F3000", b" Y shift"
         else:
-            yield b"G1 Y1 F3000", b"Y shift"
-        yield ("G1 X%.3f E%.4f F3000" % (-wipe_line_length, new_e.get_feed_length(wipe_line_length))).encode(), b"purge trail"
-        yield b"G1 X-0.2 F3000", b"wipe"
+            yield b"G1 Y1 F3000", b" Y shift"
+        yield ("G1 X%.3f E%.4f F3000" % (-wipe_line_length, new_e.get_feed_length(wipe_line_length))).encode(), b" purge trail"
+        yield b"G1 X-0.2 F3000", b" wipe"
         yield new_e.get_retract_gcode()
-        yield b"G1 X-0.2 F3000", b"wipe"
-        yield b"G1 X4 F3000", b"wipe"
+        yield b"G1 X-0.2 F3000", b" wipe"
+        yield b"G1 X4 F3000", b" wipe"
 
-        yield b"G90", b"absolute positioning"
-        yield b"G92 E0", b"reset extruder position"
+        yield b"G90", b" absolute positioning"
+        yield b"G92 E0", b" reset extruder position"
         hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
         if hop:
             yield hop
-        yield None, b"TOWER END"
+        yield None, b" TOWER END"
 
         self.flipflop_purge = not self.flipflop_purge
 
@@ -347,7 +346,7 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         self.log.debug("Adding purge tower infill")
-        yield None, b"TOWER INFILL START"
+        yield None, b" TOWER INFILL START"
 
         ## handle retraction
         retraction = self._get_retraction(e_pos, extruder)
@@ -361,11 +360,11 @@ class SwitchTower:
 
         self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_infill:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y)).encode(), b"move to purge zone"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y)).encode(), b" move to purge zone"
         else:
-            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y+self.height)).encode(), b"move to purge zone"
-        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b"move z close"
-        yield b"G91", b"relative positioning"
+            yield ("G1 X%.3f Y%.3f F9000" % (self.start_pos_x, self.start_pos_y+self.height)).encode(), b" move to purge zone"
+        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
+        yield b"G91", b" relative positioning"
         yield extruder.get_prime_gcode()
 
         ## infill
@@ -375,42 +374,42 @@ class SwitchTower:
         infill_length = extruder.get_feed_length(infill_path_length)
 
         if self.flipflop_infill:
-            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F3000" % (self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
-            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F3000" % (-infill_y, extruder.get_feed_length(infill_y))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b" purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (self.height, extruder.get_feed_length(self.height))).encode(), b" Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b" purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (-infill_y, extruder.get_feed_length(infill_y))).encode(), b" Y shift"
             flip = True
         else:
-            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F3000" % (-self.height, extruder.get_feed_length(self.height))).encode(), b"Y shift"
-            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b"purge wall"
-            yield ("G1 Y%.3f E%.4f F3000" % (infill_y, extruder.get_feed_length(infill_y))).encode(), b"Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (self.width, extruder.get_feed_length(self.width))).encode(), b" purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (-self.height, extruder.get_feed_length(self.height))).encode(), b" Y shift"
+            yield ("G1 X%.3f E%.4f F3000" % (-self.width, extruder.get_feed_length(self.width))).encode(), b" purge wall"
+            yield ("G1 Y%.3f E%.4f F3000" % (infill_y, extruder.get_feed_length(infill_y))).encode(), b" Y shift"
             flip = False
 
         for _ in range(5):
             if flip:
-                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, infill_y, infill_length)).encode(), b"infill"
+                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, infill_y, infill_length)).encode(), b" infill"
             else:
-                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, -infill_y, infill_length)).encode(), b"infill"
+                yield ("G1 X%.3f Y%s E%.4f F3000" % (infill_x, -infill_y, infill_length)).encode(), b" infill"
             flip = not flip
 
         if self.flipflop_infill:
-            yield b"G1 Y0.2 F3000", b"wipe"
+            yield b"G1 Y0.2 F3000", b" wipe"
         else:
-            yield b"G1 Y-0.2 F3000", b"wipe"
+            yield b"G1 Y-0.2 F3000", b" wipe"
 
         yield extruder.get_retract_gcode()
 
         if self.flipflop_infill:
-            yield b"G1 Y1 F3000", b"wipe"
+            yield b"G1 Y1 F3000", b" wipe"
         else:
-            yield b"G1 Y-1 F3000", b"wipe"
+            yield b"G1 Y-1 F3000", b" wipe"
 
-        yield b"G90", b"absolute positioning"
+        yield b"G90", b" absolute positioning"
         hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
         if hop:
             yield hop
-        yield b"G92 E0", b"reset extruder position"
-        yield None, b"TOWER INFILL END"
+        yield b"G92 E0", b" reset extruder position"
+        yield None, b" TOWER INFILL END"
 
         self.flipflop_infill = not self.flipflop_infill

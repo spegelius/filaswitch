@@ -40,6 +40,8 @@ class GCodeFile:
         self.hw_config = hw_config
         self.log.info("HW config: %s" % self.hw_config)
 
+        self.tools = [0]
+
     def parse_header(self):
         """
         Parse header of gcode file, if any.
@@ -51,11 +53,18 @@ class GCodeFile:
     def parse_print_settings(self):
         """ Parse print settings """
 
+        is_tool_change = False
         for cmd, comment, index in self.layers[0].read_lines():
 
-            if comment == b"START SCRIPT END":
+            if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
-                break
+            elif comment and comment.strip() == b"TOOL CHANGE":
+                is_tool_change = True
+            elif is_tool_change and gcode.is_tool_change(cmd) is not None:
+                # add unique tools to list
+                if gcode.last_match not in self.tools:
+                    self.tools.append(gcode.last_match)
+                is_tool_change = False
 
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
@@ -171,6 +180,7 @@ class GCodeFile:
         active_e = self.extruders[0]
         # flag to indicate if prime is needed after purge tower g-code
         prime_needed = False
+        is_tool_change = False
 
         def update_retract_position(pos, new_pos):
             """
@@ -199,6 +209,9 @@ class GCodeFile:
                             index += 1
 
                     cmd, comment = layer.lines[index]
+
+                    if comment and comment.strip() == b"TOOL CHANGE":
+                        is_tool_change = True
                     if not cmd:
                         # need command
                         index += 1
@@ -208,17 +221,19 @@ class GCodeFile:
                         # store current z position and z-hop
                         current_z, z_speed = gcode.last_match
                         z_hop = current_z - layer.z
-                    elif has_tool_changes and gcode.is_tool_change(cmd) is not None:
+                    elif is_tool_change and has_tool_changes and gcode.is_tool_change(cmd) is not None:
                         # add tool change g-code
                         new_e = self.extruders[gcode.last_match]
                         layer.delete_line(index)
-                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e, new_e, z_hop, z_speed):
+                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e,
+                                                                              new_e, z_hop, z_speed):
                             layer.insert_line(index, cmd, comment)
                             index += 1
                         prime_needed = True
                         active_e = new_e
                         # always full retract after purge tower
                         e_pos = -new_e.retract
+                        is_tool_change = False
                     elif gcode.is_extruder_move(cmd):
                         # store extruder position
                         e_pos = update_retract_position(e_pos, gcode.last_match[0])
@@ -295,8 +310,9 @@ class GCodeFile:
         self.parse_header()
         self.get_extruders()
         self.parse_print_settings()
-        self.find_tower_position()
-
-        self.add_switch_raft()
-
-        self.add_tool_change_gcode()
+        if len(self.tools) > 1:
+            self.find_tower_position()
+            self.add_switch_raft()
+            self.add_tool_change_gcode()
+        else:
+            self.log.info("No tool changes detected, skipping tool change g-code additions")

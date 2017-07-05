@@ -22,11 +22,11 @@ class GCode:
         :return: g-code, comment
         """
         if line.startswith(b";"):
-            return None, line.split(b";", 1)[1].strip()
-        values = line.strip().split(b";", 1)
-        l = values[0].strip()
+            return None, line.split(b";", 1)[1]
+        values = line.split(b";", 1)
+        l = values[0]
         if len(values) == 2:
-            return l, values[1].strip()
+            return l, values[1]
         return l, None
 
     def format_to_string(self, cmd, comment):
@@ -40,9 +40,9 @@ class GCode:
         if cmd and not comment:
             return cmd
         elif comment and not cmd:
-            return b"; " + comment
+            return b";" + comment
         else:
-            return cmd + b"    ; " + comment
+            return cmd + b";" + comment
 
     def calculate_path_length(self, prev_position, new_position):
         """ Calculate path length from given coordinates"""

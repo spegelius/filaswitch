@@ -21,7 +21,7 @@ class Extruder:
         :param change: add this to the length
         :return: retraction byte string
         """
-        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), b"retract"
+        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), b" retract"
 
     def get_prime_gcode(self, change=0):
         """
@@ -29,4 +29,4 @@ class Extruder:
         :param change: add this to the length
         :return: prime byt string
         """
-        return ("G1 E%.4f F%.1f" % (self.retract+change, self.retract_speed)).encode(), b"prime"
+        return ("G1 E%.4f F%.1f" % (self.retract+change, self.retract_speed)).encode(), b" prime"
