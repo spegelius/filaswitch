@@ -17,7 +17,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
     slicer_type = SLICER_SIMPLIFY3D
 
-    LAYER_START_RE = re.compile(b"layer (\d+), Z = (\d+\.*\d*)")
+    LAYER_START_RE = re.compile(b".*layer (\d+), Z = (\d+\.*\d*)")
     VERSION_RE = re.compile(b".*Version (\d)\.(\d)\.(\d)")
 
     def __init__(self, logger, hw_config):
@@ -237,5 +237,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
 
 if __name__ == "__main__":
-    s = Simplify3dGCodeFile(True, PEEK)
-    print(s.check_layer_change(b"; layer 1, Z = 1", None))
+    import logger
+    logger = logger.Logger(".")
+    s = Simplify3dGCodeFile(logger, PEEK)
+    print(s.check_layer_change(b" layer 1, Z = 1", None))

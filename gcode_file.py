@@ -58,13 +58,17 @@ class GCodeFile:
 
             if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
-            elif comment and comment.strip() == b"TOOL CHANGE":
-                is_tool_change = True
-            elif is_tool_change and gcode.is_tool_change(cmd) is not None:
-                # add unique tools to list
-                if gcode.last_match not in self.tools:
-                    self.tools.append(gcode.last_match)
-                is_tool_change = False
+                break
+
+        for layer in self.layers:
+            for cmd, comment, index in layer.read_lines():
+                if comment and comment.strip() == b"TOOL CHANGE":
+                    is_tool_change = True
+                elif is_tool_change and gcode.is_tool_change(cmd) is not None:
+                    # add unique tools to list
+                    if gcode.last_match not in self.tools:
+                        self.tools.append(gcode.last_match)
+                    is_tool_change = False
 
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
