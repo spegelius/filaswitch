@@ -1,6 +1,5 @@
 from gcode import GCode
 
-
 gcode = GCode()
 
 # hw configs
@@ -301,17 +300,21 @@ class SwitchTower:
         purge_x_feed = abs(new_e.get_feed_length(purge_line_length)*1.3)
         # switch direction depending of prepurge orientation
         purge_line_length *= self.prepurge_sign
-        for _ in range(purge_lines):
+        for i in range(purge_lines):
+            if i == purge_lines-1:
+                purge_speed = 900
+            else:
+                purge_speed = 2400
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b" Y shift"
                 yield ("G1 X%.3f E%.4f F2400" % (-purge_line_length, purge_x_feed)).encode(), b" purge trail"
                 yield b"G1 Y0.9 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F2400" % (purge_line_length, purge_x_feed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
             else:
                 yield b"G1 Y0.9 F3000", b" Y shift"
                 yield ("G1 X%.3f E%.4f F2400" % (-purge_line_length, purge_x_feed)).encode(), b" purge trail"
                 yield b"G1 Y0.6 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F2400" % (purge_line_length, purge_x_feed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
 
         # wipe line. also switch direction
         wipe_line_length = purge_line_length - self.prepurge_sign * 0.4
