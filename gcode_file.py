@@ -42,6 +42,9 @@ class GCodeFile:
 
         self.tools = [0]
 
+        self.travel_xy_speed = None
+        self.travel_z_speed = None
+
     def parse_header(self):
         """
         Parse header of gcode file, if any.
@@ -167,7 +170,8 @@ class GCodeFile:
         """
         # TODO: check for retraction
         index = self.layers[0].start_gcode_end + 1
-        for cmd, comment in self.switch_tower.get_raft_lines(self.extruders[0], False):
+        for cmd, comment in self.switch_tower.get_raft_lines(self.extruders[0], False,
+                                                             self.travel_xy_speed, self.travel_z_speed):
             self.layers[0].insert_line(index, cmd, comment)
             index += 1
         self.layers[0].start_gcode_end = index
@@ -208,7 +212,9 @@ class GCodeFile:
                     # add infill if not a tool change layer
                     if not has_tool_changes and index == 0 and layer.num != 1 and tower_needed:
                         # update purge tower with sparse infill
-                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop, z_speed):
+                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop,
+                                                                               self.travel_z_speed,
+                                                                               self.travel_xy_speed):
                             layer.insert_line(index, cmd, comment)
                             index += 1
 
@@ -230,7 +236,8 @@ class GCodeFile:
                         new_e = self.extruders[gcode.last_match]
                         layer.delete_line(index)
                         for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e,
-                                                                              new_e, z_hop, z_speed):
+                                                                              new_e, z_hop, self.travel_z_speed,
+                                                                              self.travel_xy_speed):
                             layer.insert_line(index, cmd, comment)
                             index += 1
                         prime_needed = True

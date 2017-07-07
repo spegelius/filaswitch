@@ -31,6 +31,8 @@ class Simplify3dGCodeFile(GCodeFile):
         self.retract_while_wiping = False
         self.version = None
 
+        self.default_speed = None
+
     def process(self, gcode_file):
         super().process(gcode_file)
         self.fix_retract_during_wipe()
@@ -87,6 +89,12 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.relative_e = comment.split(b",")[-1] == b"1"
             elif b"retractWhileWiping" in comment:
                 self.retract_while_wiping = comment.split(b",")[-1] == b"1"
+            elif b"defaultSpeed" in comment:
+                self.default_speed = int(comment.split(b",")[-1])
+            elif b"rapidXYspeed" in comment:
+                self.travel_xy_speed = int(comment.split(b",")[-1])
+            elif b"rapidZspeed" in comment:
+                self.travel_z_speed = int(comment.split(b",")[-1])
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
