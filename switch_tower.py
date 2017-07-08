@@ -37,8 +37,8 @@ class SwitchTower:
         self.angle = 0
         self.start_pos_x = start_pos_x
         self.start_pos_y = start_pos_y
-        self.raft_pos_x = self.start_pos_x - 1
-        self.raft_pos_y = self.start_pos_y - 1
+        self.raft_pos_x = self.start_pos_x - 2
+        self.raft_pos_y = self.start_pos_y - 1.2
         self.last_tower_z = 0
 
         self.flipflop_purge = False
