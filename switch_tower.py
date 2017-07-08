@@ -205,15 +205,20 @@ class SwitchTower:
         if first_extruder.z_hop:
             z_hop = 0.2 + first_extruder.z_hop
             yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
-        yield ("G1 X%.3f Y%.3f F%d" % (self.raft_pos_x, self.raft_pos_y, xy_speed)).encode(), b" move to purge zone"
+        yield ("G1 X%.3f Y%.3f F%d" % (self.raft_pos_x-0.4, self.raft_pos_y-0.4, xy_speed)).encode(), b" move to purge zone"
         yield ("G1 Z0.2 F%d" % z_speed).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
         # box
-        yield ("G1 X%.3f E%.4f F2000" % (self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b" purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.2, first_extruder.get_feed_length(self.raft_height+0.2))).encode(), b" Y shift"
+        yield ("G1 X%.3f E%.4f F2000" % (self.raft_width+0.8, first_extruder.get_feed_length(self.raft_width+0.8))).encode(), b" purge wall"
+        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height+0.8, first_extruder.get_feed_length(self.raft_height+0.8))).encode(), b" Y shift"
+        yield ("G1 X%.3f E%.4f F2000" % (-(self.raft_width+0.8), first_extruder.get_feed_length(self.raft_width+0.8))).encode(), b" purge wall"
+        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height+0.4), first_extruder.get_feed_length(self.raft_height+0.4))).encode(), b" Y shift"
+
+        yield ("G1 X%.3f E%.4f F2000" % (self.raft_width+0.4, first_extruder.get_feed_length(self.raft_width+0.4))).encode(), b" purge wall"
+        yield ("G1 Y%.3f E%.4f F2000" % (self.raft_height, first_extruder.get_feed_length(self.raft_height))).encode(), b" Y shift"
         yield ("G1 X%.3f E%.4f F2000" % (-self.raft_width, first_extruder.get_feed_length(self.raft_width))).encode(), b" purge wall"
-        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.3), first_extruder.get_feed_length(self.raft_height-0.3))).encode(), b" Y shift"
+        yield ("G1 Y%.3f E%.4f F2000" % (-(self.raft_height-0.4), first_extruder.get_feed_length(self.raft_height-0.4))).encode(), b" Y shift"
 
         yield ("G1 X0.2 Y-0.4 F%d" % xy_speed).encode(), None
 
