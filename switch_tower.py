@@ -27,7 +27,7 @@ class SwitchTower:
 
         self.hw_config = hw_config
         if self.hw_config == E3DV6:
-            self.height += 1
+            self.height += 2
 
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1
@@ -43,6 +43,12 @@ class SwitchTower:
 
         self.flipflop_purge = False
         self.flipflop_infill = False
+
+        # post purge line config
+        self.purge_line_length = self.width + 0.6
+        self.purge_lines = int(abs(self.height / 2)) -1
+        if self.hw_config == E3DV6:
+            self.purge_lines -= 1
 
         # is prepurge position positive or negative
         self.prepurge_sign = 1
@@ -131,7 +137,7 @@ class SwitchTower:
             prepurge_feed_length = prepurge_feed_rate(self.width)
 
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((b"G1 Y0.8 F3000", b" Y shift"))
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
@@ -139,7 +145,7 @@ class SwitchTower:
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
-            self.pre_switch_lines[True].append((b"G1 Y1.4 F3000", b" Y shift"))
+            self.pre_switch_lines[True].append((b"G1 Y1 F3000", b" Y shift"))
 
             self.pre_switch_lines[True].append((b"G1 E-20 F3000", b" rapid retract"))
             self.pre_switch_lines[True].append((b"G4 P2500", b" 2.5s cooling period"))
@@ -155,7 +161,7 @@ class SwitchTower:
             self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (-self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
             self.pre_switch_lines[False].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
-            self.pre_switch_lines[False].append((b"G1 Y0.6 F3000", b" Y shift"))
+            self.pre_switch_lines[False].append((b"G1 Y1.4 F3000", b" Y shift"))
 
             self.pre_switch_lines[False].append((b"G1 E-20 F3000", b" rapid retract"))
             self.pre_switch_lines[False].append((b"G4 P2500", b" 2.5s cooling period"))
@@ -317,41 +323,51 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
-        ## pre-switch purge
+        # pre-switch purge
         for line in self.pre_switch_lines[self.flipflop_purge]:
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
 
-        ## feed new filament
+        # feed new filament
         for line in self.post_switch_lines:
             yield line
 
-        ## post-switch purge
-        purge_line_length = self.width + 0.6
-        purge_lines = int(self.height/2)-1
-        purge_x_feed = abs(new_e.get_feed_length(purge_line_length)*1.3)
+        # post-switch purge
+
+
+        purge_x_feed = abs(new_e.get_feed_length(self.purge_line_length)*1.2)
         # switch direction depending of prepurge orientation
-        purge_line_length *= self.prepurge_sign
-        purge_speed = 900 + purge_lines * 300
-        for i in range(purge_lines):
+        purge_length = self.purge_line_length * self.prepurge_sign
+        purge_speed = 2400
+        for i in range(self.purge_lines):
             purge_speed -= 300
+            if purge_speed < 1200:
+                purge_speed = 1200
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (-purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
                 yield b"G1 Y0.9 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
             else:
                 yield b"G1 Y0.9 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (-purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
                 yield b"G1 Y0.6 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (purge_line_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
 
         if self.flipflop_purge:
-            yield b"G1 Y0.5 F3000", b" Y shift"
+            yield b"G1 Y0.6 F3000", b" Y shift"
         else:
-            yield b"G1 Y1 F3000", b" Y shift"
-        yield ("G1 X%.3f E%.4f F900" % (-purge_line_length, new_e.get_feed_length(purge_line_length))).encode(), b" purge trail"
+            yield b"G1 Y0.9 F3000", b" Y shift"
+        yield ("G1 X%.3f E%.4f F1200" % (-purge_length, purge_x_feed)).encode(), b" purge trail"
+
+        if self.hw_config == E3DV6:
+            # one more purge line for E3Dv6
+            if self.flipflop_purge:
+                yield b"G1 Y0.9 F3000", b" Y shift"
+            else:
+                yield b"G1 Y0.6 F3000", b" Y shift"
+            yield ("G1 X%.3f E%.4f F1200" % (purge_length, purge_x_feed)).encode(), b" purge trail"
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
@@ -359,7 +375,7 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
 
         # wall gcode
-        for line in self._get_wall_gcode(False, new_e, 900):
+        for line in self._get_wall_gcode(False, new_e, 1200):
             yield line
 
         yield new_e.get_retract_gcode()
