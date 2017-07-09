@@ -3,11 +3,12 @@ from gcode import GCode
 gcode = GCode()
 
 # hw configs
-PEEK = "PEEK"
-PTFE = "PTFE"
-E3DV6 = "E3DV6"
+PEEK = "PEEK-PRO-12"
+PTFE = "PTFE-PRO-12"
+E3DV6 = "PTFE-EV6"
 
 HW_CONFIGS = [PTFE, E3DV6, PEEK]
+
 
 class SwitchTower:
 
@@ -339,8 +340,6 @@ class SwitchTower:
             yield line
 
         # post-switch purge
-
-
         purge_x_feed = abs(new_e.get_feed_length(self.purge_line_length)*1.2)
         # switch direction depending of prepurge orientation
         purge_length = self.purge_line_length * self.prepurge_sign
