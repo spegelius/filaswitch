@@ -50,6 +50,7 @@ class SwitchTower:
         self.purge_lines = int(abs(self.height / 2)) -1
         if self.hw_config == E3DV6:
             self.purge_lines -= 1
+        self.purge_speeds = []
 
         # is prepurge position positive or negative
         self.prepurge_sign = 1
@@ -59,6 +60,20 @@ class SwitchTower:
 
         self.init_pre_switch_gcode()
         self.init_post_switch_gcode()
+
+    def init_purge_speeds(self, min_speed_lines):
+        """
+        Initialize a list for purge speeds
+        :param line_count: amount of purge lines
+        :return: list of print speeds
+        """
+        speed = 1200
+        for i in range(self.purge_lines):
+            if i >= min_speed_lines:
+                speed += 300
+                if speed > 2400:
+                    speed = 2400
+            self.purge_speeds.insert(0, speed)
 
     def init_pre_switch_gcode(self):
         # TODO: read from file
@@ -70,6 +85,7 @@ class SwitchTower:
 
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
+            self.init_purge_speeds(1)
 
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
@@ -104,6 +120,7 @@ class SwitchTower:
 
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
+            self.init_purge_speeds(1)
 
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[True].append((b"G1 Y0.6 F3000", b" Y shift"))
@@ -136,6 +153,7 @@ class SwitchTower:
 
             prepurge_feed_rate = lambda x: x * (4.5 / 50)
             prepurge_feed_length = prepurge_feed_rate(self.width)
+            self.init_purge_speeds(1)
 
             self.pre_switch_lines[True].append((("G1 X%.3f E%.4f F6000" % (self.width, prepurge_feed_length)).encode(), b" purge trail"))
             self.pre_switch_lines[True].append((b"G1 Y0.8 F3000", b" Y shift"))
@@ -344,20 +362,17 @@ class SwitchTower:
         # switch direction depending of prepurge orientation
         purge_length = self.purge_line_length * self.prepurge_sign
         purge_speed = 2400
-        for i in range(self.purge_lines):
-            purge_speed -= 300
-            if purge_speed < 1200:
-                purge_speed = 1200
+        for speed in self.purge_speeds:
             if self.flipflop_purge:
                 yield b"G1 Y0.6 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, speed)).encode(), b" purge trail"
                 yield b"G1 Y0.9 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, speed)).encode(), b" purge trail"
             else:
                 yield b"G1 Y0.9 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (-purge_length, purge_x_feed, speed)).encode(), b" purge trail"
                 yield b"G1 Y0.6 F3000", b" Y shift"
-                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, purge_speed)).encode(), b" purge trail"
+                yield ("G1 X%.3f E%.4f F%d" % (purge_length, purge_x_feed, speed)).encode(), b" purge trail"
 
         if self.flipflop_purge:
             yield b"G1 Y0.6 F3000", b" Y shift"
@@ -456,3 +471,9 @@ class SwitchTower:
         yield None, b" TOWER INFILL END"
 
         self.flipflop_infill = not self.flipflop_infill
+
+if __name__ == "__main__":
+    from logger import Logger
+    log = Logger(".")
+    st = SwitchTower(0, 1, log, PEEK)
+    print(st.purge_speeds)
