@@ -251,7 +251,7 @@ class GCodeFile:
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and add prime if needed
                         if prime_needed and e_pos < 0:
-                            prime_change_len = -(e_pos + active_e.retract)
+                            prime_change_len = -(e_pos + active_e.retract + 0.05)
                             layer.insert_line(index,
                                           *active_e.get_prime_gcode(change=prime_change_len))
                             index += 1
