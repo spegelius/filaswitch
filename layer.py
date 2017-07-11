@@ -12,6 +12,8 @@ class Layer:
         self.height = height
 
         self.line_index = 0
+        self.outer_perimeter_speed = None
+        self.outer_perimeter_feedrate = None
 
     def add_line(self, cmd, comment):
         """
@@ -96,6 +98,47 @@ class Layer:
         for line in self.lines:
             yield line[0], line[1], index
             index += 1
+
+    def get_outer_perimeter_rates(self):
+        """
+        Find outer perimeter print speed
+        :return: perimeter print speed
+        """
+
+        if not self.outer_perimeter_speed:
+            speeds = []
+            feed_rates = []
+            is_outer = False
+            prev_position = None
+            for cmd, comment in self.lines:
+                if comment:
+                    if b"outer perimeter" in comment:
+                        is_outer = True
+                    else:
+                        is_outer = False
+                if cmd:
+                    if is_outer:
+                        position = None
+                        if gcode.is_extrusion_speed_move(cmd):
+                            if gcode.last_match[2] > 0:
+                                speeds.append(gcode.last_match[3])
+                            position = gcode.last_match[0], gcode.last_match[1]
+                        elif gcode.is_extrusion_move(cmd):
+                            position = gcode.last_match[0], gcode.last_match[1]
+
+                        if prev_position and position:
+                            length = gcode.calculate_path_length(prev_position, position)
+                            _e_pos = gcode.last_match[2]
+                            if _e_pos > 0:
+                                feed_rate = gcode.calculate_feed_rate(length, _e_pos)
+                                feed_rates.append(feed_rate)
+                        if position:
+                            prev_position = position
+                    if gcode.is_head_move(cmd):
+                        prev_position = (gcode.last_match[0], gcode.last_match[1])
+            self.outer_perimeter_speed = sum(speeds)/len(speeds)
+            self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
+        return self.outer_perimeter_speed, self.outer_perimeter_feedrate
 
 
 class FirstLayer(Layer):

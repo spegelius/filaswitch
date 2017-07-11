@@ -44,6 +44,7 @@ class GCodeFile:
 
         self.travel_xy_speed = None
         self.travel_z_speed = None
+        self.outer_perimeter_speed = None
 
     def parse_header(self):
         """
@@ -170,7 +171,7 @@ class GCodeFile:
         """
         # TODO: check for retraction
         index = self.layers[0].start_gcode_end + 1
-        for cmd, comment in self.switch_tower.get_raft_lines(self.extruders[0], False,
+        for cmd, comment in self.switch_tower.get_raft_lines(self.layers[0], self.extruders[0], False,
                                                              self.travel_xy_speed, self.travel_z_speed):
             self.layers[0].insert_line(index, cmd, comment)
             index += 1

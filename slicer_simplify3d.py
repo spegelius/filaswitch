@@ -95,6 +95,12 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.travel_xy_speed = int(comment.split(b",")[-1])
             elif b"rapidZspeed" in comment:
                 self.travel_z_speed = int(comment.split(b",")[-1])
+            elif b"outlineUnderspeed" in comment:
+                self.outer_perimeter_speed = float(comment.split(b",")[-1])
+            elif b"solidInfillUnderspeed" in comment:
+                self.infill_speed = float(comment.split(b",")[-1])
+            elif b"supportUnderspeed" in comment:
+                self.support_speed = float(comment.split(b",")[-1])
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
@@ -102,6 +108,8 @@ class Simplify3dGCodeFile(GCodeFile):
             self.log.warning("Could not detect Simplify3D version. Use at your own risk")
         else:
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
+
+        self.outer_perimeter_speed *= self.default_speed
 
     def parse_print_settings(self):
         """ S3D specific settings """
