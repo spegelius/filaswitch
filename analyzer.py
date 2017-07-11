@@ -1,5 +1,7 @@
 #!/usr/bin/env python3.5
 
+import pprint
+import statistics
 import sys
 
 from gcode import GCode
@@ -20,23 +22,13 @@ def open_file(gcode_file):
     gf.close()
     return _lines
 
-if __name__ == "__main__":
-    debug = False
-    if len(sys.argv) < 2:
-        print("Need argument for file to process")
-        exit(1)
-    g_file = sys.argv[1]
-
-    lines = open_file(g_file)
-
+def debug_wipes(lines):
     prev_position = None
     lengths = []
     layer = []
     e_pos = 0
 
     wipes = []
-
-    move_type = ""
 
     lnr = 0
     for line in lines:
@@ -78,3 +70,59 @@ if __name__ == "__main__":
     for l in lengths:
         if l:
             print("%.5f %.5f" % (min(l), max(l)))
+
+
+def debug_outer_perimeter(lines):
+    speeds = []
+    feed_rates = []
+    is_outer = False
+    prev_position = None
+
+    lnr = 0
+    for line in lines:
+        lnr += 1
+        cmd, comment = gcode.read_gcode_line(line)
+        if comment:
+            if b"outer perimeter" in comment:
+                is_outer = True
+            else:
+                is_outer = False
+        if cmd:
+            if is_outer:
+                position = None
+                if gcode.is_extrusion_speed_move(cmd):
+                    if gcode.last_match[2] > 0:
+                        speeds.append(gcode.last_match[3])
+                    position = gcode.last_match[0], gcode.last_match[1]
+                elif gcode.is_extrusion_move(cmd):
+                    position = gcode.last_match[0], gcode.last_match[1]
+
+                if prev_position and position:
+                    length = gcode.calculate_path_length(prev_position, position)
+                    _e_pos = gcode.last_match[2]
+                    if _e_pos > 0:
+                        feed_rate = gcode.calculate_feed_rate(length, _e_pos)
+                        print(lnr, feed_rate)
+                        feed_rates.append(feed_rate)
+                if position:
+                    prev_position = position
+            if gcode.is_head_move(cmd):
+                prev_position = (gcode.last_match[0], gcode.last_match[1])
+    # print(speeds)
+    print(max(feed_rates))
+    outer_perimeter_speed = sum(speeds) / len(speeds)
+    # print(sum(feed_rates)/len(feed_rates))
+    #pprint.pprint(feed_rates)
+    print(statistics.median(feed_rates))
+    print(statistics.mean(feed_rates))
+
+if __name__ == "__main__":
+    debug = False
+    if len(sys.argv) < 2:
+        print("Need argument for file to process")
+        exit(1)
+    g_file = sys.argv[1]
+
+    lines = open_file(g_file)
+    #debug_wipes(lines)
+    debug_outer_perimeter(lines)
