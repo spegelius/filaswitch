@@ -7,13 +7,24 @@ class Extruder:
         self.retract_speed = retract_speed
         self.z_hop = z_hop
         self.feed_rate = 0.04 # TODO: need autodetection?
+        self.feed_rate_max = 0.1 # don't go over this
         self.current_z = None
 
-    def get_feed_length(self, move_lenght):
-        """ Returns the lenght of filament to extrude for given move.
-            Values in mm.
+    def get_feed_length(self, move_length, feed_rate=None):
         """
-        return move_lenght * self.feed_rate
+        Returns the lenght of filament to extrude for given move.
+            Values in mm.
+        :param move_length: x/y movement length
+        :param feed_rate: optional feed rate value
+        :return: extrusion feed length
+        """
+        if not feed_rate:
+            if self.feed_rate > self.feed_rate_max:
+                raise ValueError("Feed rate too high! Aborting")
+            return move_length * self.feed_rate
+        if self.feed_rate > self.feed_rate_max:
+            raise ValueError("Feed rate too high! Aborting")
+        return move_length * feed_rate
 
     def get_retract_gcode(self, change=0):
         """

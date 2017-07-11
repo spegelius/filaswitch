@@ -61,8 +61,7 @@ class GCode:
         """
         if not path_len or not extrusion_length:
             return 0
-        rate = 1 / (path_len / extrusion_length)
-        #rate = path_len / extrusion_length
+        rate = extrusion_length / path_len
         return rate
 
     def is_tool_change(self, line):
