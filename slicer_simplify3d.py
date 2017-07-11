@@ -34,8 +34,17 @@ class Simplify3dGCodeFile(GCodeFile):
         self.default_speed = None
 
     def process(self, gcode_file):
-        super().process(gcode_file)
+        self.open_file(gcode_file)
+        self.parse_header()
+        self.get_extruders()
+        self.parse_print_settings()
         self.fix_retract_during_wipe()
+        if len(self.tools) > 1:
+            self.find_tower_position()
+            self.add_switch_raft()
+            self.add_tool_change_gcode()
+        else:
+            self.log.info("No tool changes detected, skipping tool change g-code additions")
         return self.save_new_file()
 
     def get_extruders(self):
@@ -211,14 +220,14 @@ class Simplify3dGCodeFile(GCodeFile):
             return
 
         self.log.info("Fixing S3D 3.1.1 bug with 'Retract during wipe'-feature")
+
+        wipe_on = False
+        wipe_indexes = []
+        wipe_layer = None
+        last_move_speed = None
+        extruder = self.extruders[0]
+
         for layer in self.layers:
-
-            wipe_on = False
-            wipe_indexes = []
-            wipe_speed = 0
-            wipe_length = 0.0
-
-            extruder = self.extruders[0]
 
             for cmd, comment, index in layer.read_lines():
                 if not cmd:
@@ -229,28 +238,26 @@ class Simplify3dGCodeFile(GCodeFile):
                         wipe_on = True
                         wipe_speed = gcode.last_match[3]
                         wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
-                        wipe_length += gcode.last_match[2]
-                elif gcode.is_extrusion_move(cmd) and wipe_on:
-                    wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
-                    wipe_length += gcode.last_match[2]
+                        wipe_layer = layer
+                elif gcode.is_extrusion_move(cmd):
+                    # detect retract/wipe
+                    if gcode.last_match[2] < 0:
+                        wipe_on = True
+                        wipe_speed = last_move_speed or self.default_speed
+                        wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
+                        wipe_layer = layer
                 elif gcode.is_head_move(cmd) and wipe_on:
                     # retract/wipe ended
+                    last_move_speed = gcode.last_match[2]
                     wipe_on = False
-                elif gcode.is_extruder_move(cmd) and wipe_indexes:
-                    # check if prime move
-                    if gcode.last_match[0] > 0 and abs(extruder.retract - gcode.last_match[0]) < 0.001:
-                        # replace retract/wipes with wipes and add full retract
-                        for index, x, y, speed in wipe_indexes:
-                            layer.replace_line(index, gcode.generate_head_move_gcode(x,y,speed), b"fixed wipe")
-                        first_wipe = wipe_indexes[0][0]
-                        layer.insert_line(first_wipe, *extruder.get_retract_gcode())
-                        wipe_indexes = []
-                        wipe_on = False
-                        wipe_length = 0
+                    for index, x, y, speed in wipe_indexes:
+                        wipe_layer.replace_line(index, gcode.generate_head_move_gcode(x, y, speed), b"fixed wipe")
+                    first_wipe = wipe_indexes[0][0]
+                    wipe_layer.insert_line(first_wipe, *extruder.get_retract_gcode())
+                    wipe_indexes = []
                 elif gcode.is_tool_change(cmd) is not None:
                     # tool change, set active extruder
                     extruder = self.extruders[gcode.last_match]
-
 
 if __name__ == "__main__":
     import logger
