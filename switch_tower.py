@@ -67,13 +67,11 @@ class SwitchTower:
         :return: list of print speeds
         """
         speed = min_speed
-        min_speed_lines = 1
+        min_speed_lines = 0
         purge_speeds = []
         for i in range(self.purge_lines):
             if i >= min_speed_lines:
-                speed += 300
-                if speed > 2400:
-                    speed = 2400
+                speed = 2400
             purge_speeds.insert(0, speed)
         return purge_speeds
 
@@ -389,7 +387,7 @@ class SwitchTower:
             yield b"G1 Y0.6 F3000", b" Y shift"
         else:
             yield b"G1 Y0.9 F3000", b" Y shift"
-        yield ("G1 X%.3f E%.4f F%.1f" % (-purge_length, new_e.get_feed_length(abs(purge_length), feed_rate),
+        yield ("G1 X%.3f E%.4f F%.1f" % (-purge_length, new_e.get_feed_length(abs(purge_length), 2400),
                                          min_speed)).encode(), b" purge trail"
 
         if self.hw_config == E3DV6:
