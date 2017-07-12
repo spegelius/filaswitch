@@ -35,9 +35,8 @@ Print dual-color model with Prometheus system
 * Starting Script: Enclose your starting script with:
 > ; START SCRIPT START
 ##### Advanced-tab
-* Set Tool Change Retraction distance to 0.0 or make sure it is not more than your normal retraction
+* Set Tool Change Retraction distance to your normal retraction distance
     * also check retraction speed to match the normal retraction speed
-* Disable 'Perform retraction during wipe movement'
 
 > [you start g-code lines here...]
 
@@ -63,8 +62,8 @@ Save g-code to disk.
 * Done
 
 ####Post processing (cli):
-* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux) PTFE|E3DV6|PEEK
-* python filaswitch.py \path\to\yourgcodefile.gcode PTFE|E3DV6|PEEK
+* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux) PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
+* python filaswitch.py \path\to\yourgcodefile.gcode PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
 
 Result is a new file, with _fs.gcode ending. You're ready to print :).
 
