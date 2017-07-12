@@ -129,15 +129,17 @@ class Layer:
                         if prev_position and position:
                             length = gcode.calculate_path_length(prev_position, position)
                             _e_pos = gcode.last_match[2]
-                            if _e_pos > 0:
+                            if _e_pos > 0 and length > 0.05:
                                 feed_rate = gcode.calculate_feed_rate(length, _e_pos)
                                 feed_rates.append(feed_rate)
                         if position:
                             prev_position = position
                     if gcode.is_head_move(cmd):
                         prev_position = (gcode.last_match[0], gcode.last_match[1])
-            self.outer_perimeter_speed = sum(speeds)/len(speeds)
-            self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
+            if speeds:
+                self.outer_perimeter_speed = sum(speeds)/len(speeds)
+                self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
+
         return self.outer_perimeter_speed, self.outer_perimeter_feedrate
 
 

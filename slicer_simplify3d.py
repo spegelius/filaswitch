@@ -39,6 +39,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.get_extruders()
         self.parse_print_settings()
         self.fix_retract_during_wipe()
+        self.parse_perimeter_rates()
         if len(self.tools) > 1:
             self.find_tower_position()
             self.add_switch_raft()
@@ -258,6 +259,22 @@ class Simplify3dGCodeFile(GCodeFile):
                 elif gcode.is_tool_change(cmd) is not None:
                     # tool change, set active extruder
                     extruder = self.extruders[gcode.last_match]
+
+    def parse_perimeter_rates(self):
+        """
+        Parses perimeter print sped and feed rate for each layer
+        :return: none
+        """
+        last_speed = None
+        last_feed_rate = None
+        for layer in self.layers:
+            speed, rate = layer.get_outer_perimeter_rates()
+            if speed and rate:
+                last_speed = speed
+                last_feed_rate = rate
+            else:
+                layer.outer_perimeter_speed = last_speed
+                layer.outer_perimeter_feedrate = last_feed_rate
 
 if __name__ == "__main__":
     import logger
