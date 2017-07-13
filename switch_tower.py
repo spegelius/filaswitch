@@ -387,8 +387,8 @@ class SwitchTower:
             yield b"G1 Y0.6 F3000", b" Y shift"
         else:
             yield b"G1 Y0.9 F3000", b" Y shift"
-        yield ("G1 X%.3f E%.4f F%.1f" % (-purge_length, new_e.get_feed_length(abs(purge_length), 2400),
-                                         min_speed)).encode(), b" purge trail"
+        yield ("G1 X%.3f E%.4f F%.1f" % (-purge_length, new_e.get_feed_length(abs(purge_length), feed_rate),
+                                         2400)).encode(), b" purge trail"
 
         if self.hw_config == E3DV6:
             # one more purge line for E3Dv6
