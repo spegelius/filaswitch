@@ -7,7 +7,7 @@ class Extruder:
         self.retract_speed = retract_speed
         self.z_hop = z_hop
         self.feed_rate = 0.04 # TODO: need autodetection?
-        self.feed_rate_max = 0.1 # don't go over this
+        self.feed_rate_max = 0.2 # don't go over this
         self.current_z = None
 
     def get_feed_length(self, move_length, feed_rate=None):
@@ -22,7 +22,7 @@ class Extruder:
             if self.feed_rate > self.feed_rate_max:
                 raise ValueError("Feed rate too high! Aborting")
             return move_length * self.feed_rate
-        if self.feed_rate > self.feed_rate_max:
+        if feed_rate > self.feed_rate_max:
             raise ValueError("Feed rate too high! Aborting")
         return move_length * feed_rate
 
