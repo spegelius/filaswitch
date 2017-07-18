@@ -23,10 +23,13 @@ class Simplify3dGCodeFile(GCodeFile):
     def __init__(self, logger, hw_config):
         super().__init__(logger, hw_config)
         self.extruder_diameter = []
+        self.extruder_multiplier = []
         self.extruder_use_retract = []
         self.extruder_retract_dist = []
         self.extruder_retract_speed = []
         self.extruder_zhop = []
+        self.extruder_use_coasting = []
+        self.extruder_coasting = []
         self.relative_e = False
         self.retract_while_wiping = False
         self.version = None
@@ -54,10 +57,15 @@ class Simplify3dGCodeFile(GCodeFile):
         :return:
         """
         for i in range(len(self.extruder_diameter)):
-            self.extruders[i] = Extruder(i, self.extruder_diameter[i],
-                                         self.extruder_retract_dist[i],
-                                         self.extruder_retract_speed[i],
-                                         self.extruder_zhop[i])
+            self.extruders[i] = Extruder(i)
+            self.extruders[i].nozzle = self.extruder_diameter[i]
+            if self.extruder_use_retract[i]:
+                self.extruders[i].retract = self.extruder_retract_dist[i]
+                self.extruders[i].retract_speed = self.extruder_retract_speed[i]
+            self.extruders[i].z_hop = self.extruder_zhop[i]
+            if self.extruder_use_coasting[i]:
+                self.extruders[i].coasting = self.extruder_coasting[i]
+            self.extruders[i].feed_rate_multiplier = self.extruder_multiplier[i]
 
     def parse_header(self):
         """
@@ -81,6 +89,9 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"extruderDiameter" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_diameter.append(float(d))
+            elif b"extrusionMultiplier" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_multiplier.append(float(d))
             elif b"extruderUseRetract" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_use_retract.append(d == b"1")
@@ -90,6 +101,12 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"extruderRetractionZLift" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_zhop.append(float(d))
+            elif b"extruderUseCoasting" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_use_coasting.append(d == b"1")
+            elif b"extruderCoastingDistance" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_coasting.append(float(d))
             elif b"layerHeight" in comment:
                 self.layer_height = float(comment.split(b",")[1])
             elif b"extruderRetractionSpeed" in comment:

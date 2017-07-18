@@ -1,14 +1,16 @@
 
 class Extruder:
-    def __init__(self, tool, nozzle, retract, retract_speed, z_hop):
+    def __init__(self, tool):
         self.tool = tool
-        self.nozzle = nozzle
-        self.retract = retract
-        self.retract_speed = retract_speed
-        self.z_hop = z_hop
+        self.nozzle = 0.0
+        self.retract = 0.0
+        self.retract_speed = 0.0
+        self.z_hop = 0.0
         self.feed_rate = 0.04 # TODO: need autodetection?
         self.feed_rate_max = 0.2 # don't go over this
+        self.feed_rate_multiplier = 1
         self.current_z = None
+        self.coasting = 0.0
 
     def get_feed_length(self, move_length, feed_rate=None):
         """
@@ -19,12 +21,14 @@ class Extruder:
         :return: extrusion feed length
         """
         if not feed_rate:
-            if self.feed_rate > self.feed_rate_max:
-                raise ValueError("Feed rate too high! Aborting")
-            return move_length * self.feed_rate
-        if feed_rate > self.feed_rate_max:
+            rate = self.feed_rate
+        else:
+            rate = feed_rate
+
+        rate *= self.feed_rate_multiplier
+        if rate > self.feed_rate_max:
             raise ValueError("Feed rate too high! Aborting")
-        return move_length * feed_rate
+        return move_length * rate
 
     def get_retract_gcode(self, change=0):
         """
