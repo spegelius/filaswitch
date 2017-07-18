@@ -93,6 +93,7 @@ class TopFrame(tk.Frame):
         self.quit.grid(row=2, column=1, sticky=tk.W)
 
     def load_file(self):
+        self.info_frame.update_status("----------------------")
         last_dir = status.get("last_dir")
         if last_dir and os.path.exists(status["last_dir"]):
             gcode_file = fdialog.askopenfilename(filetypes=(("G-code files", "*.gcode"), ("all files","*.*")),
@@ -114,7 +115,8 @@ class TopFrame(tk.Frame):
             except Exception as e:
                 self.log.error(str(e))
                 showerror("File open error", "Cannot open file %s" % gcode_file)
-            return
+        else:
+            self.log.info("Aborted")
 
 
 class BottomFrame(tk.Frame):
@@ -122,15 +124,26 @@ class BottomFrame(tk.Frame):
     def __init__(self, master=None):
         super().__init__(master)
         self.grid(row=3)
+        self.line_count = 0
         self.create_widgets()
 
     def create_widgets(self):
-        self.status = tk.Text(self, height=10, width=90)
+        self.scrollbar = tk.Scrollbar(self)
+        self.scrollbar.grid(row=3,column=3)
+
+        self.status = tk.Text(self, height=10, width=90, yscrollcommand=self.scrollbar.set)
         self.status.grid(row=3, columnspan=2)
+
+        self.scrollbar.config(command=self.status.yview)
         self.update_status("Idling...")
 
     def update_status(self, text):
+        self.status.configure(state=tk.NORMAL)
         self.status.insert(tk.END, text + os.linesep)
+        self.status.configure(state=tk.DISABLED)
+        if not self.status.see(tk.END):
+            self.scrollbar.set(100, 0)
+        self.line_count += 1
 
 
 def main():
