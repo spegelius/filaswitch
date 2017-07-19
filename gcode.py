@@ -1,6 +1,16 @@
 import math
 import re
 
+import utils
+
+N = 90
+S = 270
+W = 180
+E = 0
+NE = 45
+NW = 135
+SW = 225
+SE = 315
 
 class GCode:
     EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")
@@ -138,7 +148,7 @@ class GCode:
             self.last_match = float(m.groups()[0]), float(m.groups()[1]), float(m.groups()[2])
         return self.last_match
 
-    def generate_head_move_gcode(self, x, y, speed):
+    def gen_head_move(self, x, y, speed):
         """
         Generate g-code line for head move
         :param x: x coordinate
@@ -146,9 +156,73 @@ class GCode:
         :param speed: movement speed
         :return: byte string
         """
+        if utils.is_float_zero(x, 3):
+            return ("G1 Y%.3f F%d" % (y, speed)).encode()
+        elif utils.is_float_zero(y, 3):
+            return ("G1 X%.3f F%d" % (x, speed)).encode()
         return ("G1 X%.3f Y%.3f F%d" % (x, y, speed)).encode()
 
+    def gen_extrusion_move(self, x, y, speed, e_length):
+        """
+        Generate g-code line for head move. Relative distances
+        :param x: x coordinate
+        :param y: y coordinate
+        :param speed: movement speed
+        :param e_length: extrusion length
+        :return: byte string
+        """
+        if utils.is_float_zero(x, 3):
+            return ("G1 Y%.3f E%.4f F%d" % (y, e_length, speed)).encode()
+        elif utils.is_float_zero(y, 3):
+            return ("G1 X%.3f E%.4f F%d" % (x, e_length, speed)).encode()
+        return ("G1 X%.3f Y%.3f E%.4f F%d" % (x, y, e_length, speed)).encode()
+
+    def _get_coordinates(self, direction, length):
+        """
+        Calculate coordinates from given direction and length. If coasting, calculate those coordinates too.
+        Relative to 0,0
+        :param direction:
+        :param length:
+        :param coasting:
+        :return: tuple
+        """
+        angle = math.radians(direction)
+        cosine = math.cos(angle)
+        sine = math.sin(angle)
+        x = cosine * length
+        y = sine * length
+        return x, y
+
+    def gen_direction_move(self, direction, length, speed, extruder=None, feed_rate=None, last_line=False):
+        """
+        Generate g-code for head move to given direction. Relative distances
+        :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
+        :param length: move length
+        :param speed: move speed
+        :param extruder: extruder object or None
+        :param feed_rate: feed rate override
+        :param last_line: last line before move. Used only with extrusion moves
+        :return:
+        """
+        if extruder and extruder.coasting and last_line:
+            _length = abs(length) - extruder.coasting
+            x, y = self._get_coordinates(direction, _length)
+            c_x, c_y = self._get_coordinates(direction, extruder.coasting)
+            e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
+            yield self.gen_extrusion_move(x, y, speed, e_length)
+            yield self.gen_head_move(c_x, c_y, speed)
+        else:
+            _length = abs(length)
+            x, y = self._get_coordinates(direction, _length)
+            if not extruder:
+                yield self.gen_head_move(x, y, speed)
+            else:
+                e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
+                yield self.gen_extrusion_move(x, y, speed, e_length)
+
+
 if __name__ == "__main__":
+    # test stuff
     obj = GCode()
     print(obj.is_extruder_move(b"G1 E-2.5 F1500"))
     print(obj.read_gcode_line(b"G1 E5 F1500  ; juu"))
@@ -159,3 +233,33 @@ if __name__ == "__main__":
     print(obj.is_tool_change(b"T1"))
     print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E-2.5000"))
     print(obj.is_extrusion_speed_move(b"G1 X80.349 Y81.849 E-2.5000 F3000"))
+    ret = obj.gen_direction_move(E, 40, 3000)
+    for r in ret:
+        print(r)
+    import extruder
+    e = extruder.Extruder(0)
+    e.coasting = 0.2
+    ret = obj.gen_direction_move(W, 40, 3000, e, feed_rate=0.05)
+    for r in ret:
+        print(r)
+    ret = obj.gen_direction_move(S, 40, 3000, e, feed_rate=0.05, last_line=True)
+    for r in ret:
+        print(r)
+
+    print(obj._get_coordinates(N, 10))
+    print(obj._get_coordinates(NE, 10))
+    print(obj._get_coordinates(E, 10))
+    print(obj._get_coordinates(SE, 10))
+    print(obj._get_coordinates(S, 10))
+    print(obj._get_coordinates(SW, 10))
+    print(obj._get_coordinates(W, 10))
+    print(obj._get_coordinates(NW, 10))
+
+    print(obj._get_coordinates(30, 10))
+    print(obj._get_coordinates(80, 10))
+
+    print(obj._get_coordinates(100, 10))
+
+    print(obj._get_coordinates(200, 10))
+
+    print(obj._get_coordinates(346, 10))
