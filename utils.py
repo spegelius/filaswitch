@@ -51,6 +51,22 @@ def save_status_file(status_file: str, status: dict):
         print(e)
         raise
 
+def is_float_zero(value: float, accuracy: int):
+    """
+    Checks if given float value is zero
+    :param value: float value
+    :param accuracy: decimals to use for the check
+    :return: true or false
+    """
+    limit = 0.1**accuracy
+    if value == 0.0:
+        return True
+    elif value > 0 and value < limit:
+        return True
+    elif value < 0 and value > -limit:
+        return True
+    return False
+
 
 if __name__ == "__main__":
     save_status_file(".teststatus", {"data1": "dtaa"})
