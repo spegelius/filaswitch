@@ -1,3 +1,5 @@
+import math
+
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW
 
 import utils
@@ -399,7 +401,7 @@ class SwitchTower:
         else:
             yield gcode.gen_direction_move(N, 0.9, 3000), b" Y shift"
         yield gcode.gen_direction_move(dir_1, purge_length, 2400, new_e, feed_rate=feed_rate), b" purge trail"
-        last_dir = dir_1
+        direction = dir_1
 
         if self.hw_config == E3DV6:
             # one more purge line for E3Dv6
@@ -408,7 +410,7 @@ class SwitchTower:
             else:
                 yield gcode.gen_direction_move(N, 0.6, 3000), b" Y shift"
             yield gcode.gen_direction_move(dir_2, purge_length, min_speed, new_e, feed_rate=feed_rate), b" purge trail"
-            last_dir = dir_2
+            direction = dir_2
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
@@ -421,7 +423,7 @@ class SwitchTower:
 
         yield new_e.get_retract_gcode()
         if new_e.wipe:
-            yield gcode.gen_direction_move(last_dir+180, new_e.wipe, 3000), b" wipe"
+            yield gcode.gen_direction_move(direction + 180, new_e.wipe, 3000), b" wipe"
 
         yield b"G90", b" absolute positioning"
         yield b"G92 E0", b" reset extruder position"
@@ -449,12 +451,12 @@ class SwitchTower:
         # minimum speed
         min_speed, feed_rate = layer.get_outer_perimeter_rates()
 
-        ## handle retraction
+        # handle retraction
         retraction = self._get_retraction(e_pos, extruder)
         if retraction:
             yield retraction
 
-        ## handle z-hop
+        # handle z-hop
         hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
         if hop:
             yield hop
@@ -465,11 +467,11 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
         yield extruder.get_prime_gcode()
 
-        ## infill
+        # infill
         infill_x = self.wall_width/6
         infill_y = self.wall_height-0.3
+        infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
-        infill_length = extruder.get_feed_length(infill_path_length)
 
         # wall gcode
         for line in self._get_wall_gcode(self.flipflop_infill, extruder, 2400, feed_rate):
@@ -481,18 +483,21 @@ class SwitchTower:
         speeds = [2400 - i * step for i in range(4)]
         speeds.extend([min_speed, min_speed])
 
+        direction = infill_angle
+        round = len(speeds)
         for speed in speeds:
+            round -= 1
             if flip:
-                yield ("G1 X%.3f Y%s E%.4f F%.1f" % (infill_x, infill_y, infill_length, speed)).encode(), b" infill"
+                direction = infill_angle
             else:
-                yield ("G1 X%.3f Y%s E%.4f F%.1f" % (infill_x, -infill_y, infill_length, speed)).encode(), b" infill"
+                direction = 360-infill_angle
+            yield gcode.gen_direction_move(direction, infill_path_length, speed, extruder, feed_rate=feed_rate,
+                                           last_line=round == 0), b" infill"
             flip = not flip
 
         yield extruder.get_retract_gcode()
-        if self.flipflop_infill:
-            yield b"G1 Y-4 F2000", b" wipe"
-        else:
-            yield b"G1 Y4 F2000", b" wipe"
+        if extruder.wipe:
+            yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000), b" wipe"
 
         yield b"G90", b" absolute positioning"
         hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
@@ -501,6 +506,7 @@ class SwitchTower:
         yield b"G92 E0", b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
+        # flip the flop
         self.flipflop_infill = not self.flipflop_infill
 
 if __name__ == "__main__":
