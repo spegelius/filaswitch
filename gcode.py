@@ -177,6 +177,15 @@ class GCode:
             return ("G1 X%.3f E%.4f F%d" % (x, e_length, speed)).encode()
         return ("G1 X%.3f Y%.3f E%.4f F%d" % (x, y, e_length, speed)).encode()
 
+    def gen_extruder_move(self, e_length, speed):
+        """
+        Generate g-code line for extruder move with given length and speed.
+        :param e_length: extruder move length
+        :param speed: move speed
+        :return: byte string
+        """
+        return ("G1 E%.4f F%d" % (e_length, speed)).encode()
+
     def _get_coordinates(self, direction, length):
         """
         Calculate coordinates from given direction and length. If coasting, calculate those coordinates too.
