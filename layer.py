@@ -1,3 +1,5 @@
+import types
+
 from gcode import GCode
 
 gcode = GCode()
@@ -18,11 +20,19 @@ class Layer:
     def add_line(self, cmd, comment):
         """
         Adds lines to line list
-        :param cmd: g-code command
+        :param cmd: g-code command or generator
         :param comment: comment
-        :return:
+        :return: number of lines added
         """
-        self.lines.append((cmd, comment))
+        if isinstance(cmd, types.GeneratorType):
+            lines = 0
+            for c in cmd:
+                self.lines.append((c, comment))
+                lines += 1
+            return lines
+        else:
+            self.lines.append((cmd, comment))
+            return 1
 
     def is_empty_layer(self):
         """
@@ -38,11 +48,21 @@ class Layer:
         """
         Insert line to given index position
         :param index: index
-        :param cmd: g-code command
+        :param cmd: g-code command or generator
         :param comment: g-code comment
-        :return: none
+        :return: number of lines inserted
         """
-        self.lines.insert(index, (cmd, comment))
+        if isinstance(cmd, types.GeneratorType):
+            i = index
+            lines = 0
+            for c in cmd:
+                self.lines.insert(i, (c, comment))
+                i += 1
+                lines += 1
+            return lines
+        else:
+            self.lines.insert(index, (cmd, comment))
+            return 1
 
     def replace_line(self, index, cmd, comment):
         """
