@@ -173,8 +173,7 @@ class GCodeFile:
         index = self.layers[0].start_gcode_end + 1
         for cmd, comment in self.switch_tower.get_raft_lines(self.layers[0], self.extruders[0], False,
                                                              self.travel_xy_speed, self.travel_z_speed):
-            self.layers[0].insert_line(index, cmd, comment)
-            index += 1
+            index += self.layers[0].insert_line(index, cmd, comment)
         self.layers[0].start_gcode_end = index
 
     def add_tool_change_gcode(self):
@@ -216,8 +215,7 @@ class GCodeFile:
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop,
                                                                                self.travel_z_speed,
                                                                                self.travel_xy_speed):
-                            layer.insert_line(index, cmd, comment)
-                            index += 1
+                            index += layer.insert_line(index, cmd, comment)
 
                     cmd, comment = layer.lines[index]
 
@@ -239,8 +237,7 @@ class GCodeFile:
                         for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e,
                                                                               new_e, z_hop, self.travel_z_speed,
                                                                               self.travel_xy_speed):
-                            layer.insert_line(index, cmd, comment)
-                            index += 1
+                            index += layer.insert_line(index, cmd, comment)
                         prime_needed = True
                         active_e = new_e
                         # always full retract after purge tower
@@ -253,9 +250,8 @@ class GCodeFile:
                         # store extruder position and add prime if needed
                         if prime_needed and e_pos < 0:
                             prime_change_len = -(e_pos + active_e.retract + 0.05)
-                            layer.insert_line(index,
+                            index += layer.insert_line(index,
                                           *active_e.get_prime_gcode(change=prime_change_len))
-                            index += 1
                             prime_needed = False
                             e_pos = 0
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])

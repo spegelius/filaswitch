@@ -46,3 +46,13 @@ class Extruder:
         :return: prime byt string
         """
         return ("G1 E%.4f F%.1f" % (self.retract+change, self.retract_speed)).encode(), b" prime"
+
+    def get_feed_rate(self, multiplier=None):
+        """
+        Return extruder feed rate
+        :param multiplier: optional multiplier
+        :return: feed rate
+        """
+        if not multiplier:
+            return self.feed_rate * self.feed_rate_multiplier
+        return self.feed_rate * self.feed_rate_multiplier * multiplier
