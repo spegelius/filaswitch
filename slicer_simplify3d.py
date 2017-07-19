@@ -30,6 +30,8 @@ class Simplify3dGCodeFile(GCodeFile):
         self.extruder_zhop = []
         self.extruder_use_coasting = []
         self.extruder_coasting = []
+        self.extruder_use_wipe = []
+        self.extruder_wipe = []
         self.relative_e = False
         self.retract_while_wiping = False
         self.version = None
@@ -65,6 +67,8 @@ class Simplify3dGCodeFile(GCodeFile):
             self.extruders[i].z_hop = self.extruder_zhop[i]
             if self.extruder_use_coasting[i]:
                 self.extruders[i].coasting = self.extruder_coasting[i]
+            if self.extruder_use_wipe[i]:
+                self.extruders[i].wipe = self.extruder_wipe[i]
             self.extruders[i].feed_rate_multiplier = self.extruder_multiplier[i]
 
     def parse_header(self):
@@ -107,6 +111,12 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"extruderCoastingDistance" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_coasting.append(float(d))
+            elif b"extruderUseWipe" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_use_wipe.append(d == b"1")
+            elif b"extruderWipeDistance" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_wipe.append(float(d))
             elif b"layerHeight" in comment:
                 self.layer_height = float(comment.split(b",")[1])
             elif b"extruderRetractionSpeed" in comment:
@@ -269,7 +279,7 @@ class Simplify3dGCodeFile(GCodeFile):
                     last_move_speed = gcode.last_match[2]
                     wipe_on = False
                     for index, x, y, speed in wipe_indexes:
-                        wipe_layer.replace_line(index, gcode.generate_head_move_gcode(x, y, speed), b"fixed wipe")
+                        wipe_layer.replace_line(index, gcode.gen_head_move(x, y, speed), b"fixed wipe")
                     first_wipe = wipe_indexes[0][0]
                     wipe_layer.insert_line(first_wipe, *extruder.get_retract_gcode())
                     wipe_indexes = []

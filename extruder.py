@@ -11,6 +11,7 @@ class Extruder:
         self.feed_rate_multiplier = 1
         self.current_z = None
         self.coasting = 0.0
+        self.wipe = 0.0
 
     def get_feed_length(self, move_length, feed_rate=None):
         """
