@@ -42,8 +42,10 @@ class SwitchTower:
         self.angle = 0
         self.start_pos_x = start_pos_x
         self.start_pos_y = start_pos_y
-        self.raft_pos_x = self.start_pos_x - 2
-        self.raft_pos_y = self.start_pos_y - 1.2
+
+        x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -2, -1.2)
+        self.raft_pos_x = x
+        self.raft_pos_y = y
         self.last_tower_z = 0
 
         self.flipflop_purge = False
@@ -189,7 +191,8 @@ class SwitchTower:
         if extruder.z_hop:
             z_hop = 0.2 + extruder.z_hop
             yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
-        yield gcode.gen_head_move(self.raft_pos_x-0.4, self.raft_pos_y-0.4, xy_speed), b" move to raft zone"
+        x, y = gcode.get_coordinates_by_offsets(E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
+        yield gcode.gen_head_move(x, y, xy_speed), b" move to raft zone"
         yield ("G1 Z0.2 F%d" % z_speed).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
@@ -263,10 +266,11 @@ class SwitchTower:
         :param xy_speed: xy travel speed
         :return: g-code line
         """
-        x = self.start_pos_x - 1.2
-        y = self.start_pos_y - 0.5
         if not flipflop:
-            y += self.wall_height
+            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -1.2, self.wall_height - 0.5)
+        else:
+            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -1.2, -0.5)
+        #print(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
     def _get_wall_gcode(self, flipflop, extruder, wall_speed, feed_rate):
@@ -317,9 +321,10 @@ class SwitchTower:
 
         self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_purge:
-            yield gcode.gen_head_move(self.start_pos_x-0.6, self.start_pos_y+0.2, xy_speed), b" move to purge zone"
+            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -0.6, 0.2)
         else:
-            yield gcode.gen_head_move(self.start_pos_x+0.6, self.start_pos_y, xy_speed), b" move to purge zone"
+            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, 0.6, 0)
+        yield gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
@@ -449,9 +454,9 @@ class SwitchTower:
         for speed in speeds:
             round -= 1
             if flip:
-                direction = infill_angle
+                direction = E + infill_angle
             else:
-                direction = 360-infill_angle
+                direction = E + 360-infill_angle
             yield gcode.gen_direction_move(direction, infill_path_length, speed, extruder, feed_rate=feed_rate,
                                            last_line=round == 0), b" infill"
             flip = not flip

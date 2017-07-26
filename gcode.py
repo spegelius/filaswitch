@@ -3,14 +3,15 @@ import re
 
 import utils
 
-N = 90
-S = 270
-W = 180
 E = 0
-NE = 45
-NW = 135
-SW = 225
-SE = 315
+NE = E + 45
+N = NE + 45
+NW = N + 45
+W = NW + 45
+SW = W + 45
+S = SW + 45
+SE = S + 45
+
 
 class GCode:
     EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")
@@ -229,6 +230,33 @@ class GCode:
                 e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
                 yield self.gen_extrusion_move(x, y, speed, e_length)
 
+    def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
+        """
+        Calculate new x-y coordinates by given direction and offsets
+        :param direction: direction to go
+        :param start_x: start position
+        :param start_y: start position
+        :param offset_x: offset x
+        :param offset_y: offset y
+        :return: tuple with new x-y coordinates
+        """
+        length = math.sqrt(offset_x ** 2 + offset_y ** 2)
+
+        if offset_x < 0 and offset_y >= 0:
+            angle = math.atan(abs(offset_x) / abs(offset_y))
+            new_angle = math.degrees(angle) + direction + 90
+        elif offset_x < 0 and offset_y < 0:
+            angle = math.atan(abs(offset_y) / abs(offset_x))
+            new_angle = math.degrees(angle) + direction + 180
+        elif offset_x >= 0 and offset_y < 0:
+            angle = math.atan(abs(offset_x) / abs(offset_y))
+            new_angle = math.degrees(angle) + direction + 270
+        else:
+            angle = math.atan(abs(offset_y) / abs(offset_x))
+            new_angle = math.degrees(angle) + direction
+
+        x, y = self._get_coordinates(new_angle, length)
+        return start_x + x, start_y + y
 
 if __name__ == "__main__":
     # test stuff
@@ -272,3 +300,14 @@ if __name__ == "__main__":
     print(obj._get_coordinates(200, 10))
 
     print(obj._get_coordinates(346, 10))
+
+    print("------------------------")
+    print(obj.get_coordinates_by_offsets(0, 10, 10, 1, 15))
+    print(obj.get_coordinates_by_offsets(1, 10, 10, 1, 15))
+    print(obj.get_coordinates_by_offsets(0, 10, 10, -3, 15))
+    print(obj.get_coordinates_by_offsets(10, 10, 10, -3, 15))
+    print(obj.get_coordinates_by_offsets(10, 10, 10, 2, 1))
+    print(obj.get_coordinates_by_offsets(10, 10, 10, -4, -2))
+    print(obj.get_coordinates_by_offsets(10, 10, 10, -2, -4))
+
+    print(obj.get_coordinates_by_offsets(10, 10, 10, 2, -4))
