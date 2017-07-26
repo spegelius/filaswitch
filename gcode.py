@@ -16,7 +16,7 @@ SE = S + 45
 class GCode:
     EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")
     Z_MOVE_RE = re.compile(b"^G1 Z([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    EXTRUSION_MOVE_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+)")
+    EXTRUSION_MOVE_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+)$")
     EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+) F(\d+\.*\d*)$")
     MOVE_HEAD_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) F(\d+\.*\d*)$")
     SPEED_RE = re.compile(b"^G1 F(\d+\.*\d*)$")
