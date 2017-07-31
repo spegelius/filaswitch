@@ -16,11 +16,12 @@ SLICER_SLIC3R = "Slic3r"
 class GCodeFile:
     slicer_type = None
 
-    def __init__(self, logger, hw_config):
+    def __init__(self, logger, hw_config, tower_position):
         """
         G-code file base class. Not to be used directly
         :param logger: Logger object
-        :param config: system configuration (PEEK, PTFE, E3Dv6)
+        :param hw_config: system configuration (PEEK, PTFE, E3Dv6)
+        :param tower_position: purge tower postion setting
         """
 
         self.log = logger
@@ -39,6 +40,8 @@ class GCodeFile:
 
         self.hw_config = hw_config
         self.log.info("HW config: %s" % self.hw_config)
+
+        self.tower_position = tower_position
 
         self.tools = [0]
 
@@ -141,6 +144,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
+        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position)
         x = []
         y = []
 
@@ -157,12 +161,9 @@ class GCodeFile:
         y_max = max(y)
         x_min = min(x)
         y_min = min(y)
+        self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" % (x_max, y_max, x_min, y_min))
 
-        self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" %(x_max, y_max, x_min, y_min))
-        self.log.info("Tower lower left coordinate: X%.3f, Y%.3f (autodetect)" %(x_min, y_max+5))
-
-        self.switch_tower = SwitchTower(x_min, y_max+5, self.log, self.hw_config)
-        # TODO: check against bed dimensions
+        self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min)
 
     def add_switch_raft(self):
         """

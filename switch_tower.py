@@ -13,14 +13,20 @@ E3DV6 = "PTFE-EV6"
 
 HW_CONFIGS = [PTFE, E3DV6, PEEK]
 
+AUTO = "Automatic"
+LEFT = "Left"
+RIGHT = "Right"
+TOP = "Top"
+BOTTOM = "Bottom"
+
+TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
+
 
 class SwitchTower:
 
-    def __init__(self, start_pos_x, start_pos_y, logger, hw_config):
+    def __init__(self, logger, hw_config, tower_position):
         """
         Filament switc tower functionality
-        :param start_pos_x: start position x coordinate
-        :param start_pos_y: start position y coordinate
         :param logger: Logger object
         :param config: system configuration (PEEK, PTFE, E3Dv6)
         """
@@ -34,18 +40,14 @@ class SwitchTower:
         if self.hw_config == E3DV6:
             self.height += 2
 
+        self.tower_position = tower_position
+
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1
 
         self.raft_width = self.width + 4
         self.raft_height = self.height + 2
         self.angle = 0
-        self.start_pos_x = start_pos_x
-        self.start_pos_y = start_pos_y
-
-        x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -2, -1.2)
-        self.raft_pos_x = x
-        self.raft_pos_y = y
         self.last_tower_z = 0
 
         self.flipflop_purge = False
@@ -59,6 +61,77 @@ class SwitchTower:
 
         # is prepurge position positive or negative
         self.prepurge_sign = 1
+
+        self.E = E
+        self.S = S
+        self.W = W
+        self.N = N
+        self.NE = NE
+        self.NW = NW
+        self.SW = SW
+        self.SE = SE
+
+    def rotate_tower(self, direction):
+        """
+        Rotates coordinate system by given angle
+        :param direction: angle (counter clockwise from East)
+        :return:
+        """
+        self.E += direction
+        self.S += direction
+        self.W += direction
+        self.N += direction
+        self.NE += direction
+        self.NW += direction
+        self.SE += direction
+        self.SW += direction
+
+    def find_tower_position(self, x_max, x_min, y_max, y_min):
+        """
+        Find position for purge tower
+        :param x_max: print objects x max
+        :param x_min: print objects x min
+        :param y_max: print objects y max
+        :param y_min: print objects y min
+        :return:
+        """
+
+        x_mid = (x_max + x_min) / 2
+        y_mid = (y_max + y_min) / 2
+
+        offset = 5
+
+        if self.tower_position == AUTO:
+            # TODO: detection detection...
+            # TODO: check against bed dimensions
+            position = TOP
+        else:
+            position = self.tower_position
+
+        if position == LEFT:
+            self.start_pos_x = x_min - offset
+            self.start_pos_y = y_mid - self.width/2
+            self.rotate_tower(90)
+        elif position == RIGHT:
+            self.start_pos_x = x_max + offset
+            self.start_pos_y = y_mid + self.width/2
+            self.rotate_tower(270)
+        elif position == TOP:
+            self.start_pos_x = x_mid - self.width/2
+            self.start_pos_y = y_max + offset
+            self.rotate_tower(0)
+        elif position == BOTTOM:
+            self.start_pos_x = x_mid + self.width/2
+            self.start_pos_y = y_min - offset
+            self.rotate_tower(180)
+
+        # TODO: add sanity checks
+        self.log.info("Tower lower left coordinate: X%.3f, Y%.3f (autodetect)" %(self.start_pos_x, self.start_pos_y))
+
+        # get raft position
+        x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -2, -1.2)
+        self.raft_pos_x = x
+        self.raft_pos_y = y
 
     def generate_purge_speeds(self, min_speed):
         """
@@ -91,14 +164,14 @@ class SwitchTower:
                 y_2 = 0.6
                 y_3 = 1.4
                 y_4 = 0.6
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_4, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
             yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
@@ -117,14 +190,14 @@ class SwitchTower:
                 y_3 = 1.4
                 y_4 = 0.6
 
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_4, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
             yield b"G4 P2500", b" 2.5s cooling period"
@@ -144,16 +217,16 @@ class SwitchTower:
                 y_4 = 0.6
                 y_5 = 1.4
 
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_4, 3000), b" Y shift"
-            yield gcode.gen_direction_move(E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(N, y_5, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_5, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
             yield b"G4 P2500", b" 2.5s cooling period"
@@ -166,17 +239,17 @@ class SwitchTower:
         if self.hw_config == PEEK:
             yield b"G1 E100 F3000", b" 50mm/s feed"
             yield b"G1 E25 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
+            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PTFE:
             yield b"G1 E100 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
+            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == E3DV6:
             yield b"G1 E100 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
+            yield gcode.gen_direction_move(self.W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = -1
 
     def get_raft_lines(self, first_layer, extruder, retract, xy_speed, z_speed):
@@ -191,7 +264,7 @@ class SwitchTower:
         if extruder.z_hop:
             z_hop = 0.2 + extruder.z_hop
             yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
-        x, y = gcode.get_coordinates_by_offsets(E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
+        x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to raft zone"
         yield ("G1 Z0.2 F%d" % z_speed).encode(), b" move z close"
         yield b"G91", b" relative positioning"
@@ -200,29 +273,29 @@ class SwitchTower:
         width = self.raft_width + 0.8
         height = self.raft_height + 0.8
         speed = 2000
-        yield gcode.gen_direction_move(E, width, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(N, height, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(W, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(S, height, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(E, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder), b" raft wall"
         height -= 0.4
-        yield gcode.gen_direction_move(N, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(W, width, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(S, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder), b" raft wall"
 
-        yield gcode.gen_direction_move(SE, 0.6, xy_speed), None
+        yield gcode.gen_direction_move(self.SE, 0.6, xy_speed), None
 
         feed_rate = extruder.get_feed_rate(multiplier=1.3)
         speed = 1000
         for _ in range(int(self.raft_width/2)):
-            yield gcode.gen_direction_move(N, self.raft_height, speed, extruder, feed_rate), b" raft1"
-            yield gcode.gen_direction_move(E, 1, speed), b" raft2"
-            yield gcode.gen_direction_move(S, self.raft_height, speed, extruder, feed_rate), b" raft3"
-            yield gcode.gen_direction_move(E, 1, speed), b" raft4"
+            yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate), b" raft1"
+            yield gcode.gen_direction_move(self.E, 1, speed), b" raft2"
+            yield gcode.gen_direction_move(self.S, self.raft_height, speed, extruder, feed_rate), b" raft3"
+            yield gcode.gen_direction_move(self.E, 1, speed), b" raft4"
 
         if retract:
             yield extruder.get_retract_gcode()
@@ -267,9 +340,9 @@ class SwitchTower:
         :return: g-code line
         """
         if not flipflop:
-            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -1.2, self.wall_height - 0.5)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, self.wall_height - 0.5)
         else:
-            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -1.2, -0.5)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, -0.5)
         #print(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
@@ -282,15 +355,15 @@ class SwitchTower:
         """
         last_y = self.wall_height - 0.3
         if flipflop:
-            yield gcode.gen_direction_move(E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(N, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(S, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
+            yield gcode.gen_direction_move(self.E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.N, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.S, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
         else:
-            yield gcode.gen_direction_move(E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(S, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(N, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
+            yield gcode.gen_direction_move(self.E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.S, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+            yield gcode.gen_direction_move(self.N, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
 
     def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed):
         """
@@ -321,9 +394,9 @@ class SwitchTower:
 
         self.last_tower_z = self.last_tower_z + layer.height
         if self.flipflop_purge:
-            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, -0.6, 0.2)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2)
         else:
-            x, y = gcode.get_coordinates_by_offsets(E, self.start_pos_x, self.start_pos_y, 0.6, 0)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
         yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
@@ -346,36 +419,36 @@ class SwitchTower:
         purge_length = self.purge_line_length * self.prepurge_sign
 
         if self.prepurge_sign == 1:
-            dir_1 = W
-            dir_2 = E
+            dir_1 = self.W
+            dir_2 = self.E
         else:
-            dir_1 = E
-            dir_2 = W
+            dir_1 = self.E
+            dir_2 = self.W
 
         for speed in self.generate_purge_speeds(min_speed):
             if self.flipflop_purge:
-                yield gcode.gen_direction_move(N, 0.6, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_1, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
-                yield gcode.gen_direction_move(N, 0.9, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_2, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
             else:
-                yield gcode.gen_direction_move(N, 0.9, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_1, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
-                yield gcode.gen_direction_move(N, 0.6, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_2, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
 
         if self.flipflop_purge:
-            yield gcode.gen_direction_move(N, 0.6, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
         else:
-            yield gcode.gen_direction_move(N, 0.9, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
         yield gcode.gen_direction_move(dir_1, purge_length, 2400, new_e, feed_rate=feed_rate), b" purge trail"
 
         if self.hw_config == E3DV6:
             # one more purge line for E3Dv6
             if self.flipflop_purge:
-                yield gcode.gen_direction_move(N, 0.9, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
             else:
-                yield gcode.gen_direction_move(N, 0.6, 3000), b" Y shift"
+                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
             yield gcode.gen_direction_move(dir_2, purge_length, min_speed, new_e, feed_rate=feed_rate), b" purge trail"
 
         # move to purge zone upper left corner
@@ -389,7 +462,7 @@ class SwitchTower:
 
         yield new_e.get_retract_gcode()
         if new_e.wipe:
-            yield gcode.gen_direction_move(S, new_e.wipe, 3000), b" wipe"
+            yield gcode.gen_direction_move(self.S, new_e.wipe, 3000), b" wipe"
 
         yield b"G90", b" absolute positioning"
         yield b"G92 E0", b" reset extruder position"
@@ -454,9 +527,9 @@ class SwitchTower:
         for speed in speeds:
             round -= 1
             if flip:
-                direction = E + infill_angle
+                direction = self.E + infill_angle
             else:
-                direction = E + 360-infill_angle
+                direction = self.E + 360-infill_angle
             yield gcode.gen_direction_move(direction, infill_path_length, speed, extruder, feed_rate=feed_rate,
                                            last_line=round == 0), b" infill"
             flip = not flip
