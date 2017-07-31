@@ -119,7 +119,7 @@ class Layer:
             yield line[0], line[1], index
             index += 1
 
-    def get_outer_perimeter_rates(self):
+    def get_outer_perimeter_rates(self, search_comment=b"outer perimeter"):
         """
         Find outer perimeter print speed
         :return: perimeter print speed
@@ -132,7 +132,7 @@ class Layer:
             prev_position = None
             for cmd, comment in self.lines:
                 if comment:
-                    if b"outer perimeter" in comment:
+                    if search_comment in comment:
                         is_outer = True
                     else:
                         is_outer = False
@@ -168,3 +168,9 @@ class FirstLayer(Layer):
     def __init__(self, num, z, height):
         super().__init__(num, z, height)
         self.start_gcode_end = 0
+
+    def get_outer_perimeter_rates(self, search_comment=b"outer perimeter"):
+        values = super().get_outer_perimeter_rates()
+        if not self.outer_perimeter_speed:
+            values = super().get_outer_perimeter_rates(search_comment=b"skirt")
+        return values

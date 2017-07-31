@@ -3,7 +3,7 @@ import re
 from extruder import Extruder
 from switch_tower import PEEK
 from gcode import GCode
-
+from layer import FirstLayer
 
 import utils
 from gcode_file import SLICER_SIMPLIFY3D, GCodeFile
@@ -138,6 +138,8 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.infill_speed = float(comment.split(b",")[-1])
             elif b"supportUnderspeed" in comment:
                 self.support_speed = float(comment.split(b",")[-1])
+            elif b"firstLayerUnderspeed" in comment:
+                self.first_layer_speed = float(comment.split(b",")[-1])
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
@@ -147,6 +149,7 @@ class Simplify3dGCodeFile(GCodeFile):
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
 
         self.outer_perimeter_speed *= self.default_speed
+        self.first_layer_speed *= self.default_speed
 
     def parse_print_settings(self):
         """ S3D specific settings """
@@ -302,6 +305,20 @@ class Simplify3dGCodeFile(GCodeFile):
             else:
                 layer.outer_perimeter_speed = last_speed
                 layer.outer_perimeter_feedrate = last_feed_rate
+
+        # second pass, check that every layer has a speed and feed rate
+        for layer in self.layers:
+            if not layer.outer_perimeter_speed:
+                if isinstance(layer, FirstLayer):
+                    layer.outer_perimeter_speed = self.first_layer_speed
+                    layer.outer_perimeter_feedrate = last_feed_rate
+                else:
+                    layer.outer_perimeter_speed = last_speed
+                    layer.outer_perimeter_feedrate = last_feed_rate
+            else:
+                last_speed = layer.outer_perimeter_speed
+                last_feed_rate = layer.outer_perimeter_feedrate
+
 
 if __name__ == "__main__":
     import logger
