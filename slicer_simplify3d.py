@@ -37,6 +37,11 @@ class Simplify3dGCodeFile(GCodeFile):
         self.version = None
 
         self.default_speed = None
+        self.machine_type = None
+        self.stroke_x = None
+        self.stroke_y = None
+        self.origin_offset_x = None
+        self.origin_offset_y = None
 
     def process(self, gcode_file):
         self.open_file(gcode_file)
@@ -140,6 +145,17 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.support_speed = float(comment.split(b",")[-1])
             elif b"firstLayerUnderspeed" in comment:
                 self.first_layer_speed = float(comment.split(b",")[-1])
+            elif b"machineTypeOverride" in comment:
+                self.machine_type = int(comment.split(b",")[-1])
+            elif b"strokeXoverride" in comment:
+                self.stroke_x = float(comment.split(b",")[-1])
+            elif b"strokeYoverride" in comment:
+                self.stroke_y = float(comment.split(b",")[-1])
+            elif b"originOffsetXoverride" in comment:
+                self.origin_offset_x = float(comment.split(b",")[-1])
+            elif b"originOffsetYoverride" in comment:
+                self.origin_offset_y = float(comment.split(b",")[-1])
+
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")

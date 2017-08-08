@@ -49,6 +49,13 @@ class GCodeFile:
         self.travel_z_speed = None
         self.outer_perimeter_speed = None
 
+        # machine limits. Populate these values in slicer specific implementations
+        self.machine_type = None
+        self.stroke_x = None
+        self.stroke_y = None
+        self.origin_offset_x = None
+        self.origin_offset_y = None
+
     def parse_header(self):
         """
         Parse header of gcode file, if any.
@@ -163,7 +170,8 @@ class GCodeFile:
         y_min = min(y)
         self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" % (x_max, y_max, x_min, y_min))
 
-        self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min)
+        self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min, self.machine_type, self.stroke_x,
+                                              self.stroke_y, self.origin_offset_x, self.origin_offset_y)
 
     def add_switch_raft(self):
         """

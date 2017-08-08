@@ -12,6 +12,9 @@ SW = W + 45
 S = SW + 45
 SE = S + 45
 
+TYPE_CARTESIAN = 0
+TYPE_DELTA = 1
+
 
 class GCode:
     EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")

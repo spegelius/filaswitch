@@ -1,6 +1,6 @@
 import math
 
-from gcode import GCode, E, S, W, N, NE, NW, SE, SW
+from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
 
 import utils
 
@@ -18,6 +18,7 @@ LEFT = "Left"
 RIGHT = "Right"
 TOP = "Top"
 BOTTOM = "Bottom"
+
 
 TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
 
@@ -62,6 +63,24 @@ class SwitchTower:
         # is prepurge position positive or negative
         self.prepurge_sign = 1
 
+        self.start_pos_x = None
+        self.start_pos_y = None
+
+        self.raft_pos_x = None
+        self.raft_pos_y = None
+
+        # offset from model
+        self.tower_offset = 5
+
+        # total values in terms of space taken
+        self.total_height = self.raft_height + self.tower_offset
+        self.total_width = self.raft_width + 3
+        self.extra_width = self.total_width - self.width
+
+        # build volume mid points, populated in find tower-fuction
+        self.x_mid = None
+        self.y_mid = None
+
         self.E = E
         self.S = S
         self.W = W
@@ -86,47 +105,231 @@ class SwitchTower:
         self.SE += direction
         self.SW += direction
 
-    def find_tower_position(self, x_max, x_min, y_max, y_min):
+    def _cartesian_position(self, x_max, x_min, y_max, y_min, stroke_x,
+                            stroke_y, origin_offset_x, origin_offset_y):
+        """
+        Find position for purge tower using cartesian limits
+        :param x_max: print objects x max
+        :param x_min: print objects x min
+        :param y_max: print objects y max
+        :param y_min: print objects y min
+        :param stroke_x: bed width
+        :param stroke_y: bed height
+        :param origin_offset_x: origin x offset
+        :param origin_offset_y: origin y offset
+        :return:
+        """
+        # expect origin offset to be positive always
+        bed_x_max = stroke_x - origin_offset_x
+        bed_y_max = stroke_y - origin_offset_y
+
+        bed_x_min = 0 - origin_offset_x
+        bed_y_min = 0 - origin_offset_y
+
+
+        # find a place that can accommodate the tower height
+        if self.tower_position == AUTO:
+            positions = [TOP, RIGHT, BOTTOM, LEFT]
+        else:
+            positions = [self.tower_position]
+
+        for position in positions:
+            # generate tower start positions and adjust tower position if it is out of the bed
+            if position == LEFT:
+                self.start_pos_x = x_min - self.tower_offset
+                self.start_pos_y = self.y_mid - self.width / 2
+
+                if self.start_pos_y < bed_y_min + 4:
+                    self.start_pos_y = bed_y_min + 4
+
+                elif self.start_pos_y > bed_y_max - self.total_width:
+                    self.start_pos_y = bed_y_max - self.total_width
+
+                if self.start_pos_x > bed_x_min + self.total_height:
+                    self.rotate_tower(90)
+                    return position
+
+            elif position == RIGHT:
+                self.start_pos_x = x_max + self.tower_offset
+                self.start_pos_y = self.y_mid + self.width / 2
+
+                if self.start_pos_y < bed_y_min - self.total_width:
+                    self.start_pos_y = bed_y_min - self.total_width
+
+                elif self.start_pos_y > bed_y_max - 4:
+                    self.start_pos_y = bed_y_max - 4
+
+                if self.start_pos_x < bed_x_max - self.total_height:
+                    self.rotate_tower(270)
+                    return position
+
+            elif position == TOP:
+                self.start_pos_x = self.x_mid - self.width / 2
+                self.start_pos_y = y_max + self.tower_offset
+
+                if self.start_pos_x < bed_x_min + 4:
+                    self.start_pos_x = bed_x_min + 4
+
+                elif self.start_pos_x > bed_x_max - self.total_width:
+                    self.start_pos_x = bed_x_max - self.total_width
+
+                if self.start_pos_y < bed_x_max - self.total_height:
+                    self.rotate_tower(0)
+                    return position
+
+            elif position == BOTTOM:
+                self.start_pos_x = self.x_mid + self.width / 2
+                self.start_pos_y = y_min - self.tower_offset
+
+                if self.start_pos_x < bed_x_min + self.total_width:
+                    self.start_pos_x = bed_x_min + self.total_width
+
+                elif self.start_pos_x > bed_x_max - 4:
+                    self.start_pos_x = bed_x_max - 4
+
+                if self.start_pos_y > bed_y_min + self.total_height:
+                    self.rotate_tower(180)
+                    return position
+
+        if self.tower_position == AUTO:
+            raise ValueError("Not enough space for the tower inside the bed!")
+        raise ValueError("Not enough room for tower using selected position %s" % self.tower_position)
+
+    def _delta_position(self, x_max, x_min, y_max, y_min, stroke_x,
+                            stroke_y, origin_offset_x, origin_offset_y):
+        """
+        Find position for purge tower using delta limits
+        :param x_max: print objects x max
+        :param x_min: print objects x min
+        :param y_max: print objects y max
+        :param y_min: print objects y min
+        :param stroke_x: bed width
+        :param stroke_y: bed height
+        :param origin_offset_x: origin x offset
+        :param origin_offset_y: origin y offset
+        :return:
+        """
+
+        # assume that bed is round and origin is at the center
+        bed_r = stroke_x/2
+
+        def check_coordinate(x, y):
+            angle = math.atan(y / x)
+            length = y / math.sin(angle)
+            return abs(length) < bed_r
+
+        # find a place that can accommodate the tower height
+        if self.tower_position == AUTO:
+            positions = [TOP, RIGHT, BOTTOM, LEFT]
+        else:
+            positions = [self.tower_position]
+
+        for position in positions:
+
+            # generate tower start positions and adjust tower position if it is out of the bed
+            if position == TOP:
+                # top
+                y = y_max + self.total_height
+                x1 = self.x_mid - self.total_width/2
+                x2 = self.x_mid + self.total_width/2
+
+                if check_coordinate(x1, y) and check_coordinate(x2, y):
+                    self.start_pos_y = y_max + self.tower_offset
+                    self.start_pos_x = x1 + self.extra_width/2
+                    return position
+
+                # x3 = -self.total_width/2
+                # x4 = self.total_width/2
+                # if check_coordinate(x3, y) and check_coordinate(x4, y):
+                #     self.start_pos_y = y_max + self.tower_offset
+                #     self.start_pos_x = x3 + self.extra_width/2
+                #     return position
+
+            elif position == RIGHT:
+                x = x_max + self.total_height
+                y1 = self.y_mid + self.total_width/2
+                y2 = self.y_mid - self.total_width/2
+                if check_coordinate(x, y1) and check_coordinate(x, y2):
+                    self.start_pos_y = y1 - self.extra_width/2
+                    self.start_pos_x = x_max + self.tower_offset
+                    self.rotate_tower(270)
+                    return position
+
+                # y3 = self.total_width/2
+                # y4 = -self.total_width/2
+                # if check_coordinate(x, y3) and check_coordinate(x, y4):
+                #     self.start_pos_y = y3 - self.extra_width/2
+                #     self.start_pos_x = x_max + self.tower_offset
+                #     self.rotate_tower(270)
+                #     return position
+
+            elif position == BOTTOM:
+                y = y_min - self.total_height
+                x1 = self.x_mid - self.total_width / 2
+                x2 = self.x_mid + self.total_width / 2
+                if check_coordinate(x1, y) and check_coordinate(x2, y):
+                    self.start_pos_y = y_min - self.tower_offset
+                    self.start_pos_x = x2 - self.extra_width/2
+                    self.rotate_tower(180)
+                    return position
+
+                # x3 = -self.total_width / 2
+                # x4 = self.total_width / 2
+                # if check_coordinate(x3, y) and check_coordinate(x4, y):
+                #     self.start_pos_y = y_min - self.tower_offset
+                #     self.start_pos_x = x4 - self.extra_width/2
+                #     self.rotate_tower(180)
+                #     return position
+
+            elif position == LEFT:
+                x = x_min - self.total_height
+                y1 = self.y_mid - self.total_width / 2
+                y2 = self.y_mid = self.total_width / 2
+                if check_coordinate(x, y1) and check_coordinate(x, y2):
+                    self.start_pos_y = y1 + self.extra_width/2
+                    self.start_pos_x = x_min - self.tower_offset
+                    self.rotate_tower(90)
+                    return position
+
+                # y3 = -self.total_width / 2
+                # y4 = self.total_width / 2
+                # if check_coordinate(x, y3) and check_coordinate(x, y4):
+                #     self.start_pos_y = y3 + self.extra_width/2
+                #     self.start_pos_x = x_min - self.tower_offset
+                #     self.rotate_tower(90)
+                #     return position
+
+        if self.tower_position == AUTO:
+            raise ValueError("Not enough space for the tower inside the bed!")
+        raise ValueError("Not enough room for tower using selected position %s" % self.tower_position)
+
+    def find_tower_position(self, x_max, x_min, y_max, y_min, machine_type, stroke_x,
+                            stroke_y, origin_offset_x, origin_offset_y):
         """
         Find position for purge tower
         :param x_max: print objects x max
         :param x_min: print objects x min
         :param y_max: print objects y max
         :param y_min: print objects y min
+        :param machine_type: printer type; 0 = cartesian, 1 = delta
+        :param stroke_x: bed width
+        :param stroke_y: bed height
+        :param origin_offset_x: origin x offset
+        :param origin_offset_y: origin y offset
         :return:
         """
 
-        x_mid = (x_max + x_min) / 2
-        y_mid = (y_max + y_min) / 2
+        self.x_mid = (x_max + x_min) / 2
+        self.y_mid = (y_max + y_min) / 2
 
-        offset = 5
-
-        if self.tower_position == AUTO:
-            # TODO: detection detection...
-            # TODO: check against bed dimensions
-            position = TOP
+        if machine_type == TYPE_CARTESIAN:
+            position = self._cartesian_position(x_max, x_min, y_max, y_min, stroke_x,
+                            stroke_y, origin_offset_x, origin_offset_y)
         else:
-            position = self.tower_position
+            position = self._delta_position(x_max, x_min, y_max, y_min, stroke_x,
+                            stroke_y, origin_offset_x, origin_offset_y)
 
-        if position == LEFT:
-            self.start_pos_x = x_min - offset
-            self.start_pos_y = y_mid - self.width/2
-            self.rotate_tower(90)
-        elif position == RIGHT:
-            self.start_pos_x = x_max + offset
-            self.start_pos_y = y_mid + self.width/2
-            self.rotate_tower(270)
-        elif position == TOP:
-            self.start_pos_x = x_mid - self.width/2
-            self.start_pos_y = y_max + offset
-            self.rotate_tower(0)
-        elif position == BOTTOM:
-            self.start_pos_x = x_mid + self.width/2
-            self.start_pos_y = y_min - offset
-            self.rotate_tower(180)
-
-        # TODO: add sanity checks
-        self.log.info("Tower lower left coordinate: X%.3f, Y%.3f (autodetect)" %(self.start_pos_x, self.start_pos_y))
+        self.log.info("Tower start coordinate: X%.3f, Y%.3f, position %s" %(self.start_pos_x, self.start_pos_y, position))
 
         # get raft position
         x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -2, -1.2)
