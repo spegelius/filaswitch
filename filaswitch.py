@@ -125,7 +125,7 @@ class TopFrame(tk.Frame):
                 status["last_position"] = self.position_var.get()
             except Exception as e:
                 self.log.error(str(e))
-                showerror("File open error", "Cannot open file %s" % gcode_file)
+                #showerror("File open error", "Cannot open file %s" % gcode_file)
         else:
             self.log.info("Aborted")
 
