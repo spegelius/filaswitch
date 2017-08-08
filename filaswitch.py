@@ -176,7 +176,7 @@ def main():
         parser.add_argument("hw_config", help="Extruder/hotend configuration", choices=HW_CONFIGS)
         parser.add_argument("--debug", help="Show debug prints", action="store_true")
         parser.add_argument("--position", help="Purge tower position. Default Auto. Auto will try to find a position with enough free space for the tower",
-                            choices=TOWER_POSITIONS)
+                            choices=TOWER_POSITIONS, default=AUTO)
         args = parser.parse_args()
 
         log = Logger(prog_dir, gui=False, debug=args.debug)
