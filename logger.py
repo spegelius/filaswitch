@@ -25,12 +25,12 @@ class Logger:
             self.log.setLevel(logging.INFO)
 
     def debug(self, msg):
-        self.log.debug(msg)
+        self.log.debug("DEBUG: %s" % msg)
 
     def error(self, msg):
         self.log.error(msg)
         if self.gui:
-            self.gui.update_status(msg)
+            self.gui.update_status("ERROR: %s" % msg)
 
     def info(self, msg):
         self.log.info(msg)
@@ -39,3 +39,8 @@ class Logger:
 
     def warning(self, msg):
         self.log.warning(msg)
+        if self.gui:
+            self.gui.update_status("WARNING: %s" % msg)
+
+    def set_gui(self, gui):
+        self.gui = gui
