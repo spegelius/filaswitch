@@ -153,8 +153,8 @@ class SwitchTower:
                 self.start_pos_x = x_max + self.tower_offset
                 self.start_pos_y = self.y_mid + self.width / 2
 
-                if self.start_pos_y < bed_y_min - self.total_width:
-                    self.start_pos_y = bed_y_min - self.total_width
+                if self.start_pos_y < bed_y_min + self.total_width:
+                    self.start_pos_y = bed_y_min + self.total_width
 
                 elif self.start_pos_y > bed_y_max - 4:
                     self.start_pos_y = bed_y_max - 4
@@ -619,7 +619,7 @@ class SwitchTower:
         # post-switch purge
         purge_feed_rate = new_e.get_feed_rate(multiplier=1.2)
         # switch direction depending of prepurge orientation
-        purge_length = self.purge_line_length * self.prepurge_sign
+        purge_length = self.purge_line_length
 
         if self.prepurge_sign == 1:
             dir_1 = self.W
