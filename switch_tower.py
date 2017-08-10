@@ -22,43 +22,49 @@ BOTTOM = "Bottom"
 
 TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
 
+LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+LINE_COUNT_DEFAULT = 6
+
 
 class SwitchTower:
 
-    def __init__(self, logger, hw_config, tower_position):
+    def __init__(self, logger, hw_config, tower_position, purge_lines=LINE_COUNT_DEFAULT):
         """
         Filament switc tower functionality
         :param logger: Logger object
         :param config: system configuration (PEEK, PTFE, E3Dv6)
+        :param purge_lines: amount of post purge lines
         """
 
         self.log = logger
+        self.hw_config = hw_config
 
         self.width = 50
-        self.height = 14 # use even values
+        self.pre_purge_height = 4.9
 
-        self.hw_config = hw_config
+        # post purge line config
+        self.purge_line_length = self.width + 0.6
+        self.purge_lines = purge_lines
+
         if self.hw_config == E3DV6:
-            self.height += 2
+            self.purge_lines -= 1
+            self.pre_purge_height = 6.3
+
+        self.height = self.pre_purge_height + self.purge_lines * 1.5
 
         self.tower_position = tower_position
 
         self.wall_width = self.width + 2.4
-        self.wall_height = self.height + 1
+        self.wall_height = self.height + 1.0
 
-        self.raft_width = self.width + 4
-        self.raft_height = self.height + 2
+        self.raft_width = self.width + 4.0
+        self.raft_height = self.height + 2.0
         self.angle = 0
         self.last_tower_z = 0
 
         self.flipflop_purge = False
         self.flipflop_infill = False
 
-        # post purge line config
-        self.purge_line_length = self.width + 0.6
-        self.purge_lines = int(abs(self.height / 2)) -1
-        if self.hw_config == E3DV6:
-            self.purge_lines -= 1
 
         # is prepurge position positive or negative
         self.prepurge_sign = 1
@@ -70,7 +76,7 @@ class SwitchTower:
         self.raft_pos_y = None
 
         # offset from model
-        self.tower_offset = 5
+        self.tower_offset = 5.0
 
         # total values in terms of space taken
         self.total_height = self.raft_height + self.tower_offset
@@ -123,8 +129,8 @@ class SwitchTower:
         bed_x_max = stroke_x - origin_offset_x
         bed_y_max = stroke_y - origin_offset_y
 
-        bed_x_min = 0 - origin_offset_x
-        bed_y_min = 0 - origin_offset_y
+        bed_x_min = -origin_offset_x
+        bed_y_min = -origin_offset_y
 
 
         # find a place that can accommodate the tower height

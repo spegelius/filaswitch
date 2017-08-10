@@ -16,12 +16,13 @@ SLICER_SLIC3R = "Slic3r"
 class GCodeFile:
     slicer_type = None
 
-    def __init__(self, logger, hw_config, tower_position):
+    def __init__(self, logger, hw_config, tower_position, purge_lines):
         """
         G-code file base class. Not to be used directly
         :param logger: Logger object
         :param hw_config: system configuration (PEEK, PTFE, E3Dv6)
         :param tower_position: purge tower postion setting
+        :param purge_lines: amount of post purge lines
         """
 
         self.log = logger
@@ -42,6 +43,9 @@ class GCodeFile:
         self.log.info("HW config: %s" % self.hw_config)
 
         self.tower_position = tower_position
+        self.purge_lines = int(purge_lines)
+        if self.purge_lines > 15:
+            self.purge_lines = 15
 
         self.tools = [0]
 
@@ -151,7 +155,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position)
+        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.purge_lines)
         x = []
         y = []
 
