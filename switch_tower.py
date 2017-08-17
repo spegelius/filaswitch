@@ -9,9 +9,10 @@ gcode = GCode()
 # hw configs
 PEEK = "PEEK-PRO-12"
 PTFE = "PTFE-PRO-12"
+PTFE4 = "PTFE-PRO-24"
 E3DV6 = "PTFE-EV6"
 
-HW_CONFIGS = [PTFE, E3DV6, PEEK]
+HW_CONFIGS = [PTFE, PTFE4, E3DV6, PEEK]
 
 AUTO = "Automatic"
 LEFT = "Left"
@@ -28,16 +29,25 @@ LINE_COUNT_DEFAULT = 6
 
 class SwitchTower:
 
-    def __init__(self, logger, hw_config, tower_position, purge_lines=LINE_COUNT_DEFAULT):
+    def __init__(self, logger, hw_config, tower_position, max_slots,  purge_lines=LINE_COUNT_DEFAULT):
         """
-        Filament switc tower functionality
+        Filament switch tower functionality
         :param logger: Logger object
         :param config: system configuration (PEEK, PTFE, E3Dv6)
+        :param max_slots: maximum number of tower slots
         :param purge_lines: amount of post purge lines
         """
 
         self.log = logger
         self.hw_config = hw_config
+        self.max_slots = max_slots
+
+        self.slots = {}
+        for i in range(self.max_slots):
+            self.slots[i] = {}
+            self.slots[i]['last_z'] = 0.0
+            self.slots[i]['flipflop_purge'] = False
+            self.slots[i]['flipflop_infill'] = False
 
         self.width = 50
         self.pre_purge_height = 4.9
@@ -58,13 +68,9 @@ class SwitchTower:
         self.wall_height = self.height + 1.0
 
         self.raft_width = self.width + 4.0
-        self.raft_height = self.height + 2.0
+        self.raft_height = (self.wall_height) * self.max_slots + 2.0
+        self.raft_layer_height = 0.2
         self.angle = 0
-        self.last_tower_z = 0
-
-        self.flipflop_purge = False
-        self.flipflop_infill = False
-
 
         # is prepurge position positive or negative
         self.prepurge_sign = 1
@@ -86,6 +92,10 @@ class SwitchTower:
         # build volume mid points, populated in find tower-fuction
         self.x_mid = None
         self.y_mid = None
+
+        # amount of room for difference between tower height and model height
+        self.z_slack_max = 1.2
+        self.last_z_position = 0.0
 
         self.E = E
         self.S = S
@@ -412,6 +422,31 @@ class SwitchTower:
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
 
+        elif self.hw_config == PTFE4:
+            if flip:
+                y_1 = 0.6
+                y_2 = 1.4
+                y_3 = 0.6
+                y_4 = 1.4
+            else:
+                y_1 = 1.4
+                y_2 = 0.6
+                y_3 = 1.4
+                y_4 = 0.6
+
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
+
+            yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
+            yield b"G4 P2500", b" 2.5s cooling period"
+            yield gcode.gen_extruder_move(-150, 3000), b" 50mm/s long retract"
+
         elif self.hw_config == E3DV6:
             if flip:
                 y_1 = 0.8
@@ -455,6 +490,11 @@ class SwitchTower:
             yield b"G1 E54 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
+        elif self.hw_config == PTFE4:
+            yield b"G1 E110 F3000", b" 50mm/s feed"
+            yield b"G1 E54 F1500", b" 25mm/s feed"
+            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
+            self.prepurge_sign = 1
         elif self.hw_config == E3DV6:
             yield b"G1 E100 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
@@ -471,11 +511,11 @@ class SwitchTower:
         """
         yield None, b" TOWER RAFT START"
         if extruder.z_hop:
-            z_hop = 0.2 + extruder.z_hop
+            z_hop = self.raft_layer_height + extruder.z_hop
             yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to raft zone"
-        yield ("G1 Z0.2 F%d" % z_speed).encode(), b" move z close"
+        yield ("G1 Z%.1f F%d" % (self.raft_layer_height, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
         # box
@@ -510,22 +550,26 @@ class SwitchTower:
             yield extruder.get_retract_gcode()
         yield b"G90", b" absolute positioning"
         yield None, b" TOWER RAFT END"
-        self.last_tower_z = 0.2
 
-    def _get_z_hop(self, layer, z_hop, z_speed, extruder):
+        # update slot z values
+        for i in range(self.max_slots):
+            self.slots[i]['last_z'] = self.raft_layer_height
+
+    def _get_z_hop(self, layer, z_speed, extruder):
         """
         Get g-code for z-hop
         :param layer: current layer
-        :param z-hop position
         :param z_speed: z-axis speed
         :param extruder: current extruder
         :return: G-code for z-hop or None
         """
+        if layer.z > self.slots[layer.tower_slot]['last_z']:
+            new_z_hop = layer.z
+        else:
+            new_z_hop = self.slots[layer.tower_slot]['last_z']
         if extruder.z_hop:
-            new_z_hop = self.last_tower_z + extruder.z_hop
-            if new_z_hop != layer.z + z_hop:
-                return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b" z-hop"
-        return None
+            new_z_hop += extruder.z_hop
+        return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b" z-hop"
 
     def _get_retraction(self, e_pos, extruder):
         """
@@ -541,17 +585,19 @@ class SwitchTower:
                 retraction = extruder.retract
             return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b" tower retract"
 
-    def _get_wall_position_gcode(self, flipflop, xy_speed):
+    def _get_wall_position_gcode(self, layer, flipflop, xy_speed):
         """
         Retun g-code line for positioning head for wall print
+        :param layer: current layer
         :param flipflop: flip or flop
         :param xy_speed: xy travel speed
         :return: g-code line
         """
+        y_pos = (self.wall_height + 0.4) * layer.tower_slot
         if not flipflop:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, self.wall_height - 0.5)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, self.wall_height - 0.5 + y_pos)
         else:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, -0.5)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, -0.5 + y_pos)
         #print(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
@@ -597,23 +643,25 @@ class SwitchTower:
             yield retraction
 
         # handle z-hop
-        hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
+        hop = self._get_z_hop(layer, z_speed, old_e)
         if hop:
             yield hop
 
-        self.last_tower_z = self.last_tower_z + layer.height
-        if self.flipflop_purge:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2)
+        y_pos = (self.wall_height + 0.4) * layer.tower_slot
+        if self.slots[layer.tower_slot]['flipflop_purge']:
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2 + y_pos)
         else:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0 + y_pos)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
-        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
+        tower_z = layer.height + self.slots[layer.tower_slot]['last_z']
+        self.slots[layer.tower_slot]['last_z'] = tower_z
+        yield ("G1 Z%.3f F%.1f" % (tower_z, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, self.flipflop_purge):
+        for line in self.get_pre_switch_gcode(old_e, self.slots[layer.tower_slot]['flipflop_purge']):
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
@@ -635,7 +683,7 @@ class SwitchTower:
             dir_2 = self.W
 
         for speed in self.generate_purge_speeds(min_speed):
-            if self.flipflop_purge:
+            if self.slots[layer.tower_slot]['flipflop_purge']:
                 yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_1, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
                 yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
@@ -646,7 +694,7 @@ class SwitchTower:
                 yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
                 yield gcode.gen_direction_move(dir_2, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
 
-        if self.flipflop_purge:
+        if self.slots[layer.tower_slot]['flipflop_purge']:
             yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
         else:
             yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
@@ -654,7 +702,7 @@ class SwitchTower:
 
         if self.hw_config == E3DV6:
             # one more purge line for E3Dv6
-            if self.flipflop_purge:
+            if self.slots[layer.tower_slot]['flipflop_purge']:
                 yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
             else:
                 yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
@@ -662,7 +710,7 @@ class SwitchTower:
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
-        yield self._get_wall_position_gcode(False, xy_speed)
+        yield self._get_wall_position_gcode(layer, False, xy_speed)
         yield b"G91", b" relative positioning"
 
         # wall gcode
@@ -675,13 +723,13 @@ class SwitchTower:
 
         yield b"G90", b" absolute positioning"
         yield b"G92 E0", b" reset extruder position"
-        hop = self._get_z_hop(layer, z_hop, z_speed, old_e)
+        hop = self._get_z_hop(layer, z_speed, old_e)
         if hop:
             yield hop
         yield None, b" TOWER END"
 
         # flip the flop
-        self.flipflop_purge = not self.flipflop_purge
+        self.slots[layer.tower_slot]['flipflop_purge'] = not self.slots[layer.tower_slot]['flipflop_purge']
 
     def get_infill_lines(self, layer, e_pos, extruder, z_hop, z_speed, xy_speed):
         """
@@ -693,6 +741,13 @@ class SwitchTower:
         :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
+
+        # no need to add infll if tower is already higher than layer
+        if layer.z <= self.slots[layer.tower_slot]['last_z']:
+            print(layer.z)
+            print(self.slots[layer.tower_slot]['last_z'])
+            return []
+
         self.log.debug("Adding purge tower infill")
         yield None, b" TOWER INFILL START"
 
@@ -705,13 +760,15 @@ class SwitchTower:
             yield retraction
 
         # handle z-hop
-        hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
+        hop = self._get_z_hop(layer, z_speed, extruder)
         if hop:
             yield hop
-        self.last_tower_z = self.last_tower_z + layer.height
 
-        yield self._get_wall_position_gcode(self.flipflop_infill, xy_speed)
-        yield ("G1 Z%.3f F%.1f" % (self.last_tower_z, z_speed)).encode(), b" move z close"
+        tower_z = layer.height + self.slots[layer.tower_slot]['last_z']
+        self.slots[layer.tower_slot]['last_z'] = tower_z
+
+        yield self._get_wall_position_gcode(layer, self.slots[layer.tower_slot]['flipflop_infill'], xy_speed)
+        yield ("G1 Z%.3f F%.1f" % (tower_z, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
         yield extruder.get_prime_gcode()
 
@@ -722,10 +779,10 @@ class SwitchTower:
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
 
         # wall gcode
-        for line in self._get_wall_gcode(self.flipflop_infill, extruder, 2400, feed_rate):
+        for line in self._get_wall_gcode(self.slots[layer.tower_slot]['flipflop_infill'], extruder, 2400, feed_rate):
             yield line
 
-        flip = self.flipflop_infill
+        flip = self.slots[layer.tower_slot]['flipflop_infill']
 
         step = (2400-min_speed)/4
         speeds = [2400 - i * step for i in range(4)]
@@ -748,14 +805,14 @@ class SwitchTower:
             yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000), b" wipe"
 
         yield b"G90", b" absolute positioning"
-        hop = self._get_z_hop(layer, z_hop, z_speed, extruder)
+        hop = self._get_z_hop(layer, z_speed, extruder)
         if hop:
             yield hop
         yield b"G92 E0", b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
         # flip the flop
-        self.flipflop_infill = not self.flipflop_infill
+        self.slots[layer.tower_slot]['flipflop_infill'] = not self.slots[layer.tower_slot]['flipflop_infill']
 
 if __name__ == "__main__":
     from logger import Logger

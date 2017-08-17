@@ -222,7 +222,6 @@ class GUI:
         self.nb.add(self.adv_frame, text="Advanced")
         self.nb.grid(row=0, column=0, columnspan=5, rowspan=5, sticky='NESW')
         self.top.mainloop()
-        utils.save_status_file(status_file, status)
 
     def quit(self):
         utils.save_status_file(status_file, status)

@@ -4,6 +4,11 @@ from gcode import GCode
 
 gcode = GCode()
 
+ACT_SWITCH = 0
+ACT_INFILL = 1
+ACT_PASS = 2
+ACTIONS = [ACT_SWITCH, ACT_INFILL, ACT_PASS]
+
 
 class Layer:
 
@@ -16,6 +21,10 @@ class Layer:
         self.line_index = 0
         self.outer_perimeter_speed = None
         self.outer_perimeter_feedrate = None
+
+        self.tool_change_count = 0
+        self.action = ACT_PASS
+        self.tower_slot = -1
 
     def add_line(self, cmd, comment):
         """
@@ -81,8 +90,8 @@ class Layer:
         """
         for cmd, _ in self.lines:
             if cmd and gcode.is_tool_change(cmd) is not None:
-                return True
-        return False
+                self.tool_change_count += 1
+        return self.tool_change_count
 
     def delete_line(self, index=None):
         """

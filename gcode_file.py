@@ -1,7 +1,7 @@
 import os
 
 from gcode import GCode
-from layer import Layer, FirstLayer
+from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
 
 
@@ -24,7 +24,6 @@ class GCodeFile:
         :param tower_position: purge tower postion setting
         :param purge_lines: amount of post purge lines
         """
-
         self.log = logger
         self.settings = {}
         self.gcode_file = None
@@ -33,11 +32,12 @@ class GCodeFile:
         self.switch_tower = None
 
         self.layers = []
+        self.filtered_layers = []
 
         # material switch z heights
         self.layer_height = None
 
-        self.last_switch_height = None
+        self.last_switch_heights = {}
 
         self.hw_config = hw_config
         self.log.info("HW config: %s" % self.hw_config)
@@ -59,6 +59,9 @@ class GCodeFile:
         self.stroke_y = None
         self.origin_offset_x = None
         self.origin_offset_y = None
+
+        # max slots needed
+        self.max_slots = None
 
     def parse_header(self):
         """
@@ -86,14 +89,11 @@ class GCodeFile:
                     # add unique tools to list
                     if gcode.last_match not in self.tools:
                         self.tools.append(gcode.last_match)
+                    self.last_switch_heights[gcode.last_match] = layer.z
                     is_tool_change = False
 
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
-
-        for layer in self.layers:
-            if layer.has_tool_changes():
-                self.last_switch_height = layer.z
 
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
@@ -155,7 +155,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.purge_lines)
+        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.max_slots,  self.purge_lines)
         x = []
         y = []
 
@@ -217,13 +217,13 @@ class GCodeFile:
                 pos = 0
             return pos
 
-        for layer, tower_needed, has_tool_changes in self.filter_layers(self.last_switch_height):
+        for layer in self.filtered_layers:
             index = 0
             #print("layer", layer.num, e_pos)
             while True:
                 try:
-                    # add infill if not a tool change layer
-                    if not has_tool_changes and index == 0 and layer.num != 1 and tower_needed:
+                    # add infill the the beginning of the layer if not a tool change layer
+                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1:
                         # update purge tower with sparse infill
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop,
                                                                                self.travel_z_speed,
@@ -243,7 +243,7 @@ class GCodeFile:
                         # store current z position and z-hop
                         current_z, z_speed = gcode.last_match
                         z_hop = current_z - layer.z
-                    elif is_tool_change and has_tool_changes and gcode.is_tool_change(cmd) is not None:
+                    elif is_tool_change and layer.action == ACT_SWITCH and gcode.is_tool_change(cmd) is not None:
                         # add tool change g-code
                         new_e = self.extruders[gcode.last_match]
                         layer.delete_line(index)
@@ -264,7 +264,7 @@ class GCodeFile:
                         if prime_needed and e_pos < 0:
                             prime_change_len = -(e_pos + active_e.retract + 0.05)
                             index += layer.insert_line(index,
-                                          *active_e.get_prime_gcode(change=prime_change_len))
+                                                       *active_e.get_prime_gcode(change=prime_change_len))
                             prime_needed = False
                             e_pos = 0
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
@@ -309,19 +309,10 @@ class GCodeFile:
         # last layer
         self.layers.append(current_layer)
 
-        #i = 0
-        #for l in self.layers:
-            #print(l.z, l.has_tool_changes(), l.is_empty_layer())
-            #if l.is_empty_layer():
-            #    i += 1
-            #print(l.lines[:-5])
-            #print(l.num)
-        #print(i)
-
-    def filter_layers(self, last_switch_height):
+    def filter_layers(self):
         """
         Implement this in slicer specific implementation
-        :return: filtered layer list
+        :return: none
         """
         raise NotImplemented
 
