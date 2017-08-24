@@ -254,12 +254,9 @@ class Simplify3dGCodeFile(GCodeFile):
             slots_filled = 0
             # first check tool change layers
             for l in layer_data[z]['layers']:
+                l.tower_slots = layer_data[z]['slots']
                 if l.has_tool_changes():
                     l.action = ACT_SWITCH
-                    if slots_filled < layer_data[z]['slots']:
-                        l.tower_slot = slots_filled
-                    else:
-                        l.tower_slot = layer_data[z]['slots'] - 1
                     slots_filled += 1
 
             # then check other layers
@@ -267,7 +264,6 @@ class Simplify3dGCodeFile(GCodeFile):
                 if not l.has_tool_changes():
                     if slots_filled < layer_data[z]['slots']:
                         l.action = ACT_INFILL
-                        l.tower_slot = slots_filled
                         slots_filled += 1
                     else:
                         l.action = ACT_PASS

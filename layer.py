@@ -24,7 +24,7 @@ class Layer:
 
         self.tool_change_count = 0
         self.action = ACT_PASS
-        self.tower_slot = -1
+        self.tower_slots = -1
 
     def add_line(self, cmd, comment):
         """
@@ -170,6 +170,9 @@ class Layer:
                 self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
 
         return self.outer_perimeter_speed, self.outer_perimeter_feedrate
+
+    def __str__(self):
+        return str(self.num)
 
 
 class FirstLayer(Layer):
