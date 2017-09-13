@@ -26,7 +26,7 @@ class Layer:
         self.action = ACT_PASS
         self.tower_slots = -1
 
-    def add_line(self, cmd, comment):
+    def add_line(self, cmd, comment=None):
         """
         Adds lines to line list
         :param cmd: g-code command or generator
@@ -36,7 +36,10 @@ class Layer:
         if isinstance(cmd, types.GeneratorType):
             lines = 0
             for c in cmd:
-                self.lines.append((c, comment))
+                if isinstance(c, tuple):
+                    self.lines.append(c)
+                else:
+                    self.lines.append((c, comment))
                 lines += 1
             return lines
         else:
@@ -53,7 +56,7 @@ class Layer:
                 return False
         return True
 
-    def insert_line(self, index, cmd, comment):
+    def insert_line(self, index, cmd, comment=None):
         """
         Insert line to given index position
         :param index: index
@@ -65,7 +68,10 @@ class Layer:
             i = index
             lines = 0
             for c in cmd:
-                self.lines.insert(i, (c, comment))
+                if isinstance(c, tuple):
+                    self.lines.insert(i, c)
+                else:
+                    self.lines.insert(i, (c, comment))
                 i += 1
                 lines += 1
             return lines

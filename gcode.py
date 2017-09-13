@@ -190,6 +190,15 @@ class GCode:
         """
         return ("G1 E%.4f F%d" % (e_length, speed)).encode()
 
+    def gen_z_move(self, z, speed):
+        """
+        Generate g-code line for z move with given z-position and speed.
+        :param z: z position
+        :param speed: move speed
+        :return: byte string
+        """
+        return ("G1 Z%.4f F%d" % (z, speed)).encode()
+
     def _get_coordinates(self, direction, length):
         """
         Calculate coordinates from given direction and length. If coasting, calculate those coordinates too.

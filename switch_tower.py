@@ -12,7 +12,7 @@ PTFE = "PTFE-PRO-12"
 PTFE4 = "PTFE-PRO-24"
 E3DV6 = "PTFE-EV6"
 
-HW_CONFIGS = [PTFE, PTFE4, E3DV6, PEEK]
+HW_CONFIGS = [PTFE, E3DV6, PEEK]
 
 AUTO = "Automatic"
 LEFT = "Left"
@@ -679,7 +679,7 @@ class SwitchTower:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0 + y_pos)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
 
-        tower_z = layer.height + self.slots[self.slot]['last_z']
+        tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
         yield ("G1 Z%.3f F%.1f" % (tower_z, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
@@ -789,7 +789,7 @@ class SwitchTower:
         if hop:
             yield hop
 
-        tower_z = layer.height + self.slots[self.slot]['last_z']
+        tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
 
         yield self._get_wall_position_gcode(layer, self.slots[self.slot]['flipflop_infill'], xy_speed)
@@ -838,6 +838,23 @@ class SwitchTower:
 
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
+
+    def check_infill(self, layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+        """
+        Checks if tower z is too low versus layer and adds infill if needed
+        :param layer: current layer
+        :param e_pos: extruder position
+        :param extruder: active extruder
+        :param z_hop: z_hop position
+        :param z_speed: z axis speed
+        :return: list of cmd, comment tuples
+        """
+        # TODO: rethink whole line thing. Maybe Writer object?
+        for s in range(layer.tower_slots):
+            if self.slots[s]['last_z'] < layer.z - 0.2:
+                for l in self.get_infill_lines(layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+                    yield l
+
 
 if __name__ == "__main__":
     from logger import Logger

@@ -201,7 +201,10 @@ class GCodeFile:
         active_e = self.extruders[0]
         # flag to indicate if prime is needed after purge tower g-code
         prime_needed = False
+        z_move_needed = False
         is_tool_change = False
+
+        last_z = 0
 
         def update_retract_position(pos, new_pos):
             """
@@ -222,6 +225,15 @@ class GCodeFile:
             #print("layer", layer.num, e_pos)
             while True:
                 try:
+                    # when z height changes, check that tower height isn't too low versus layer
+                    if layer.num != 1 and layer.z > last_z:
+                        for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e,
+                                                                  z_hop, self.travel_z_speed,
+                                                                  self.travel_xy_speed):
+                            index += layer.insert_line(index, cmd, comment)
+
+                    last_z = layer.z
+
                     # add infill the the beginning of the layer if not a tool change layer
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1:
                         # update purge tower with sparse infill
@@ -243,6 +255,7 @@ class GCodeFile:
                         # store current z position and z-hop
                         current_z, z_speed = gcode.last_match
                         z_hop = current_z - layer.z
+                        z_move_needed = False
                     elif is_tool_change and layer.action == ACT_SWITCH and gcode.is_tool_change(cmd) is not None:
                         # add tool change g-code
                         new_e = self.extruders[gcode.last_match]
@@ -256,6 +269,7 @@ class GCodeFile:
                         # always full retract after purge tower
                         e_pos = -new_e.retract
                         is_tool_change = False
+                        z_move_needed = True
                     elif gcode.is_extruder_move(cmd):
                         # store extruder position
                         e_pos = update_retract_position(e_pos, gcode.last_match[0])
@@ -268,6 +282,9 @@ class GCodeFile:
                             prime_needed = False
                             e_pos = 0
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
+
+                        if z_move_needed:
+                            gcode.gen_z_move(layer.z, self.travel_z_speed)
 
                 except IndexError:
                     break
