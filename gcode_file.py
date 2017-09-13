@@ -11,6 +11,7 @@ SLICER_CURA = "Cura"
 SLICER_KISSLICER = "KISSlicer"
 SLICER_SIMPLIFY3D = "Simplify3d"
 SLICER_SLIC3R = "Slic3r"
+SLICER_PRUSA_SLIC3R = "PrusaSlic3r"
 
 
 class GCodeFile:
