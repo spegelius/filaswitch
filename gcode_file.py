@@ -285,6 +285,7 @@ class GCodeFile:
 
                         if z_move_needed:
                             gcode.gen_z_move(layer.z, self.travel_z_speed)
+                            z_move_needed = False
 
                 except IndexError:
                     break

@@ -850,10 +850,17 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         # TODO: rethink whole line thing. Maybe Writer object?
-        for s in range(layer.tower_slots):
-            if self.slots[s]['last_z'] < layer.z - 0.2:
-                for l in self.get_infill_lines(layer, e_pos, extruder, z_hop, z_speed, xy_speed):
-                    yield l
+
+        while True:
+            count = 0
+            for s in range(layer.tower_slots):
+                if self.slots[s]['last_z'] < layer.z - 0.2:
+                    for l in self.get_infill_lines(layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+                        yield l
+                    count += 1
+            if not count:
+                break
+
 
 
 if __name__ == "__main__":
