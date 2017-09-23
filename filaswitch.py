@@ -34,6 +34,7 @@ prog_dir = os.path.dirname(os.path.realpath(__file__))
 status_file = os.path.join(prog_dir, '.status')
 status = utils.load_status(status_file)
 
+version = 0.9
 
 def detect_file_type(gcode_file, log):
     with open(gcode_file, 'r') as gf:
@@ -92,10 +93,13 @@ class TopFrame(Frame):
         self.quit = Button(self, text="QUIT", command=self.quit, style="red_fg.TButton")
         self.quit.grid(row=3, column=1, sticky=W, padx=5, pady=3)
 
-    def quit(self):
+    def update_status(self):
         status["last_hwconfig"] = self.hw_var.get()
         status["last_position"] = self.gui.adv_frame.position_var.get()
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
+
+    def quit(self):
+        self.update_status()
         self.gui.quit()
 
     def load_file(self):
@@ -204,7 +208,7 @@ class GUI:
     def show_gui(self):
 
         self.top = Tk()
-        self.top.title('FilaSwitch')
+        self.top.title('FilaSwitch v%s' % version)
         # top.geometry('500x500')
         self.top.rowconfigure(6, weight=1)
         self.top.columnconfigure(5, weight=1)
@@ -221,11 +225,13 @@ class GUI:
         self.nb.add(self.topframe, text="Main")
         self.nb.add(self.adv_frame, text="Advanced")
         self.nb.grid(row=0, column=0, columnspan=5, rowspan=5, sticky='NESW')
+        self.top.protocol("WM_DELETE_WINDOW", self.quit)
         self.top.mainloop()
 
     def quit(self):
+        self.topframe.update_status()
         utils.save_status_file(status_file, status)
-        self.top.quit()
+        self.top.destroy()
 
 
 def main():
