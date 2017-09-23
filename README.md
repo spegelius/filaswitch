@@ -1,12 +1,12 @@
 filaswitch
 ==============================
-Filament switch post processor for Simplify 3D (3.1.1).
+Filament switch post processor for Simplify 3D (3.1.1 and 4.0.0).
 Currently tested with Prometheus System.
 Main features:
 - adds material switch purge tower g-code to Simplify3D dual-extruder prints (Prometheus System supported)
 - fixes S3D ver 3.1.1 bug with 'Perform retraction during wipe movement'
 
-Perform retraction during wipe movement-bug:
+Perform retraction during wipe movement-bug (S3D 3.1.1):
 - filaswitch detects if this feature is enabled in S3D profile and applies the fix automatically.
 - also one doesn't need to have Prometheus System to apply this fix. Simply omit the dual-extrusion S3D configuration and filaswitch will skip 
  dual-extrusion g-code addition
@@ -18,7 +18,7 @@ Prerequisites
 * Python 3.5 to run this script.
     * In Windows, make sure python is added to %PATH%
     * In Linux, python3.5 should be available (Ubuntu). You do need package 'python3-tk', so use apt-get to install it
-* Simplify3D 3.1.1 (older versions not tested)
+* Simplify3D 3.1.1 or 4.0.0 (older versions not tested)
 * 3D Printer with 2 extruders - one nozzle setup
 * Printer profile in S3D configured for dual extrusion
 
@@ -34,9 +34,6 @@ Print dual-color model with Prometheus system
 * Add following G-Code lines to Simplify3D scripts
 * Starting Script: Enclose your starting script with:
 > ; START SCRIPT START
-##### Advanced-tab
-* Set Tool Change Retraction distance to your normal retraction distance
-    * also check retraction speed to match the normal retraction speed
 
 > [you start g-code lines here...]
 
@@ -48,6 +45,10 @@ Print dual-color model with Prometheus system
 > ; TOOL CHANGE
 
 > T[new_tool]
+
+##### Advanced-tab
+* Set Tool Change Retraction distance to your normal retraction distance
+    * also check retraction speed to match the normal retraction speed
 
 ###Usage:
 
