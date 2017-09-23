@@ -284,7 +284,6 @@ class Simplify3dGCodeFile(GCodeFile):
             # not needed
             return
         if not self.version == (3,1,1):
-            self.log.warning("Not applying fix for 'Retract during wipe'; S3D version not 3.1.1")
             return
 
         self.log.info("Fixing S3D 3.1.1 bug with 'Retract during wipe'-feature")
