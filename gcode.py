@@ -25,6 +25,8 @@ class GCode:
     SPEED_RE = re.compile(b"^G1 F(\d+\.*\d*)$")
     EXTRUDER_POSITION_RE = re.compile(b"^G92 E0$")
     TOOL_RE = re.compile(b"T(\d)")
+    RELATIVE_POSITIONING_RE = re.compile(b"^G91")
+    ABSOLUTE_POSITIONING_RE = re.compile(b"^G90")
 
     def __init__(self):
         self.last_match = None
@@ -152,6 +154,26 @@ class GCode:
             self.last_match = float(m.groups()[0]), float(m.groups()[1]), float(m.groups()[2])
         return self.last_match
 
+    def is_relative_positioning(self, line):
+        """
+        Match given line against relative positioning regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.RELATIVE_POSITIONING_RE.match(line)
+        return m is not None
+
+    def is_absolute_positioning(self, line):
+        """
+        Match given line against absolute positioning regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.ABSOLUTE_POSITIONING_RE.match(line)
+        return m is not None
+
     def gen_head_move(self, x, y, speed):
         """
         Generate g-code line for head move
@@ -166,9 +188,23 @@ class GCode:
             return ("G1 X%.3f F%d" % (x, speed)).encode()
         return ("G1 X%.3f Y%.3f F%d" % (x, y, speed)).encode()
 
-    def gen_extrusion_move(self, x, y, speed, e_length):
+    def gen_extrusion_move(self, x, y, e_length):
         """
-        Generate g-code line for head move. Relative distances
+        Generate g-code line for extrusion move. Relative distances
+        :param x: x coordinate
+        :param y: y coordinate
+        :param e_length: extrusion length
+        :return: byte string
+        """
+        if utils.is_float_zero(x, 3):
+            return ("G1 Y%.3f E%.4f" % (y, e_length)).encode()
+        elif utils.is_float_zero(y, 3):
+            return ("G1 X%.3f E%.4f" % (x, e_length)).encode()
+        return ("G1 X%.3f Y%.3f E%.4f" % (x, y, e_length)).encode()
+
+    def gen_extrusion_speed_move(self, x, y, speed, e_length):
+        """
+        Generate g-code line for extrusion move with speed. Relative distances
         :param x: x coordinate
         :param y: y coordinate
         :param speed: movement speed
@@ -231,7 +267,7 @@ class GCode:
             x, y = self._get_coordinates(direction, _length)
             c_x, c_y = self._get_coordinates(direction, extruder.coasting)
             e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
-            yield self.gen_extrusion_move(x, y, speed, e_length)
+            yield self.gen_extrusion_speed_move(x, y, speed, e_length)
             yield self.gen_head_move(c_x, c_y, speed)
         else:
             _length = abs(length)
@@ -240,7 +276,7 @@ class GCode:
                 yield self.gen_head_move(x, y, speed)
             else:
                 e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
-                yield self.gen_extrusion_move(x, y, speed, e_length)
+                yield self.gen_extrusion_speed_move(x, y, speed, e_length)
 
     def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
         """
