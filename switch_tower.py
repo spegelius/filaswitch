@@ -483,23 +483,26 @@ class SwitchTower:
         feed_rate = 5 / 50
 
         if self.hw_config == PEEK:
-            yield b"G1 E100 F3000", b" 50mm/s feed"
+            yield b"G1 E10 F1500", b" 25mm/s feed"
+            yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E25 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PTFE:
-            yield b"G1 E100 F3000", b" 50mm/s feed"
+            yield b"G1 E10 F1500", b" 25mm/s feed"
+            yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PTFE4:
-            yield b"G1 E10 F1500", b" 50mm/s feed"
+            yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E105 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == E3DV6:
-            yield b"G1 E100 F3000", b" 50mm/s feed"
+            yield b"G1 E10 F1500", b" 25mm/s feed"
+            yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E54 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = -1
