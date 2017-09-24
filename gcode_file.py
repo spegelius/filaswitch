@@ -312,35 +312,7 @@ class GCodeFile:
         Store each layer to list.
         :return:
         """
-        prev_layer = None
-        prev_height = 0
-        current_layer = FirstLayer(1, 0.2, 0.2)
-        for line in lines:
-            cmd, comment = gcode.read_gcode_line(line)
-            if comment:
-                ret = self.check_layer_change(comment, None)
-                if ret:
-                    if current_layer.num == 1 and ret[0] == 1:
-                        current_layer.z = ret[1]
-                    else:
-                        if prev_layer:
-                            prev_z = prev_layer.z
-                        else:
-                            prev_z = 0
-
-                        height = current_layer.z - prev_z
-                        if height:
-                            prev_height = height
-                        else:
-                            height = prev_height
-
-                        self.layers.append(current_layer)
-                        prev_layer = current_layer
-                        current_layer = Layer(ret[0], ret[1], height)
-            current_layer.add_line(cmd, comment)
-
-        # last layer
-        self.layers.append(current_layer)
+        raise NotImplemented
 
     def filter_layers(self):
         """

@@ -6,12 +6,14 @@ class Extruder:
         self.retract = 0.0
         self.retract_speed = 0.0
         self.z_hop = 0.0
+        self.z_offset = 0.0
         self.feed_rate = 0.04 # TODO: need autodetection?
         self.feed_rate_max = 0.2 # don't go over this
         self.feed_rate_multiplier = 1
         self.current_z = None
         self.coasting = 0.0
         self.wipe = 0.0
+        self.filament_type = None
 
     def get_feed_length(self, move_length, feed_rate=None):
         """

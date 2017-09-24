@@ -3,7 +3,7 @@ import re
 from extruder import Extruder
 from switch_tower import PEEK
 from gcode import GCode
-from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH
+from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
 from gcode_file import SLICER_SIMPLIFY3D, GCodeFile
@@ -178,6 +178,42 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.layers[0].delete_line(line_index)
                 break
 
+    def parse_layers(self, lines):
+        """
+        Go through the g-code and find layer start points.
+        Store each layer to list.
+        :return:
+        """
+        prev_layer = None
+        prev_height = 0
+        current_layer = FirstLayer(1, 0.2, 0.2)
+        for line in lines:
+            cmd, comment = gcode.read_gcode_line(line)
+            if comment:
+                ret = self.check_layer_change(comment, None)
+                if ret:
+                    if current_layer.num == 1 and ret[0] == 1:
+                        current_layer.z = ret[1]
+                    else:
+                        if prev_layer:
+                            prev_z = prev_layer.z
+                        else:
+                            prev_z = 0
+
+                        height = current_layer.z - prev_z
+                        if height:
+                            prev_height = height
+                        else:
+                            height = prev_height
+
+                        self.layers.append(current_layer)
+                        prev_layer = current_layer
+                        current_layer = Layer(ret[0], ret[1], height)
+            current_layer.add_line(cmd, comment)
+
+        # last layer
+        self.layers.append(current_layer)
+
     def check_layer_change(self, line, current_layer):
         """
         Check if line is layer change
@@ -189,11 +225,6 @@ class Simplify3dGCodeFile(GCodeFile):
         if m:
             return int(m.groups()[0]), float(m.groups()[1])
         return current_layer
-
-    def find_perimeter_path(self):
-        """ Find perimeter path for determining feed rate"""
-        pass
-        # TODO: needed?
 
     def filter_layers(self):
         """

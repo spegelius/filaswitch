@@ -52,10 +52,9 @@ class GCode:
         :param comment: comment
         :return: byte string
         """
-        string = b""
         if cmd and not comment:
             return cmd
-        elif comment and not cmd:
+        elif comment is not None and not cmd:
             return b";" + comment
         else:
             return cmd + b";" + comment
@@ -318,6 +317,8 @@ if __name__ == "__main__":
     print(obj.is_tool_change(b"T1"))
     print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E-2.5000"))
     print(obj.is_extrusion_speed_move(b"G1 X80.349 Y81.849 E-2.5000 F3000"))
+    print(obj.read_gcode_line(b"G1 E-3.00000 F4800.00000"))
+    print(obj.is_extruder_move(b'G1 E-3.00000 F4800.00000'))
     ret = obj.gen_direction_move(E, 40, 3000)
     for r in ret:
         print(r)
