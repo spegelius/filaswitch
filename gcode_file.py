@@ -38,6 +38,7 @@ class GCodeFile:
         self.layer_height = None
 
         self.last_switch_heights = {}
+        self.last_switch_height = 0
 
         self.hw_config = hw_config
         self.log.info("HW config: %s" % self.hw_config)
@@ -52,6 +53,7 @@ class GCodeFile:
         self.travel_xy_speed = None
         self.travel_z_speed = None
         self.outer_perimeter_speed = None
+        self.first_layer_speed = None
 
         # machine limits. Populate these values in slicer specific implementations
         self.machine_type = None
@@ -95,6 +97,8 @@ class GCodeFile:
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
+        self.last_switch_height = max(self.last_switch_heights.items())[1]
+
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
         self.gcode_file = gcode_file
@@ -103,6 +107,7 @@ class GCodeFile:
             gf = open(gcode_file, 'rb')
         except Exception as e:
             self.log.error("Cannot open file %s" % gcode_file)
+            self.log.debug(str(e))
             return 1
 
         # remove extra EOL and empty lines
@@ -226,7 +231,7 @@ class GCodeFile:
             while True:
                 try:
                     # when z height changes, check that tower height isn't too low versus layer
-                    if layer.num != 1 and layer.z > last_z:
+                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
                         for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e,
                                                                   z_hop, self.travel_z_speed,
                                                                   self.travel_xy_speed):
@@ -235,7 +240,7 @@ class GCodeFile:
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
-                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1:
+                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
                         # update purge tower with sparse infill
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop,
                                                                                self.travel_z_speed,
@@ -270,9 +275,15 @@ class GCodeFile:
                         e_pos = -new_e.retract
                         is_tool_change = False
                         z_move_needed = True
+                        continue
                     elif gcode.is_extruder_move(cmd):
-                        # store extruder position
-                        e_pos = update_retract_position(e_pos, gcode.last_match[0])
+                        if prime_needed and gcode.last_match[0] < 0:
+                            # remove retracts after adding tower
+                            layer.delete_line(index)
+                            index -= 1
+                        else:
+                            # store extruder position
+                            e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and add prime if needed
                         if prime_needed and e_pos < 0:
