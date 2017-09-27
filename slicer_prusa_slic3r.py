@@ -2,7 +2,7 @@ import logging
 import re
 from extruder import Extruder
 from switch_tower import PEEK
-from gcode import GCode
+from gcode import GCode, TYPE_CARTESIAN, TYPE_DELTA
 from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
@@ -74,10 +74,24 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 elif b"bed_shape =" in comment:
                     #; bed_shape = 0x0,145x0,145x148,0x148
                     values = comment.split(b' = ')[1].split(b",")
-                    self.origin_offset_x = float(values[0].split(b"x")[0])
-                    self.origin_offset_x = float(values[0].split(b"x")[1])
-                    self.stroke_x = float(values[2].split(b"x")[0])
-                    self.stroke_y = float(values[2].split(b"x")[1])
+                    if len(values) == 4:
+                        self.machine_type = TYPE_CARTESIAN
+                        self.origin_offset_x = -float(values[0].split(b"x")[0])
+                        self.origin_offset_y = -float(values[0].split(b"x")[1])
+                        self.stroke_x = float(values[2].split(b"x")[0]) + self.origin_offset_x
+                        self.stroke_y = float(values[2].split(b"x")[1]) + self.origin_offset_y
+                    else:
+                        self.machine_type = TYPE_DELTA
+                        x = []
+                        y = []
+                        for v in values:
+                            vals = v.split(b"x")
+                            x.append(float(vals[0]))
+                            y.append(float(vals[1]))
+                        self.stroke_x = max(x) - min(x)
+                        self.stroke_y = max(y) - min(y)
+                        self.origin_offset_x = self.stroke_x / 2
+                        self.origin_offset_y = self.stroke_y / 2
 
                 elif b"extrusion_multiplier =" in comment:
                     values = comment.split(b' = ')[1]
@@ -124,7 +138,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     values = comment.split(b' = ')[1]
                     tool = 0
                     for d in values.split(b","):
-                        print(d)
                         if tool not in self.extruders:
                             self.extruders[tool] = Extruder(tool)
                         self.extruders[tool].z_hop = float(d)
@@ -182,7 +195,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
-            print(self.extruders[t].z_hop)
 
         self.travel_z_speed = self.travel_xy_speed
 
