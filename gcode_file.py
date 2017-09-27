@@ -97,7 +97,8 @@ class GCodeFile:
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
-        self.last_switch_height = max(self.last_switch_heights.items())[1]
+        if self.last_switch_heights:
+            self.last_switch_height = max(self.last_switch_heights.items())[1]
 
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
