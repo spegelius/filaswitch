@@ -168,10 +168,9 @@ class GCodeFile:
             for cmd, _ in layer.lines:
                 if not cmd:
                     continue
-                ret = gcode.is_extrusion_move(cmd)
-                if ret:
-                    x.append(ret[0])
-                    y.append(ret[1])
+                if gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                    x.append(gcode.last_match[0])
+                    y.append(gcode.last_match[0])
 
         x_max = max(x)
         y_max = max(y)
@@ -286,12 +285,15 @@ class GCodeFile:
                             e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and add prime if needed
-                        if prime_needed and e_pos < 0:
-                            prime_change_len = -(e_pos + active_e.retract + 0.05)
-                            index += layer.insert_line(index,
-                                                       *active_e.get_prime_gcode(change=prime_change_len))
+                        if prime_needed:
+                            # reset prime flag when printing starts after tower
                             prime_needed = False
-                            e_pos = 0
+                            if e_pos < 0:
+                                prime_change_len = -(e_pos + active_e.retract + 0.05)
+                                index += layer.insert_line(index,
+                                                           *active_e.get_prime_gcode(change=prime_change_len))
+                                e_pos = 0
+
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                         if z_move_needed:
