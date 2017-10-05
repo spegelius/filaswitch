@@ -750,6 +750,7 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.S, new_e.wipe, 3000), b" wipe"
 
         yield b"G90", b" absolute positioning"
+        yield b"M83", b" relative E"
         yield b"G92 E0", b" reset extruder position"
         hop = self._get_z_hop(layer, z_speed, old_e)
         if hop:
@@ -833,6 +834,7 @@ class SwitchTower:
             yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000), b" wipe"
 
         yield b"G90", b" absolute positioning"
+        yield b"M83", b" relative E"
         hop = self._get_z_hop(layer, z_speed, extruder)
         if hop:
             yield hop
