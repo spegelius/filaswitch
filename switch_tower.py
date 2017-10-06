@@ -555,6 +555,8 @@ class SwitchTower:
         if retract:
             yield extruder.get_retract_gcode()
         yield b"G90", b" absolute positioning"
+        yield b"M83", b" relative E"
+        yield b"G92 E0", b" reset extruder position"
         yield None, b" TOWER RAFT END"
 
         # update slot z values
