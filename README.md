@@ -1,9 +1,10 @@
 filaswitch
 ==============================
-Filament switch post processor for Simplify 3D (3.1.1 and 4.0.0).
-Currently tested with Prometheus System.
+Filament switch post processor for Simplify 3D (3.1.1 and 4.0.0) and Prusa Slic3r (1.36.2 and 1.37.1).
+
+Currently supports and tested with Prometheus System.
 Main features:
-- adds material switch purge tower g-code to Simplify3D dual-extruder prints (Prometheus System supported)
+- adds material switch purge tower g-code to Simplify3D and Prusa Slic3r dual-extruder prints (Prometheus System supported)
 - fixes S3D ver 3.1.1 bug with 'Perform retraction during wipe movement'
 
 Perform retraction during wipe movement-bug (S3D 3.1.1):
@@ -18,9 +19,9 @@ Prerequisites
 * Python 3.5 to run this script.
     * In Windows, make sure python is added to %PATH%
     * In Linux, python3.5 should be available (Ubuntu). You do need package 'python3-tk', so use apt-get to install it
-* Simplify3D 3.1.1 or 4.0.0 (older versions not tested)
-* 3D Printer with 2 extruders - one nozzle setup
-* Printer profile in S3D configured for dual extrusion
+* Simplify3D 3.1.1 or 4.0.0 (older versions not tested) or Prusa Slic3r
+* 3D Printer with 2 extruders - one nozzle setup (Prometheus system)
+* Printer profile in S3D/Slic3r configured for dual extrusion
 
 ##Use case1:
 Print dual-color model with Prometheus system
@@ -29,26 +30,53 @@ Print dual-color model with Prometheus system
 
 * Open process and show advanced settings
 ##### G-code-tab
-* select Relative extrusion distances (IMPORTANT)
+* select 'Relative extrusion distances' (IMPORTANT)
 ##### Scripts-tab 
 * Add following G-Code lines to Simplify3D scripts
-* Starting Script: Enclose your starting script with:
-> ; START SCRIPT START
+* **Starting Script**: Enclose your starting script with:
+> `; START SCRIPT START`
 
-> [you start g-code lines here...]
+> `[you start g-code lines here...]`
 
-> ; START SCRIPT END
+> `; START SCRIPT END`
 
 * It is also a good idea to add T0 to the starting scrips, to make sure first extruder is the main first extruder
 
-* Tool Change Script:
-> ; TOOL CHANGE
+* **Tool Change Script**:
+> `; TOOL CHANGE`
 
-> T[new_tool]
+> `T[new_tool]`
 
 ##### Advanced-tab
 * Set Tool Change Retraction distance to your normal retraction distance
     * also check retraction speed to match the normal retraction speed
+
+### Slic3r configuration for Prometheus dual-extrusion
+
+* Open Slic3r -> Printer Settings
+##### General
+* Set number of extruders
+* select 'Use relative E distances' (IMPORTANT)
+##### Custom G-code
+* Add G-Code lines below to following sections:
+* **Start G-code**: Enclose your starting script with:
+> `; START SCRIPT START`
+
+> `[you start g-code lines here...]`
+
+> `; START SCRIPT END`
+
+* It is also a good idea to add T0 to the starting scrips, to make sure first extruder is the main first extruder
+
+* **Before layer change G-code**:
+> `;BEFORE_LAYER_CHANGE [layer_num] [layer_z]`
+
+
+* **Tool Change G-code**:
+> `; TOOL CHANGE`
+
+##### Extruders n
+* Retraction when tool is disabled to 0
 
 ###Usage:
 
@@ -63,7 +91,7 @@ Save g-code to disk.
 * Done
 
 ####Post processing (cli):
-* python3 filaswitch.py /path/tp/yourgcodefile.gcode (Linux) PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
+* python3 filaswitch.py /path/to/yourgcodefile.gcode (Linux) PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
 * python filaswitch.py \path\to\yourgcodefile.gcode PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
 
 Result is a new file, with _fs.gcode ending. You're ready to print :).
