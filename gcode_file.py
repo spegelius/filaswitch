@@ -299,7 +299,7 @@ class GCodeFile:
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                         if z_move_needed:
-                            gcode.gen_z_move(layer.z, self.travel_z_speed)
+                            index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.travel_z_speed))
                             z_move_needed = False
 
                 except IndexError:
