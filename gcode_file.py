@@ -174,7 +174,7 @@ class GCodeFile:
                     continue
                 if gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                     x.append(gcode.last_match[0])
-                    y.append(gcode.last_match[0])
+                    y.append(gcode.last_match[1])
 
         x_max = max(x)
         y_max = max(y)

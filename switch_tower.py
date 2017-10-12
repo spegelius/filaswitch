@@ -340,6 +340,9 @@ class SwitchTower:
         self.x_mid = (x_max + x_min) / 2
         self.y_mid = (y_max + y_min) / 2
 
+        #print("maxes", x_max, y_max)
+        #print("mids", self.x_mid, self.y_mid)
+
         if machine_type == TYPE_CARTESIAN:
             position = self._cartesian_position(x_max, x_min, y_max, y_min, stroke_x,
                             stroke_y, origin_offset_x, origin_offset_y)
