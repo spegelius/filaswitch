@@ -29,24 +29,26 @@ LINE_COUNT_DEFAULT = 6
 
 class SwitchTower:
 
-    def __init__(self, logger, hw_config, tower_position, max_slots,  purge_lines=LINE_COUNT_DEFAULT):
+    def __init__(self, logger, hw_config, tower_position, max_slots,  z_offset, purge_lines=LINE_COUNT_DEFAULT):
         """
         Filament switch tower functionality
         :param logger: Logger object
         :param config: system configuration (PEEK, PTFE, E3Dv6)
         :param max_slots: maximum number of tower slots
+        :param z_offset: z offset
         :param purge_lines: amount of post purge lines
         """
 
         self.log = logger
         self.hw_config = hw_config
         self.max_slots = max_slots
+        self.z_offset = z_offset
 
         self.slot = 0
         self.slots = {}
         for i in range(self.max_slots):
             self.slots[i] = {}
-            self.slots[i]['last_z'] = 0.0
+            self.slots[i]['last_z'] = self.z_offset
             self.slots[i]['flipflop_purge'] = False
             self.slots[i]['flipflop_infill'] = False
 
@@ -96,7 +98,6 @@ class SwitchTower:
 
         # amount of room for difference between tower height and model height
         self.z_slack_max = 1.2
-        self.last_z_position = 0.0
 
         self.E = E
         self.S = S
@@ -516,35 +517,40 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
         yield None, b" TOWER RAFT START"
+
+        self.raft_layer_height = first_layer.height
+        feed_multi = (self.raft_layer_height / 0.2)
+
         if extruder.z_hop:
-            z_hop = self.raft_layer_height + extruder.z_hop
+            z_hop = self.raft_layer_height + extruder.z_hop + self.z_offset
             yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, xy_speed), b" move to raft zone"
-        yield ("G1 Z%.1f F%d" % (self.raft_layer_height, z_speed)).encode(), b" move z close"
+        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
+        feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
         # box
         width = self.raft_width + 0.8
         height = self.raft_height + 0.8
         speed = 2000
-        yield gcode.gen_direction_move(self.E, width, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(self.N, height, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(self.W, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(self.S, height, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(self.E, width, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate), b" raft wall"
         height -= 0.4
-        yield gcode.gen_direction_move(self.N, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(self.W, width, speed, extruder), b" raft wall"
-        yield gcode.gen_direction_move(self.S, height, speed, extruder), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate), b" raft wall"
 
         yield gcode.gen_direction_move(self.SE, 0.6, xy_speed), None
 
-        feed_rate = extruder.get_feed_rate(multiplier=1.3)
+        feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
         speed = 1000
         for _ in range(int(self.raft_width/2)):
             yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate), b" raft1"
@@ -561,7 +567,7 @@ class SwitchTower:
 
         # update slot z values
         for i in range(self.max_slots):
-            self.slots[i]['last_z'] = self.raft_layer_height
+            self.slots[i]['last_z'] = self.z_offset + self.raft_layer_height
 
     def _get_z_hop(self, layer, z_speed, extruder):
         """

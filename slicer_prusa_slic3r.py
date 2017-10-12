@@ -185,6 +185,13 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     # ; travel_speed = 120
                     self.travel_xy_speed = float(comment.split(b' = ')[1]) * 60
 
+                elif b" layer_height =" in comment:
+                    # ; layer_height = 0.2
+                    self.layer_height = float(comment.split(b' = ')[1])
+
+        if self.layer_height != 0.2:
+            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
+
         if not self.version:
             self.log.warning("Could not detect Slic3r version. Use at your own risk!")
         else:

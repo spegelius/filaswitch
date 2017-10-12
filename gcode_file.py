@@ -62,6 +62,7 @@ class GCodeFile:
         self.stroke_y = None
         self.origin_offset_x = None
         self.origin_offset_y = None
+        self.z_offset = 0
 
         # max slots needed
         self.max_slots = None
@@ -162,7 +163,8 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.max_slots,  self.purge_lines)
+        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.max_slots,  self.z_offset,
+                                        self.purge_lines)
         x = []
         y = []
 

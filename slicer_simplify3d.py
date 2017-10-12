@@ -155,6 +155,9 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.origin_offset_x = float(comment.split(b",")[-1])
             elif b"originOffsetYoverride" in comment:
                 self.origin_offset_y = float(comment.split(b",")[-1])
+            elif b"gcodeZoffset" in comment:
+                # buggy as hell S3D, 0.2 setting is actaully 0.02...
+                self.z_offset = float(comment.split(b",")[-1]) * 0.1
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
@@ -162,6 +165,9 @@ class Simplify3dGCodeFile(GCodeFile):
             self.log.warning("Could not detect Simplify3D version. Use at your own risk")
         else:
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
+
+        if self.layer_height != 0.2:
+            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
 
         self.outer_perimeter_speed *= self.default_speed
         self.first_layer_speed *= self.default_speed
@@ -194,6 +200,7 @@ class Simplify3dGCodeFile(GCodeFile):
                 if ret:
                     if current_layer.num == 1 and ret[0] == 1:
                         current_layer.z = ret[1]
+                        current_layer.height = ret[1]
                     else:
                         if prev_layer:
                             prev_z = prev_layer.z
