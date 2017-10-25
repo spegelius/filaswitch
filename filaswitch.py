@@ -7,7 +7,6 @@ G-code post processor for adding proper purge tower for 2 extruder - one hotend 
 
 Disclaimer: i'm not responsible if anything, good or bad, happens due to use of this script.
 
-Version 0.1
 """
 import argparse
 import os
@@ -34,7 +33,7 @@ prog_dir = os.path.dirname(os.path.realpath(__file__))
 status_file = os.path.join(prog_dir, '.status')
 status = utils.load_status(status_file)
 
-version = "0.12"
+version = "0.13"
 
 def detect_file_type(gcode_file, log):
     with open(gcode_file, 'r') as gf:
