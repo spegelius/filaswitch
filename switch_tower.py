@@ -10,9 +10,10 @@ gcode = GCode()
 PEEK = "PEEK-PRO-12"
 PTFE = "PTFE-PRO-12"
 PTFE4 = "PTFE-PRO-24"
+PEEK4 = "PEEK-PRO-24"
 E3DV6 = "PTFE-EV6"
 
-HW_CONFIGS = [PTFE, E3DV6, PEEK]
+HW_CONFIGS = [PTFE, E3DV6, PEEK, PTFE4, PEEK4]
 
 AUTO = "Automatic"
 LEFT = "Left"
@@ -402,6 +403,31 @@ class SwitchTower:
             yield b"G4 P2000", b" 2s cooling period"
             yield gcode.gen_extruder_move(-95, 1500), b" 25mm/s long retract"
 
+        elif self.hw_config == PEEK4:
+            if flip:
+                y_1 = 0.6
+                y_2 = 1.4
+                y_3 = 0.6
+                y_4 = 1.4
+            else:
+                y_1 = 1.4
+                y_2 = 0.6
+                y_3 = 1.4
+                y_4 = 0.6
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
+            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
+
+            yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
+            yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
+            yield b"G4 P2000", b" 2s cooling period"
+            yield gcode.gen_extruder_move(-110, 1500), b" 25mm/s long retract"
+
         elif self.hw_config == PTFE:
             if flip:
                 y_1 = 0.6
@@ -449,9 +475,8 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
-            yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
             yield b"G4 P2500", b" 2.5s cooling period"
-            yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
+            yield gcode.gen_extruder_move(-155, 3000), b" 50mm/s long retract"
 
         elif self.hw_config == E3DV6:
             if flip:
@@ -489,6 +514,12 @@ class SwitchTower:
         if self.hw_config == PEEK:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
+            yield b"G1 E25 F1500", b" 25mm/s feed"
+            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
+            self.prepurge_sign = 1
+        elif self.hw_config == PEEK4:
+            yield b"G1 E10 F1500", b" 25mm/s feed"
+            yield b"G1 E105 F3000", b" 50mm/s feed"
             yield b"G1 E25 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
