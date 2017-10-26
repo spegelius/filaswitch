@@ -17,16 +17,20 @@ TYPE_DELTA = 1
 
 
 class GCode:
-    EXTRUDER_MOVE_RE = re.compile(b"^G1 E([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    Z_MOVE_RE = re.compile(b"^G1 Z([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    EXTRUSION_MOVE_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+)$")
-    EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) E([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    MOVE_HEAD_RE = re.compile(b"^G1 X([-]*\d+\.\d+) Y([-]*\d+\.\d+) F(\d+\.*\d*)$")
-    SPEED_RE = re.compile(b"^G1 F(\d+\.*\d*)$")
-    EXTRUDER_POSITION_RE = re.compile(b"^G92 E0$")
+    EXTRUDER_MOVE_RE = re.compile(b"^G1\s+E([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
+    Z_MOVE_RE = re.compile(b"^G1\s+Z([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
+    EXTRUSION_MOVE_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)$")
+    EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
+    MOVE_HEAD_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
+    SPEED_RE = re.compile(b"^G1\s+F(\d+\.*\d*)$")
+    EXTRUDER_POSITION_RE = re.compile(b"^G92\s+E0$")
     TOOL_RE = re.compile(b"T(\d)")
     RELATIVE_POSITIONING_RE = re.compile(b"^G91")
     ABSOLUTE_POSITIONING_RE = re.compile(b"^G90")
+    TEMP_NOWAIT_RE = re.compile(b"M104\s+S(\d+)$")
+    TEMP_NOWAIT_TOOL_RE = re.compile(b"M104\s+S(\d+)\s+T(\d)$")
+    TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
+    TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
 
     def __init__(self):
         self.last_match = None
@@ -173,6 +177,54 @@ class GCode:
         m = self.ABSOLUTE_POSITIONING_RE.match(line)
         return m is not None
 
+    def is_temp_nowait(self, line):
+        """
+        Match given line against temperature change no wait regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.TEMP_NOWAIT_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0])
+        return self.last_match
+
+    def is_temp_nowait_tool(self, line):
+        """
+        Match given line against temperature change no wait tool regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.TEMP_NOWAIT_TOOL_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0]), int(m.groups()[1])
+        return self.last_match
+
+    def is_temp_wait(self, line):
+        """
+        Match given line against temperature change wait regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.TEMP_WAIT_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0])
+        return self.last_match
+
+    def is_temp_wait_tool(self, line):
+        """
+        Match given line against temperature change wait tool regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.TEMP_WAIT_TOOL_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0]), int(m.groups()[1])
+        return self.last_match
+
     def gen_head_move(self, x, y, speed):
         """
         Generate g-code line for head move
@@ -233,6 +285,40 @@ class GCode:
         :return: byte string
         """
         return ("G1 Z%.4f F%d" % (z, speed)).encode()
+
+    def gen_temperature_nowait(self, temperature):
+        """
+        Generate g-code line for temperature change with no wait.
+        :param temperature: temperature to set
+        :return: byte string
+        """
+        return ("M104 S%d" % temperature).encode()
+
+    def gen_temperature_nowait_tool(self, temperature, tool):
+        """
+        Generate g-code line for temperature change with no wait and specific tool.
+        :param temperature: temperature to set
+        :param tool: tool to use
+        :return: byte string
+        """
+        return ("M104 S%d T%d" % (temperature, tool)).encode()
+
+    def gen_temperature_wait(self, temperature):
+        """
+        Generate g-code line for temperature change with wait.
+        :param temperature: temperature to set
+        :return: byte string
+        """
+        return ("M109 S%d" % temperature).encode()
+
+    def gen_temperature_wait_tool(self, temperature, tool):
+        """
+        Generate g-code line for temperature change with wait and specific tool.
+        :param temperature: temperature to set
+        :param tool: tool to use
+        :return: byte string
+        """
+        return ("M109 S%d T%d" % (temperature, tool)).encode()
 
     def _get_coordinates(self, direction, length):
         """
@@ -360,3 +446,9 @@ if __name__ == "__main__":
     print(obj.get_coordinates_by_offsets(10, 10, 10, -2, -4))
 
     print(obj.get_coordinates_by_offsets(10, 10, 10, 2, -4))
+
+    print(obj.is_temp_nowait(b"M104 S255"))
+    print(obj.is_temp_nowait_tool(b"M104 S255  T0"))
+
+    print(obj.is_temp_wait(b"M109 S255"))
+    print(obj.is_temp_wait_tool(b"M109 S255 T0"))
