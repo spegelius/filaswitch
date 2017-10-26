@@ -100,6 +100,8 @@ class SwitchTower:
         # amount of room for difference between tower height and model height
         self.z_slack_max = 1.2
 
+        self.temperatures = None
+
         self.E = E
         self.S = S
         self.W = W
@@ -373,7 +375,7 @@ class SwitchTower:
             purge_speeds.insert(0, speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, flip):
+    def get_pre_switch_gcode(self, extruder, flip, new_temp, tool):
         # TODO: read from file
 
         feed_rate = 4.5 / 50
@@ -399,6 +401,10 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
+
+            if new_temp:
+                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+
             yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
             yield b"G4 P2000", b" 2s cooling period"
             yield gcode.gen_extruder_move(-95, 1500), b" 25mm/s long retract"
@@ -424,6 +430,10 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
+
+            if new_temp:
+                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+
             yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
             yield b"G4 P2000", b" 2s cooling period"
             yield gcode.gen_extruder_move(-110, 1500), b" 25mm/s long retract"
@@ -450,6 +460,10 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
+
+            if new_temp:
+                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
 
@@ -475,6 +489,10 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
+
+            if new_temp:
+                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-155, 3000), b" 50mm/s long retract"
 
@@ -504,6 +522,10 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, y_5, 3000), b" Y shift"
 
             yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
+
+            if new_temp:
+                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
 
@@ -514,31 +536,31 @@ class SwitchTower:
         if self.hw_config == PEEK:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E25 F1500", b" 25mm/s feed"
+            yield b"G1 E20 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PEEK4:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E105 F3000", b" 50mm/s feed"
-            yield b"G1 E25 F1500", b" 25mm/s feed"
+            yield b"G1 E20 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PTFE:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E54 F1500", b" 25mm/s feed"
+            yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == PTFE4:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E105 F3000", b" 50mm/s feed"
-            yield b"G1 E54 F1500", b" 25mm/s feed"
+            yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
         elif self.hw_config == E3DV6:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E54 F1500", b" 25mm/s feed"
+            yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = -1
 
@@ -688,7 +710,7 @@ class SwitchTower:
                 min_z = self.slots[s]['last_z']
         self.slot = slot
 
-    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed):
+    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed, temperatures):
         """
         G-code for switch tower
         :param layer: current layer
@@ -697,10 +719,14 @@ class SwitchTower:
         :param new_e: new extruder
         :param z_hop: z_hop position
         :param z_speed: z axis speed
+        :param temperatures: tool temperatures
         :return: list of cmd, comment tuples
         """
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
+
+        if not self.temperatures:
+            self.temperatures = temperatures
 
         self.get_slot(layer)
 
@@ -730,8 +756,18 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
+        # handle temperatures. Check that new e has proper temp set, otherwise use old e temp
+        if temperatures[new_e.tool] == 0:
+            temperatures[new_e.tool] = temperatures[old_e.tool]
+
+        if temperatures[new_e.tool] != self.temperatures[old_e.tool]:
+            new_temp = temperatures[new_e.tool]
+            self.temperatures[new_e.tool] = temperatures[new_e.tool]
+        else:
+            new_temp = None
+
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge']):
+        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, new_e.tool):
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
@@ -739,6 +775,12 @@ class SwitchTower:
         # feed new filament
         for line in self.get_post_switch_gcode(new_e):
             yield line
+
+        if new_temp and abs(new_temp - temperatures[old_e.tool]) > 15:
+            yield (gcode.gen_temperature_wait_tool(new_temp, new_e.tool), b" change nozzle temp, wait")
+
+        # last hurrah
+        yield b"G1 E5 F1500", b" 25mm/s feed"
 
         # post-switch purge
         purge_feed_rate = new_e.get_feed_rate(multiplier=1.2)

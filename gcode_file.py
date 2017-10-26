@@ -89,7 +89,7 @@ class GCodeFile:
             for cmd, comment, index in layer.read_lines():
                 if comment and comment.strip() == b"TOOL CHANGE":
                     is_tool_change = True
-                elif is_tool_change and gcode.is_tool_change(cmd) is not None:
+                elif cmd and is_tool_change and gcode.is_tool_change(cmd) is not None:
                     # add unique tools to list
                     if gcode.last_match not in self.tools:
                         self.tools.append(gcode.last_match)
@@ -204,13 +204,14 @@ class GCodeFile:
         :return:
         """
         e_pos = 0
-        z_speed = 0
         z_hop = 0
         active_e = self.extruders[0]
         # flag to indicate if prime is needed after purge tower g-code
         prime_needed = False
         z_move_needed = False
         is_tool_change = False
+
+        temperatures = {}
 
         last_z = 0
 
@@ -270,7 +271,7 @@ class GCodeFile:
                         layer.delete_line(index)
                         for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e,
                                                                               new_e, z_hop, self.travel_z_speed,
-                                                                              self.travel_xy_speed):
+                                                                              self.travel_xy_speed, temperatures):
                             index += layer.insert_line(index, cmd, comment)
                         prime_needed = True
                         active_e = new_e
@@ -303,6 +304,11 @@ class GCodeFile:
                         if z_move_needed:
                             index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.travel_z_speed))
                             z_move_needed = False
+                    elif gcode.is_temp_nowait(cmd) or gcode.is_temp_wait(cmd):
+                        for t in self.tools:
+                            temperatures[t] = gcode.last_match
+                    elif gcode.is_temp_nowait_tool(cmd) or gcode.is_temp_wait_tool(cmd):
+                        temperatures[gcode.last_match[1]] = gcode.last_match[0]
 
                 except IndexError:
                     break
