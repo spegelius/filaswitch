@@ -1,7 +1,8 @@
 
 class Extruder:
-    def __init__(self, tool):
+    def __init__(self, tool, name=None):
         self.tool = tool
+        self.name = name
         self.nozzle = 0.0
         self.retract = 0.0
         self.retract_speed = 0.0
@@ -14,6 +15,8 @@ class Extruder:
         self.coasting = 0.0
         self.wipe = 0.0
         self.filament_type = None
+        self.temperature_nr = 0
+        self.temperature_setpoints = {}
 
     def get_feed_length(self, move_length, feed_rate=None):
         """
@@ -58,3 +61,30 @@ class Extruder:
         if not multiplier:
             return self.feed_rate * self.feed_rate_multiplier
         return self.feed_rate * self.feed_rate_multiplier * multiplier
+
+    def get_temperature(self, layer_nr):
+        """
+        Return nozzle temperature for given layer
+        :param layer_nr: layer number
+        :return: temperature
+        """
+        last_temp = None
+        for lr in self.temperature_setpoints:
+            if layer_nr <= lr:
+                return self.temperature_setpoints[lr]
+
+            last_temp = self.temperature_setpoints[lr]
+        return last_temp
+
+
+if __name__ == "__main__":
+    test_e = Extruder(1)
+    test_e.temperature_nr = 2
+    test_e.temperature_setpoints[2] = 200
+    test_e.temperature_setpoints[4] = 250
+    print(test_e.get_temperature(1))
+    print(test_e.get_temperature(2))
+    print(test_e.get_temperature(3))
+    print(test_e.get_temperature(4))
+    print(test_e.get_temperature(5))
+    print(test_e.get_temperature(6))

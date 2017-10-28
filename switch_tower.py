@@ -100,8 +100,6 @@ class SwitchTower:
         # amount of room for difference between tower height and model height
         self.z_slack_max = 1.2
 
-        self.temperatures = None
-
         self.E = E
         self.S = S
         self.W = W
@@ -710,7 +708,7 @@ class SwitchTower:
                 min_z = self.slots[s]['last_z']
         self.slot = slot
 
-    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed, temperatures):
+    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed):
         """
         G-code for switch tower
         :param layer: current layer
@@ -719,14 +717,10 @@ class SwitchTower:
         :param new_e: new extruder
         :param z_hop: z_hop position
         :param z_speed: z axis speed
-        :param temperatures: tool temperatures
         :return: list of cmd, comment tuples
         """
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
-
-        if not self.temperatures:
-            self.temperatures = temperatures
 
         self.get_slot(layer)
 
@@ -756,14 +750,9 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
-        # handle temperatures. Check that new e has proper temp set, otherwise use old e temp
-        if temperatures[new_e.tool] == 0:
-            temperatures[new_e.tool] = temperatures[old_e.tool]
-
-        if temperatures[new_e.tool] != self.temperatures[old_e.tool]:
-            new_temp = temperatures[new_e.tool]
-            self.temperatures[new_e.tool] = temperatures[new_e.tool]
-        else:
+        new_temp = new_e.get_temperature(layer.num)
+        old_temp = old_e.get_temperature(layer.num)
+        if new_temp == old_temp:
             new_temp = None
 
         # pre-switch purge
@@ -776,7 +765,7 @@ class SwitchTower:
         for line in self.get_post_switch_gcode(new_e):
             yield line
 
-        if new_temp and abs(new_temp - temperatures[old_e.tool]) > 15:
+        if new_temp and abs(new_temp - old_temp) > 15:
             yield (gcode.gen_temperature_wait_tool(new_temp, new_e.tool), b" change nozzle temp, wait")
 
         # last hurrah

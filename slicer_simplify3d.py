@@ -21,6 +21,8 @@ class Simplify3dGCodeFile(GCodeFile):
 
     def __init__(self, logger, hw_config, tower_position, purge_lines):
         super().__init__(logger, hw_config, tower_position, purge_lines)
+        self.extruder_name = []
+        self.extruder_tool = []
         self.extruder_diameter = []
         self.extruder_multiplier = []
         self.extruder_use_retract = []
@@ -41,6 +43,12 @@ class Simplify3dGCodeFile(GCodeFile):
         self.stroke_y = None
         self.origin_offset_x = None
         self.origin_offset_y = None
+
+        self.temperature_names = []
+        self.temperature_numbers = []
+        self.temperature_setpoints = []
+        self.temperature_setpoint_layers = []
+        self.temperature_setpoint_temps = []
 
     def process(self, gcode_file):
         self.open_file(gcode_file)
@@ -63,18 +71,30 @@ class Simplify3dGCodeFile(GCodeFile):
         Populate extruder list
         :return:
         """
-        for i in range(len(self.extruder_diameter)):
-            self.extruders[i] = Extruder(i)
-            self.extruders[i].nozzle = self.extruder_diameter[i]
+
+        for i in range(len(self.extruder_name)):
+            t = self.extruder_tool[i]
+            name = self.extruder_name[i]
+            ext  = Extruder(t, name=name)
+            ext.nozzle = self.extruder_diameter[i]
             if self.extruder_use_retract[i]:
-                self.extruders[i].retract = self.extruder_retract_dist[i]
-                self.extruders[i].retract_speed = self.extruder_retract_speed[i]
-            self.extruders[i].z_hop = self.extruder_zhop[i]
+                ext.retract = self.extruder_retract_dist[i]
+                ext.retract_speed = self.extruder_retract_speed[i]
+            ext.z_hop = self.extruder_zhop[i]
             if self.extruder_use_coasting[i]:
-                self.extruders[i].coasting = self.extruder_coasting[i]
+                ext.coasting = self.extruder_coasting[i]
             if self.extruder_use_wipe[i]:
-                self.extruders[i].wipe = self.extruder_wipe[i]
-            self.extruders[i].feed_rate_multiplier = self.extruder_multiplier[i]
+                ext.wipe = self.extruder_wipe[i]
+            ext.feed_rate_multiplier = self.extruder_multiplier[i]
+
+            ext.temperature_nr = self.temperature_numbers[i]
+
+            for j in range(self.temperature_setpoints[i]):
+                index = self.temperature_setpoints[i] * i + j
+                layer_nr = self.temperature_setpoint_layers[index]
+                ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[index]
+
+            self.extruders[t] = ext
 
     def parse_header(self):
         """
@@ -93,6 +113,12 @@ class Simplify3dGCodeFile(GCodeFile):
                     self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
                 except Exception as e:
                     print(e)
+            elif b"extruderName" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_name.append(d)
+            elif b"extruderToolheadNumber" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.extruder_tool.append(int(d))
             elif b"printMaterial" in comment:
                 self.material = comment.split(b",")[-1]
             elif b"extruderDiameter" in comment:
@@ -158,6 +184,21 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"gcodeZoffset" in comment:
                 # buggy as hell S3D, 0.2 setting is actaully 0.02...
                 self.z_offset = float(comment.split(b",")[-1]) * 0.1
+            elif b"temperatureName" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_names.append(d)
+            elif b"temperatureNumber" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_numbers.append(int(d))
+            elif b"temperatureSetpointCount" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_setpoints.append(int(d))
+            elif b"temperatureSetpointLayers" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_setpoint_layers.append(int(d))
+            elif b"temperatureSetpointTemperatures" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_setpoint_temps.append(int(d))
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
