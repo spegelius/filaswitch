@@ -100,6 +100,8 @@ class SwitchTower:
         # amount of room for difference between tower height and model height
         self.z_slack_max = 1.2
 
+        self.temperatures = {}
+
         self.E = E
         self.S = S
         self.W = W
@@ -751,12 +753,14 @@ class SwitchTower:
         yield old_e.get_prime_gcode(change=-0.1)
 
         new_temp = new_e.get_temperature(layer.num)
-        old_temp = old_e.get_temperature(layer.num)
+        old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer.num))
+        self.temperatures[new_e.tool] = new_temp
         if new_temp == old_temp:
             new_temp = None
 
+
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, new_e.tool):
+        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, new_e.temperature_nr):
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
@@ -766,7 +770,7 @@ class SwitchTower:
             yield line
 
         if new_temp and abs(new_temp - old_temp) > 15:
-            yield (gcode.gen_temperature_wait_tool(new_temp, new_e.tool), b" change nozzle temp, wait")
+            yield (gcode.gen_temperature_wait_tool(new_temp, new_e.temperature_nr), b" change nozzle temp, wait")
 
         # last hurrah
         yield b"G1 E5 F1500", b" 25mm/s feed"

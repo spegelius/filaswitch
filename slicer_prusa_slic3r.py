@@ -189,6 +189,27 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     # ; layer_height = 0.2
                     self.layer_height = float(comment.split(b' = ')[1])
 
+                elif b"first_layer_temperature =" in comment:
+                    #; first_layer_temperature = 215,195,215,215
+                    values = comment.split(b' = ')[1]
+                    tool = 0
+                    for d in values.split(b","):
+                        if tool not in self.extruders:
+                            self.extruders[tool] = Extruder(tool)
+                        self.extruders[tool].temperature_nr = tool
+                        self.extruders[tool].temperature_setpoints[1] = int(d)
+                        tool += 1
+
+                elif b" temperature =" in comment:
+                    #; temperature = 215,195,215,215
+                    values = comment.split(b' = ')[1]
+                    tool = 0
+                    for d in values.split(b","):
+                        if tool not in self.extruders:
+                            self.extruders[tool] = Extruder(tool)
+                        self.extruders[tool].temperature_setpoints[2] = int(d)
+                        tool += 1
+
         if self.layer_height != 0.2:
             raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
 
