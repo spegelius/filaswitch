@@ -17,7 +17,7 @@ class KISSlicerGCodeFile(GCodeFile):
     slicer_type = SLICER_KISSLICER
 
     # ; BEGIN_LAYER_OBJECT z=0.294 z_thickness=0.294
-    LAYER_START_RE = re.compile(b"BEGIN_LAYER_OBJECT z=(\d+\.*\d*) z_thickness=(\d+\.*\d*)")
+    LAYER_START_RE = re.compile(b" BEGIN_LAYER_OBJECT z=(\d+\.*\d*) z_thickness=(\d+\.*\d*)")
     VERSION_RE = re.compile(b" version (\d+)\.(\d+).*")
 
     def __init__(self, logger, hw_config, tower_position, purge_lines):
@@ -59,13 +59,10 @@ class KISSlicerGCodeFile(GCodeFile):
         z_offset = 0
         current_tool = None
 
-        ext_re = re.compile(b"Material Settings for Extruder (\d+)")
+        ext_re = re.compile(b".*Material Settings for Extruder (\d+)")
 
         for layer in self.layers:
             for cmd, comment in layer.lines:
-
-                if cmd and gcode.is_tool_change(cmd) is not None:
-                    current_extruder = gcode.last_match
                 if cmd:
                     continue
                 if b" version" in comment:
@@ -118,42 +115,57 @@ class KISSlicerGCodeFile(GCodeFile):
                     m = ext_re.match(comment)
                     current_tool = int(m.groups()[0]) - 1
 
-                elif current_tool and b"destring_length =" in comment:
+                elif current_tool is not None and b"destring_length =" in comment:
                     # ; destring_length = 3
                     self.extruders[current_tool].retract = float(comment.split(b' = ')[1])
 
-                elif current_tool and b"destring_speed_mm_per_s =" in comment:
+                elif current_tool is not None and b"destring_speed_mm_per_s =" in comment:
                     # ; destring_speed_mm_per_s = 80
                     self.extruders[current_tool].retract_speed = float(comment.split(b' = ')[1]) * 60
 
-                elif current_tool and b"Z_lift_mm =" in comment:
+                elif current_tool is not None and b"Z_lift_mm =" in comment:
                     # ; Z_lift_mm = 0
                     self.extruders[current_tool].z_hop = float(comment.split(b' = ')[1])
 
-                elif current_tool and b"wipe_mm =" in comment:
+                elif current_tool is not None and b"wipe_mm =" in comment:
                     # ; wipe_mm = 5
                     self.extruders[current_tool].wipe = float(comment.split(b' = ')[1])
 
-                elif current_tool and b"flowrate_tweak =" in comment:
+                elif current_tool is not None and b"flowrate_tweak =" in comment:
                     # ; flowrate_tweak = 1
                     self.extruders[current_tool].feed_rate_multiplier = float(comment.split(b' = ')[1])
 
-                elif current_tool and b"g_code_matl =" in comment:
+                elif current_tool is not None and b"g_code_matl =" in comment:
                     # ; g_code_matl = NULL
                     self.extruders[current_tool].filament_type = comment.split(b' = ')[1]
+
+                elif current_tool is not None and b"first_layer_C =" in comment:
+                    # ; first_layer_C = 235
+                    self.extruders[current_tool].temperature_setpoints[1] = int(comment.split(b' = ')[1])
+
+                elif current_tool is not None and b"temperature_C =" in comment:
+                    # ; temperature_C = 242
+                    self.extruders[current_tool].temperature_setpoints[2] = int(comment.split(b' = ')[1])
 
                 elif b"firmware_type =" in comment:
                     # ; firmware_type = 1
                     if comment.split(b' = ')[1] != b"1":
                         raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
 
+        print(self.extruders[0].temperature_setpoints)
+
         if not self.version:
             self.log.warning("Could not detect KISSlicer version. Use at your own risk!")
         else:
-            self.log.info("Slic3r version %d.%d" % self.version)
+            self.log.info("KISSlicer version %d.%d" % self.version)
 
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
+
+        if self.machine_type == 0:
+            # fix KISS xy offsets
+            self.origin_offset_x = self.origin_offset_x - self.stroke_x/2
+            self.origin_offset_y = self.origin_offset_y - self.stroke_y/2
 
     def parse_print_settings(self):
         """ KISS specific settings """
@@ -196,6 +208,7 @@ class KISSlicerGCodeFile(GCodeFile):
 
         # last layer
         self.layers.append(current_layer)
+        print(self.layers)
 
     def check_layer_change(self, line, current_layer):
         """
@@ -206,7 +219,7 @@ class KISSlicerGCodeFile(GCodeFile):
         """
         m = self.LAYER_START_RE.match(line)
         if m:
-            return int(m.groups()[0]), float(m.groups()[1])
+            return float(m.groups()[0]), float(m.groups()[1])
         return current_layer
 
     def filter_layers(self):
@@ -303,5 +316,5 @@ class KISSlicerGCodeFile(GCodeFile):
 if __name__ == "__main__":
     import logger
     logger = logger.Logger(".")
-    s = PrusaSlic3rCodeFile(logger, PEEK, 4, "Automatic")
+    s = KISSlicerGCodeFile(logger, PEEK, 4, "Automatic")
     print(s.check_layer_change(b" layer 1, Z = 1", None))
