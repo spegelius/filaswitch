@@ -655,7 +655,7 @@ class SwitchTower:
         """
         retraction = extruder.retract + e_pos
         self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
-        if not utils.is_float_zero(retraction, 3):
+        if not utils.is_float_zero(retraction, 3) and retraction > 0:
             if retraction > extruder.retract:
                 retraction = extruder.retract
             return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b" tower retract"
