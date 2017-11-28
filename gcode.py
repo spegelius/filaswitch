@@ -17,7 +17,7 @@ TYPE_DELTA = 1
 
 
 class GCode:
-    EXTRUDER_MOVE_RE = re.compile(b"^G1\s+E([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
+    EXTRUDER_MOVE_RE = re.compile(b"^G1\s+E([-]*\d+\.*\d*)\s+F(\d+\.*\d*)$")
     Z_MOVE_RE = re.compile(b"^G1\s+Z([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
     EXTRUSION_MOVE_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)$")
     EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
