@@ -1,0 +1,137 @@
+
+LINE_COUNT_DEFAULT = 6
+
+
+class Settings:
+
+    def __init__(self):
+        self._hw_config = None
+        self._purge_lines = LINE_COUNT_DEFAULT
+        self._tower_position = None
+
+        self._default_speed = None
+        self._travel_xy_speed = None
+        self._travel_z_speed = None
+        self._outer_perimeter_speed = None
+        self._first_layer_speed = None
+
+        # machine limits. Populate these values in slicer specific implementations
+        self._machine_type = None
+        self._stroke_x = None
+        self._stroke_y = None
+        self._origin_offset_x = None
+        self._origin_offset_y = None
+        self._z_offset = 0
+
+    @property
+    def hw_config(self):
+        return self._hw_config
+
+    @hw_config.setter
+    def hw_config(self, value):
+        self._hw_config = value
+
+    @property
+    def purge_lines(self):
+        return self._purge_lines
+
+    @purge_lines.setter
+    def purge_lines(self, value: int):
+        self._purge_lines = value
+
+    @property
+    def tower_position(self):
+        return self._tower_position
+
+    @tower_position.setter
+    def tower_position(self, value):
+        self._tower_position = value
+
+    @property
+    def default_speed(self):
+        return self._default_speed
+
+    @default_speed.setter
+    def default_speed(self, value: float):
+        self._default_speed = value
+
+    @property
+    def travel_xy_speed(self):
+        return self._travel_xy_speed
+
+    @travel_xy_speed.setter
+    def travel_xy_speed(self, value: float):
+        self._travel_xy_speed = value
+
+    @property
+    def travel_z_speed(self):
+        return self._travel_z_speed
+
+    @travel_z_speed.setter
+    def travel_z_speed(self, value: float):
+        self._travel_z_speed = value
+
+    @property
+    def outer_perimeter_speed(self):
+        return self._outer_perimeter_speed
+
+    @outer_perimeter_speed.setter
+    def outer_perimeter_speed(self, value: float):
+        self._outer_perimeter_speed = value
+
+    @property
+    def first_layer_speed(self):
+        return self._first_layer_speed
+
+    @first_layer_speed.setter
+    def first_layer_speed(self, value: float):
+        self._first_layer_speed = value
+
+    @property
+    def machine_type(self):
+        return self._machine_type
+
+    @machine_type.setter
+    def machine_type(self, value: int):
+        self._machine_type = value
+
+    @property
+    def stroke_x(self):
+        return self._stroke_x
+
+    @stroke_x.setter
+    def stroke_x(self, value: float):
+        self._stroke_x = value
+
+    @property
+    def stroke_y(self):
+        return self._stroke_y
+
+    @stroke_y.setter
+    def stroke_y(self, value: float):
+        self._stroke_y = value
+
+    @property
+    def origin_offset_x(self):
+        return self._origin_offset_x
+
+    @origin_offset_x.setter
+    def origin_offset_x(self, value: float):
+        self._origin_offset_x = value
+
+    @property
+    def origin_offset_y(self):
+        return self._origin_offset_y
+
+    @origin_offset_y.setter
+    def origin_offset_y(self, value: float):
+        self._origin_offset_y = value
+
+    @property
+    def z_offset(self):
+        return self._z_offset
+
+    @z_offset.setter
+    def z_offset(self, value: float):
+        self._z_offset = value
+

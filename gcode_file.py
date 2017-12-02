@@ -4,6 +4,7 @@ from gcode import GCode
 from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
 
+from settings import Settings
 
 gcode = GCode()
 
@@ -17,7 +18,7 @@ SLICER_PRUSA_SLIC3R = "PrusaSlic3r"
 class GCodeFile:
     slicer_type = None
 
-    def __init__(self, logger, hw_config, tower_position, purge_lines):
+    def __init__(self, logger, settings: Settings):
         """
         G-code file base class. Not to be used directly
         :param logger: Logger object
@@ -41,28 +42,13 @@ class GCodeFile:
         self.last_switch_heights = {}
         self.last_switch_height = 0
 
-        self.hw_config = hw_config
-        self.log.info("HW config: %s" % self.hw_config)
+        self.settings = settings
+        self.log.info("HW config: %s" % self.settings.hw_config)
 
-        self.tower_position = tower_position
-        self.purge_lines = int(purge_lines)
-        if self.purge_lines > 15:
-            self.purge_lines = 15
+        if self.settings.purge_lines > 15:
+            self.settings.purge_lines = 15
 
         self.tools = [0]
-
-        self.travel_xy_speed = None
-        self.travel_z_speed = None
-        self.outer_perimeter_speed = None
-        self.first_layer_speed = None
-
-        # machine limits. Populate these values in slicer specific implementations
-        self.machine_type = None
-        self.stroke_x = None
-        self.stroke_y = None
-        self.origin_offset_x = None
-        self.origin_offset_y = None
-        self.z_offset = 0
 
         # max slots needed
         self.max_slots = None
@@ -163,8 +149,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.hw_config, self.tower_position, self.max_slots,  self.z_offset,
-                                        self.purge_lines)
+        self.switch_tower = SwitchTower(self.log, self.settings, self.max_slots, self.settings.z_offset)
         x = []
         y = []
 
@@ -182,8 +167,7 @@ class GCodeFile:
         y_min = min(y)
         self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" % (x_max, y_max, x_min, y_min))
 
-        self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min, self.machine_type, self.stroke_x,
-                                              self.stroke_y, self.origin_offset_x, self.origin_offset_y)
+        self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min)
 
     def add_switch_raft(self):
         """
@@ -192,8 +176,7 @@ class GCodeFile:
         """
         # TODO: check for retraction
         index = self.layers[0].start_gcode_end + 1
-        for cmd, comment in self.switch_tower.get_raft_lines(self.layers[0], self.extruders[0], False,
-                                                             self.travel_xy_speed, self.travel_z_speed):
+        for cmd, comment in self.switch_tower.get_raft_lines(self.layers[0], self.extruders[0], False):
             index += self.layers[0].insert_line(index, cmd, comment)
         self.layers[0].start_gcode_end = index
 
@@ -233,9 +216,7 @@ class GCodeFile:
                 try:
                     # when z height changes, check that tower height isn't too low versus layer
                     if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
-                        for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e,
-                                                                  z_hop, self.travel_z_speed,
-                                                                  self.travel_xy_speed):
+                        for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
 
                     last_z = layer.z
@@ -243,9 +224,7 @@ class GCodeFile:
                     # add infill the the beginning of the layer if not a tool change layer
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
                         # update purge tower with sparse infill
-                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop,
-                                                                               self.travel_z_speed,
-                                                                               self.travel_xy_speed):
+                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
 
                     cmd, comment = layer.lines[index]
@@ -266,9 +245,7 @@ class GCodeFile:
                         # add tool change g-code
                         new_e = self.extruders[gcode.last_match]
                         layer.delete_line(index)
-                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e,
-                                                                              new_e, z_hop, self.travel_z_speed,
-                                                                              self.travel_xy_speed):
+                        for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, active_e, new_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
                         prime_needed = True
                         active_e = new_e
@@ -299,7 +276,7 @@ class GCodeFile:
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
                         if z_move_needed:
-                            index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.travel_z_speed))
+                            index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.settings.travel_z_speed))
                             z_move_needed = False
 
                 except IndexError:

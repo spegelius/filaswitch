@@ -24,7 +24,9 @@ from slicer_prusa_slic3r import PrusaSlic3rCodeFile
 from logger import Logger
 from switch_tower import PEEK, PTFE, E3DV6, HW_CONFIGS
 from switch_tower import AUTO, LEFT, RIGHT, TOP, BOTTOM, TOWER_POSITIONS
-from switch_tower import LINES, LINE_COUNT_DEFAULT
+from switch_tower import LINES
+
+from settings import Settings, LINE_COUNT_DEFAULT
 
 import utils
 
@@ -113,9 +115,13 @@ class TopFrame(Frame):
 
         if gcode_file:
             try:
+                settings = Settings()
+                settings.hw_config = self.hw_var.get()
+                settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
+                settings.tower_position = self.gui.adv_frame.position_var.get()
+
                 print_type = detect_file_type(gcode_file, self.log)
-                pf = print_type(self.log, self.hw_var.get(), self.gui.adv_frame.position_var.get(),
-                                self.gui.adv_frame.lines_var.get())
+                pf = print_type(self.log, settings)
                 result_file = pf.process(gcode_file)
                 if self.gui.info:
                     self.log.info("New file saved: %s" % result_file)
@@ -166,6 +172,7 @@ class AdvancedFrame(Frame):
 
         self.lines_box = OptionMenu(self, self.lines_var, self.lines_var.get(), *LINES)
         self.lines_box.grid(row=1, column=1, sticky=W, padx=5, pady=3)
+
 
 class BottomFrame(Frame):
 
@@ -251,9 +258,14 @@ def main():
                             choices=TOWER_POSITIONS, default=AUTO)
         args = parser.parse_args()
 
+        options = Settings()
+        options.hw_config = args.hw_config
+        options.purge_lines = args.lines
+        options.tower_position = args.position
+
         log = Logger(prog_dir, gui=False, debug=args.debug)
         print_type = detect_file_type(args.file, log)
-        pf = print_type(log, args.hw_config, args.position, args.lines)
+        pf = print_type(log, options)
         result_file = pf.process(args.file)
         log.info("New file saved: %s" % result_file)
 

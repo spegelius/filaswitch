@@ -7,6 +7,7 @@ from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
 from gcode_file import SLICER_PRUSA_SLIC3R, GCodeFile
+from settings import Settings
 
 gcode = GCode()
 log = logging.getLogger("PrusaSlic3r")
@@ -19,21 +20,14 @@ class PrusaSlic3rCodeFile(GCodeFile):
     LAYER_START_RE = re.compile(b"BEFORE_LAYER_CHANGE (\d+) (\d+\.*\d*)")
     VERSION_RE = re.compile(b".*(\d+)\.(\d+)\.(\d+)-prusa3d-.*")
 
-    def __init__(self, logger, hw_config, tower_position, purge_lines):
-        super().__init__(logger, hw_config, tower_position, purge_lines)
+    def __init__(self, logger, settings: Settings):
+        super().__init__(logger, settings)
 
         self.extruder_use_wipe = []
         self.extruder_wipe = []
         self.relative_e = False
         self.retract_while_wiping = False
         self.version = None
-
-        self.default_speed = None
-        self.machine_type = None
-        self.stroke_x = None
-        self.stroke_y = None
-        self.origin_offset_x = None
-        self.origin_offset_y = None
 
     def process(self, gcode_file):
         self.open_file(gcode_file)

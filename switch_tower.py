@@ -1,6 +1,7 @@
 import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
+from settings import Settings
 
 import utils
 
@@ -25,12 +26,11 @@ BOTTOM = "Bottom"
 TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
 
 LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
-LINE_COUNT_DEFAULT = 6
 
 
 class SwitchTower:
 
-    def __init__(self, logger, hw_config, tower_position, max_slots,  z_offset, purge_lines=LINE_COUNT_DEFAULT):
+    def __init__(self, logger, settings: Settings, max_slots, z_offset):
         """
         Filament switch tower functionality
         :param logger: Logger object
@@ -40,8 +40,8 @@ class SwitchTower:
         :param purge_lines: amount of post purge lines
         """
 
+        self.settings = settings
         self.log = logger
-        self.hw_config = hw_config
         self.max_slots = max_slots
         self.z_offset = z_offset
 
@@ -58,15 +58,12 @@ class SwitchTower:
 
         # post purge line config
         self.purge_line_length = self.width + 0.6
-        self.purge_lines = purge_lines
 
-        if self.hw_config == E3DV6:
-            self.purge_lines -= 1
+        if self.settings.hw_config == E3DV6:
+            self.settings.purge_lines -= 1
             self.pre_purge_height = 6.3
 
-        self.height = self.pre_purge_height + self.purge_lines * 1.5
-
-        self.tower_position = tower_position
+        self.height = self.pre_purge_height + self.settings.purge_lines * 1.5
 
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1.0
@@ -126,33 +123,28 @@ class SwitchTower:
         self.SE += direction
         self.SW += direction
 
-    def _cartesian_position(self, x_max, x_min, y_max, y_min, stroke_x,
-                            stroke_y, origin_offset_x, origin_offset_y):
+    def _cartesian_position(self, x_max, x_min, y_max, y_min):
         """
         Find position for purge tower using cartesian limits
         :param x_max: print objects x max
         :param x_min: print objects x min
         :param y_max: print objects y max
         :param y_min: print objects y min
-        :param stroke_x: bed width
-        :param stroke_y: bed height
-        :param origin_offset_x: origin x offset
-        :param origin_offset_y: origin y offset
         :return:
         """
         # expect origin offset to be positive always
-        bed_x_max = stroke_x - origin_offset_x
-        bed_y_max = stroke_y - origin_offset_y
+        bed_x_max = self.settings.stroke_x - self.settings.origin_offset_x
+        bed_y_max = self.settings.stroke_y - self.settings.origin_offset_y
 
-        bed_x_min = -origin_offset_x
-        bed_y_min = -origin_offset_y
+        bed_x_min = -self.settings.origin_offset_x
+        bed_y_min = -self.settings.origin_offset_y
 
 
         # find a place that can accommodate the tower height
-        if self.tower_position == AUTO:
+        if self.settings.tower_position == AUTO:
             positions = [TOP, RIGHT, BOTTOM, LEFT]
         else:
-            positions = [self.tower_position]
+            positions = [self.settings.tower_position]
 
         for position in positions:
             # generate tower start positions and adjust tower position if it is out of the bed
@@ -212,22 +204,17 @@ class SwitchTower:
                     self.rotate_tower(180)
                     return position
 
-        if self.tower_position == AUTO:
+        if self.settings.tower_position == AUTO:
             raise ValueError("Not enough space for the tower inside the bed!")
-        raise ValueError("Not enough room for tower using selected position %s" % self.tower_position)
+        raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
 
-    def _delta_position(self, x_max, x_min, y_max, y_min, stroke_x,
-                            stroke_y, origin_offset_x, origin_offset_y):
+    def _delta_position(self, x_max, x_min, y_max, y_min, stroke_x):
         """
         Find position for purge tower using delta limits
         :param x_max: print objects x max
         :param x_min: print objects x min
         :param y_max: print objects y max
         :param y_min: print objects y min
-        :param stroke_x: bed width
-        :param stroke_y: bed height
-        :param origin_offset_x: origin x offset
-        :param origin_offset_y: origin y offset
         :return:
         """
 
@@ -240,10 +227,10 @@ class SwitchTower:
             return abs(length) < bed_r
 
         # find a place that can accommodate the tower height
-        if self.tower_position == AUTO:
+        if self.settings.tower_position == AUTO:
             positions = [TOP, RIGHT, BOTTOM, LEFT]
         else:
-            positions = [self.tower_position]
+            positions = [self.settings.tower_position]
 
         for position in positions:
 
@@ -320,12 +307,11 @@ class SwitchTower:
                 #     self.rotate_tower(90)
                 #     return position
 
-        if self.tower_position == AUTO:
+        if self.settings.tower_position == AUTO:
             raise ValueError("Not enough space for the tower inside the bed!")
-        raise ValueError("Not enough room for tower using selected position %s" % self.tower_position)
+        raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
 
-    def find_tower_position(self, x_max, x_min, y_max, y_min, machine_type, stroke_x,
-                            stroke_y, origin_offset_x, origin_offset_y):
+    def find_tower_position(self, x_max, x_min, y_max, y_min):
         """
         Find position for purge tower
         :param x_max: print objects x max
@@ -346,12 +332,10 @@ class SwitchTower:
         #print("maxes", x_max, y_max)
         #print("mids", self.x_mid, self.y_mid)
 
-        if machine_type == TYPE_CARTESIAN:
-            position = self._cartesian_position(x_max, x_min, y_max, y_min, stroke_x,
-                            stroke_y, origin_offset_x, origin_offset_y)
+        if self.settings.machine_type == TYPE_CARTESIAN:
+            position = self._cartesian_position(x_max, x_min, y_max, y_min)
         else:
-            position = self._delta_position(x_max, x_min, y_max, y_min, stroke_x,
-                            stroke_y, origin_offset_x, origin_offset_y)
+            position = self._delta_position(x_max, x_min, y_max, y_min)
 
         self.log.info("Tower start coordinate: X%.3f, Y%.3f, position %s" %(self.start_pos_x, self.start_pos_y, position))
 
@@ -369,7 +353,7 @@ class SwitchTower:
         speed = min_speed
         min_speed_lines = 0
         purge_speeds = []
-        for i in range(self.purge_lines):
+        for i in range(self.settings.purge_lines):
             if i >= min_speed_lines:
                 speed = 2400
             purge_speeds.insert(0, speed)
@@ -380,7 +364,7 @@ class SwitchTower:
 
         feed_rate = 4.5 / 50
 
-        if self.hw_config == PEEK:
+        if self.settings.hw_config == PEEK:
             if flip:
                 y_1 = 0.6
                 y_2 = 1.4
@@ -409,7 +393,7 @@ class SwitchTower:
             yield b"G4 P2000", b" 2s cooling period"
             yield gcode.gen_extruder_move(-95, 1500), b" 25mm/s long retract"
 
-        elif self.hw_config == PEEK4:
+        elif self.settings.hw_config == PEEK4:
             if flip:
                 y_1 = 0.6
                 y_2 = 1.4
@@ -438,7 +422,7 @@ class SwitchTower:
             yield b"G4 P2000", b" 2s cooling period"
             yield gcode.gen_extruder_move(-110, 1500), b" 25mm/s long retract"
 
-        elif self.hw_config == PTFE:
+        elif self.settings.hw_config == PTFE:
             if flip:
                 y_1 = 0.6
                 y_2 = 1.4
@@ -467,7 +451,7 @@ class SwitchTower:
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
 
-        elif self.hw_config == PTFE4:
+        elif self.settings.hw_config == PTFE4:
             if flip:
                 y_1 = 0.6
                 y_2 = 1.4
@@ -496,7 +480,7 @@ class SwitchTower:
             yield b"G4 P2500", b" 2.5s cooling period"
             yield gcode.gen_extruder_move(-155, 3000), b" 50mm/s long retract"
 
-        elif self.hw_config == E3DV6:
+        elif self.settings.hw_config == E3DV6:
             if flip:
                 y_1 = 0.8
                 y_2 = 1.4
@@ -533,38 +517,38 @@ class SwitchTower:
         # TODO: read from file
         feed_rate = 5 / 50
 
-        if self.hw_config == PEEK:
+        if self.settings.hw_config == PEEK:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E20 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
-        elif self.hw_config == PEEK4:
+        elif self.settings.hw_config == PEEK4:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E105 F3000", b" 50mm/s feed"
             yield b"G1 E20 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
-        elif self.hw_config == PTFE:
+        elif self.settings.hw_config == PTFE:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
-        elif self.hw_config == PTFE4:
+        elif self.settings.hw_config == PTFE4:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E105 F3000", b" 50mm/s feed"
             yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = 1
-        elif self.hw_config == E3DV6:
+        elif self.settings.hw_config == E3DV6:
             yield b"G1 E10 F1500", b" 25mm/s feed"
             yield b"G1 E90 F3000", b" 50mm/s feed"
             yield b"G1 E49 F1500", b" 25mm/s feed"
             yield gcode.gen_direction_move(self.W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
             self.prepurge_sign = -1
 
-    def get_raft_lines(self, first_layer, extruder, retract, xy_speed, z_speed):
+    def get_raft_lines(self, first_layer, extruder, retract):
         """
         G-code lines for the raft
         :param first layer: first layer
@@ -579,10 +563,10 @@ class SwitchTower:
 
         if extruder.z_hop:
             z_hop = self.raft_layer_height + extruder.z_hop + self.z_offset
-            yield ("G1 Z%.3f F%s" % (z_hop, z_speed)).encode(), b" z-hop"
+            yield ("G1 Z%.3f F%s" % (z_hop, self.settings.travel_z_speed)).encode(), b" z-hop"
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
-        yield gcode.gen_head_move(x, y, xy_speed), b" move to raft zone"
-        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, z_speed)).encode(), b" move z close"
+        yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
+        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
@@ -604,7 +588,7 @@ class SwitchTower:
         yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
         yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate), b" raft wall"
 
-        yield gcode.gen_direction_move(self.SE, 0.6, xy_speed), None
+        yield gcode.gen_direction_move(self.SE, 0.6, self.settings.travel_xy_speed), None
 
         feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
         speed = 1000
@@ -625,11 +609,10 @@ class SwitchTower:
         for i in range(self.max_slots):
             self.slots[i]['last_z'] = self.z_offset + self.raft_layer_height
 
-    def _get_z_hop(self, layer, z_speed, extruder):
+    def _get_z_hop(self, layer, extruder):
         """
         Get g-code for z-hop
         :param layer: current layer
-        :param z_speed: z-axis speed
         :param extruder: current extruder
         :return: G-code for z-hop or None
         """
@@ -644,7 +627,7 @@ class SwitchTower:
             new_z_hop = max_z
         if extruder.z_hop:
             new_z_hop += extruder.z_hop
-        return ("G1 Z%.3f F%.1f" % (new_z_hop, z_speed)).encode(), b" z-hop"
+        return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
 
     def _get_retraction(self, e_pos, extruder):
         """
@@ -660,12 +643,11 @@ class SwitchTower:
                 retraction = extruder.retract
             return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b" tower retract"
 
-    def _get_wall_position_gcode(self, layer, flipflop, xy_speed):
+    def _get_wall_position_gcode(self, layer, flipflop):
         """
         Retun g-code line for positioning head for wall print
         :param layer: current layer
         :param flipflop: flip or flop
-        :param xy_speed: xy travel speed
         :return: g-code line
         """
         y_pos = (self.wall_height + 0.4) * self.slot
@@ -674,7 +656,7 @@ class SwitchTower:
         else:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, -0.5 + y_pos)
         #print(self.start_pos_x, self.start_pos_y, x, y)
-        return gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
+        return gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
     def _get_wall_gcode(self, flipflop, extruder, wall_speed, feed_rate):
         """
@@ -710,7 +692,7 @@ class SwitchTower:
                 min_z = self.slots[s]['last_z']
         self.slot = slot
 
-    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop, z_speed, xy_speed):
+    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop):
         """
         G-code for switch tower
         :param layer: current layer
@@ -718,7 +700,6 @@ class SwitchTower:
         :param old_e: old extruder
         :param new_e: new extruder
         :param z_hop: z_hop position
-        :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
         self.log.debug("Adding purge tower")
@@ -735,7 +716,7 @@ class SwitchTower:
             yield retraction
 
         # handle z-hop
-        hop = self._get_z_hop(layer, z_speed, old_e)
+        hop = self._get_z_hop(layer, old_e)
         if hop:
             yield hop
 
@@ -744,11 +725,11 @@ class SwitchTower:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2 + y_pos)
         else:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0 + y_pos)
-        yield gcode.gen_head_move(x, y, xy_speed), b" move to purge zone"
+        yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
-        yield ("G1 Z%.3f F%.1f" % (tower_z, z_speed)).encode(), b" move z close"
+        yield ("G1 Z%.3f F%.1f" % (tower_z, self.settings.travel_z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
@@ -805,7 +786,7 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
         yield gcode.gen_direction_move(dir_1, purge_length, 2400, new_e, feed_rate=feed_rate), b" purge trail"
 
-        if self.hw_config == E3DV6:
+        if self.settings.hw_config == E3DV6:
             # one more purge line for E3Dv6
             if self.slots[self.slot]['flipflop_purge']:
                 yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
@@ -815,7 +796,7 @@ class SwitchTower:
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
-        yield self._get_wall_position_gcode(layer, False, xy_speed)
+        yield self._get_wall_position_gcode(layer, False)
         yield b"G91", b" relative positioning"
 
         # wall gcode
@@ -829,7 +810,7 @@ class SwitchTower:
         yield b"G90", b" absolute positioning"
         yield b"M83", b" relative E"
         yield b"G92 E0", b" reset extruder position"
-        hop = self._get_z_hop(layer, z_speed, old_e)
+        hop = self._get_z_hop(layer, old_e)
         if hop:
             yield hop
         yield None, b" TOWER END"
@@ -837,14 +818,13 @@ class SwitchTower:
         # flip the flop
         self.slots[self.slot]['flipflop_purge'] = not self.slots[self.slot]['flipflop_purge']
 
-    def get_infill_lines(self, layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+    def get_infill_lines(self, layer, e_pos, extruder, z_hop):
         """
         G-code for switch tower infill
         :param layer: current layer
         :param e_pos: extruder position
         :param extruder: active extruder
         :param z_hop: z_hop position
-        :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
 
@@ -866,15 +846,15 @@ class SwitchTower:
             yield retraction
 
         # handle z-hop
-        hop = self._get_z_hop(layer, z_speed, extruder)
+        hop = self._get_z_hop(layer, extruder)
         if hop:
             yield hop
 
         tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
 
-        yield self._get_wall_position_gcode(layer, self.slots[self.slot]['flipflop_infill'], xy_speed)
-        yield ("G1 Z%.3f F%.1f" % (tower_z, z_speed)).encode(), b" move z close"
+        yield self._get_wall_position_gcode(layer, self.slots[self.slot]['flipflop_infill'])
+        yield ("G1 Z%.3f F%.1f" % (tower_z, self.settings.travel_z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
         yield extruder.get_prime_gcode()
 
@@ -912,7 +892,7 @@ class SwitchTower:
 
         yield b"G90", b" absolute positioning"
         yield b"M83", b" relative E"
-        hop = self._get_z_hop(layer, z_speed, extruder)
+        hop = self._get_z_hop(layer, extruder)
         if hop:
             yield hop
         yield b"G92 E0", b" reset extruder position"
@@ -921,14 +901,13 @@ class SwitchTower:
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
 
-    def check_infill(self, layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+    def check_infill(self, layer, e_pos, extruder, z_hop):
         """
         Checks if tower z is too low versus layer and adds infill if needed
         :param layer: current layer
         :param e_pos: extruder position
         :param extruder: active extruder
         :param z_hop: z_hop position
-        :param z_speed: z axis speed
         :return: list of cmd, comment tuples
         """
         # TODO: rethink whole line thing. Maybe Writer object?
@@ -937,12 +916,11 @@ class SwitchTower:
             count = 0
             for s in range(layer.tower_slots):
                 if self.slots[s]['last_z'] < layer.z - 0.2:
-                    for l in self.get_infill_lines(layer, e_pos, extruder, z_hop, z_speed, xy_speed):
+                    for l in self.get_infill_lines(layer, e_pos, extruder, z_hop):
                         yield l
                     count += 1
             if not count:
                 break
-
 
 
 if __name__ == "__main__":

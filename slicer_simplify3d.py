@@ -7,6 +7,7 @@ from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
 from gcode_file import SLICER_SIMPLIFY3D, GCodeFile
+from settings import Settings
 
 gcode = GCode()
 log = logging.getLogger("S3DSlicer")
@@ -19,8 +20,8 @@ class Simplify3dGCodeFile(GCodeFile):
     LAYER_START_RE = re.compile(b".*layer (\d+), Z = (\d+\.*\d*)")
     VERSION_RE = re.compile(b".*Version (\d)\.(\d)\.(\d)")
 
-    def __init__(self, logger, hw_config, tower_position, purge_lines):
-        super().__init__(logger, hw_config, tower_position, purge_lines)
+    def __init__(self, logger, settings: Settings):
+        super().__init__(logger, settings)
         self.extruder_name = []
         self.extruder_tool = []
         self.extruder_diameter = []
@@ -36,13 +37,6 @@ class Simplify3dGCodeFile(GCodeFile):
         self.relative_e = False
         self.retract_while_wiping = False
         self.version = None
-
-        self.default_speed = None
-        self.machine_type = None
-        self.stroke_x = None
-        self.stroke_y = None
-        self.origin_offset_x = None
-        self.origin_offset_y = None
 
         self.temperature_names = []
         self.temperature_numbers = []
@@ -75,7 +69,7 @@ class Simplify3dGCodeFile(GCodeFile):
         for i in range(len(self.extruder_name)):
             t = self.extruder_tool[i]
             name = self.extruder_name[i]
-            ext  = Extruder(t, name=name)
+            ext = Extruder(t, name=name)
             ext.nozzle = self.extruder_diameter[i]
             if self.extruder_use_retract[i]:
                 ext.retract = self.extruder_retract_dist[i]
@@ -158,32 +152,32 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"retractWhileWiping" in comment:
                 self.retract_while_wiping = comment.split(b",")[-1] == b"1"
             elif b"defaultSpeed" in comment:
-                self.default_speed = int(comment.split(b",")[-1])
+                self.settings.default_speed = int(comment.split(b",")[-1])
             elif b"rapidXYspeed" in comment:
-                self.travel_xy_speed = int(comment.split(b",")[-1])
+                self.settings.travel_xy_speed = int(comment.split(b",")[-1])
             elif b"rapidZspeed" in comment:
-                self.travel_z_speed = int(comment.split(b",")[-1])
+                self.settings.travel_z_speed = int(comment.split(b",")[-1])
             elif b"outlineUnderspeed" in comment:
-                self.outer_perimeter_speed = float(comment.split(b",")[-1])
+                self.settings.outer_perimeter_speed = float(comment.split(b",")[-1])
             elif b"solidInfillUnderspeed" in comment:
                 self.infill_speed = float(comment.split(b",")[-1])
             elif b"supportUnderspeed" in comment:
                 self.support_speed = float(comment.split(b",")[-1])
             elif b"firstLayerUnderspeed" in comment:
-                self.first_layer_speed = float(comment.split(b",")[-1])
+                self.settings.first_layer_speed = float(comment.split(b",")[-1])
             elif b"machineTypeOverride" in comment:
-                self.machine_type = int(comment.split(b",")[-1])
+                self.settings.machine_type = int(comment.split(b",")[-1])
             elif b"strokeXoverride" in comment:
-                self.stroke_x = float(comment.split(b",")[-1])
+                self.settings.stroke_x = float(comment.split(b",")[-1])
             elif b"strokeYoverride" in comment:
-                self.stroke_y = float(comment.split(b",")[-1])
+                self.settings.stroke_y = float(comment.split(b",")[-1])
             elif b"originOffsetXoverride" in comment:
-                self.origin_offset_x = float(comment.split(b",")[-1])
+                self.settings.origin_offset_x = float(comment.split(b",")[-1])
             elif b"originOffsetYoverride" in comment:
-                self.origin_offset_y = float(comment.split(b",")[-1])
+                self.settings.origin_offset_y = float(comment.split(b",")[-1])
             elif b"gcodeZoffset" in comment:
-                # buggy as hell S3D, 0.2 setting is actaully 0.02...
-                self.z_offset = float(comment.split(b",")[-1]) * 0.1
+                # buggy as hell S3D, 0.2 setting is actually 0.02...
+                self.settings.z_offset = float(comment.split(b",")[-1]) * 0.1
             elif b"temperatureName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_names.append(d)
@@ -210,8 +204,8 @@ class Simplify3dGCodeFile(GCodeFile):
         if self.layer_height != 0.2:
             raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
 
-        self.outer_perimeter_speed *= self.default_speed
-        self.first_layer_speed *= self.default_speed
+        self.settings.outer_perimeter_speed *= self.settings.default_speed
+        self.settings.first_layer_speed *= self.settings.default_speed
 
     def parse_print_settings(self):
         """ S3D specific settings """
