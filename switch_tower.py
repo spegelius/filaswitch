@@ -563,7 +563,10 @@ class SwitchTower:
 
         if extruder.z_hop:
             z_hop = self.raft_layer_height + extruder.z_hop + self.z_offset
-            yield ("G1 Z%.3f F%s" % (z_hop, self.settings.travel_z_speed)).encode(), b" z-hop"
+            yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
+        else:
+            yield gcode.gen_z_move(self.raft_layer_height + 5, self.settings.travel_z_speed), b" move z close"
+
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
         yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
