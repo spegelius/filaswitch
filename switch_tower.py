@@ -760,7 +760,7 @@ class SwitchTower:
 
 
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, new_e.temperature_nr):
+        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, old_e.temperature_nr):
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
