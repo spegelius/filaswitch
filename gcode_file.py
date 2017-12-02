@@ -39,7 +39,7 @@ class GCodeFile:
         # material switch z heights
         self.layer_height = None
 
-        self.last_switch_heights = {}
+        self.tool_switch_heights = {}
         self.last_switch_height = 0
 
         self.settings = settings
@@ -79,14 +79,14 @@ class GCodeFile:
                     # add unique tools to list
                     if gcode.last_match not in self.tools:
                         self.tools.append(gcode.last_match)
-                    self.last_switch_heights[gcode.last_match] = layer.z
+                    self.tool_switch_heights[gcode.last_match] = layer.z
                     is_tool_change = False
 
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
-        if self.last_switch_heights:
-            self.last_switch_height = max(self.last_switch_heights.items())[1]
+        if self.tool_switch_heights:
+            self.last_switch_height = max(self.tool_switch_heights.values())
 
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
