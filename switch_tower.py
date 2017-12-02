@@ -573,7 +573,7 @@ class SwitchTower:
         # box
         width = self.raft_width + 0.8
         height = self.raft_height + 0.8
-        speed = 2000
+        speed = self.settings.first_layer_speed
         yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate), b" raft wall"
         yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate), b" raft wall"
         yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
@@ -591,7 +591,7 @@ class SwitchTower:
         yield gcode.gen_direction_move(self.SE, 0.6, self.settings.travel_xy_speed), None
 
         feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
-        speed = 1000
+        speed = self.settings.first_layer_speed
         for _ in range(int(self.raft_width/2)):
             yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate), b" raft1"
             yield gcode.gen_direction_move(self.E, 1, speed), b" raft2"
