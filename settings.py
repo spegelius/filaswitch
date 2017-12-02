@@ -8,6 +8,7 @@ class Settings:
         self._hw_config = None
         self._purge_lines = LINE_COUNT_DEFAULT
         self._tower_position = None
+        self._raft_multi = 100
 
         self._default_speed = None
         self._travel_xy_speed = None
@@ -46,6 +47,14 @@ class Settings:
     @tower_position.setter
     def tower_position(self, value):
         self._tower_position = value
+
+    @property
+    def raft_multi(self):
+        return self._raft_multi
+
+    @raft_multi.setter
+    def raft_multi(self, value):
+        self._raft_multi = value
 
     @property
     def default_speed(self):

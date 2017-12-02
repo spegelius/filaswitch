@@ -99,6 +99,7 @@ class TopFrame(Frame):
         status["last_hwconfig"] = self.hw_var.get()
         status["last_position"] = self.gui.adv_frame.position_var.get()
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
+        status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
 
     def quit(self):
         self.update_status()
@@ -119,6 +120,7 @@ class TopFrame(Frame):
                 settings.hw_config = self.hw_var.get()
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
+                settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
 
                 print_type = detect_file_type(gcode_file, self.log)
                 pf = print_type(self.log, settings)
@@ -149,6 +151,7 @@ class AdvancedFrame(Frame):
 
         self.position_label = Label(self, text="Purge tower position").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.size_label = Label(self, text="Purge lines (default: 6)").grid(row=1, column=0, sticky=W, padx=5, pady=3)
+        self.raft_multi_label = Label(self, text="Raft extrusion multiplier").grid(row=2, column=0, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -172,6 +175,18 @@ class AdvancedFrame(Frame):
 
         self.lines_box = OptionMenu(self, self.lines_var, self.lines_var.get(), *LINES)
         self.lines_box.grid(row=1, column=1, sticky=W, padx=5, pady=3)
+
+        # raft extrusion multiplier
+        self.raft_multi_var = StringVar(self)
+        if self.gui.raft_multi:
+            val = int(self.gui.raft_multi)
+            self.raft_multi_var.set(val)
+        else:
+            self.raft_multi_var.set(100)
+
+        raft_multi_values = [80 + val * 5 for val in range(9)]
+        self.raft_multi_box = OptionMenu(self, self.raft_multi_var, self.raft_multi_var.get(), *raft_multi_values)
+        self.raft_multi_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
 
 
 class BottomFrame(Frame):
@@ -211,6 +226,7 @@ class GUI:
         self.last_hwconfig = status.get("last_hwconfig")
         self.last_position = status.get("last_position")
         self.last_line_count = status.get("last_line_count")
+        self.raft_multi = status.get("raft_multi")
 
     def show_gui(self):
 

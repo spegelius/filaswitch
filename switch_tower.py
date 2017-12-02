@@ -559,7 +559,7 @@ class SwitchTower:
         yield None, b" TOWER RAFT START"
 
         self.raft_layer_height = first_layer.height
-        feed_multi = (self.raft_layer_height / 0.2)
+        feed_multi = (self.raft_layer_height / 0.2) * (self.settings.raft_multi/100)
 
         if extruder.z_hop:
             z_hop = self.raft_layer_height + extruder.z_hop + self.z_offset
