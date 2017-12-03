@@ -208,7 +208,7 @@ class SwitchTower:
             raise ValueError("Not enough space for the tower inside the bed!")
         raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
 
-    def _delta_position(self, x_max, x_min, y_max, y_min, stroke_x):
+    def _delta_position(self, x_max, x_min, y_max, y_min):
         """
         Find position for purge tower using delta limits
         :param x_max: print objects x max
@@ -219,7 +219,7 @@ class SwitchTower:
         """
 
         # assume that bed is round and origin is at the center
-        bed_r = stroke_x/2
+        bed_r = self.settings.stroke_x/2
 
         def check_coordinate(x, y):
             angle = math.atan(y / x)
