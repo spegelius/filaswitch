@@ -66,23 +66,23 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     #; bed_shape = 0x0,145x0,145x148,0x148
                     values = comment.split(b' = ')[1].split(b",")
                     if len(values) == 4:
-                        self.machine_type = TYPE_CARTESIAN
-                        self.origin_offset_x = -float(values[0].split(b"x")[0])
-                        self.origin_offset_y = -float(values[0].split(b"x")[1])
-                        self.stroke_x = float(values[2].split(b"x")[0]) + self.origin_offset_x
-                        self.stroke_y = float(values[2].split(b"x")[1]) + self.origin_offset_y
+                        self.settings.machine_type = TYPE_CARTESIAN
+                        self.settings.origin_offset_x = -float(values[0].split(b"x")[0])
+                        self.settings.origin_offset_y = -float(values[0].split(b"x")[1])
+                        self.settings.stroke_x = float(values[2].split(b"x")[0]) + self.settings.origin_offset_x
+                        self.settings.stroke_y = float(values[2].split(b"x")[1]) + self.settings.origin_offset_y
                     else:
-                        self.machine_type = TYPE_DELTA
+                        self.settings.machine_type = TYPE_DELTA
                         x = []
                         y = []
                         for v in values:
                             vals = v.split(b"x")
                             x.append(float(vals[0]))
                             y.append(float(vals[1]))
-                        self.stroke_x = max(x) - min(x)
-                        self.stroke_y = max(y) - min(y)
-                        self.origin_offset_x = self.stroke_x / 2
-                        self.origin_offset_y = self.stroke_y / 2
+                        self.settings.stroke_x = max(x) - min(x)
+                        self.settings.stroke_y = max(y) - min(y)
+                        self.settings.origin_offset_x = self.settings.stroke_x / 2
+                        self.settings.origin_offset_y = self.settings.stroke_y / 2
 
                 elif b"extrusion_multiplier =" in comment:
                     values = comment.split(b' = ')[1]
@@ -115,7 +115,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         tool += 1
 
                 elif b"retract_length =" in comment:
-                    #; retract_length = 3,3,3,3
+                    # ; retract_length = 3,3,3,3
                     values = comment.split(b' = ')[1]
                     tool = 0
                     for d in values.split(b","):
@@ -162,7 +162,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b"perimeter_speed =" in comment:
                     # ; perimeter_speed = 40
-                    self.default_speed = float(comment.split(b' = ')[1]) * 60
+                    self.settings.default_speed = float(comment.split(b' = ')[1]) * 60
 
                 elif b"z_offset =" in comment:
                     # ; z_offset = 0
@@ -170,18 +170,18 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b"first_layer_speed =" in comment:
                     # ; first_layer_speed = 70%
-                    self.first_layer_speed = float(comment.split(b' = ')[1].strip(b"%"))
+                    self.settings.first_layer_speed = float(comment.split(b' = ')[1].strip(b"%"))
 
                 elif b"travel_speed =" in comment:
                     # ; travel_speed = 120
-                    self.travel_xy_speed = float(comment.split(b' = ')[1]) * 60
+                    self.settings.travel_xy_speed = float(comment.split(b' = ')[1]) * 60
 
                 elif b" layer_height =" in comment:
                     # ; layer_height = 0.2
                     self.layer_height = float(comment.split(b' = ')[1])
 
                 elif b"first_layer_temperature =" in comment:
-                    #; first_layer_temperature = 215,195,215,215
+                    # ; first_layer_temperature = 215,195,215,215
                     values = comment.split(b' = ')[1]
                     tool = 0
                     for d in values.split(b","):
@@ -192,7 +192,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         tool += 1
 
                 elif b" temperature =" in comment:
-                    #; temperature = 215,195,215,215
+                    # ; temperature = 215,195,215,215
                     values = comment.split(b' = ')[1]
                     tool = 0
                     for d in values.split(b","):
@@ -209,13 +209,13 @@ class PrusaSlic3rCodeFile(GCodeFile):
         else:
             self.log.info("Slic3r version %d.%d.%d" % self.version)
 
-        self.outer_perimeter_speed = self.default_speed
-        self.first_layer_speed = (self.first_layer_speed/100) * self.outer_perimeter_speed
+        self.settings.outer_perimeter_speed = self.settings.default_speed
+        self.settings.first_layer_speed = (self.settings.first_layer_speed/100) * self.settings.outer_perimeter_speed
 
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
 
-        self.travel_z_speed = self.travel_xy_speed
+        self.settings.travel_z_speed = self.settings.travel_xy_speed
 
     def parse_print_settings(self):
         """ Slic3r specific settings """
@@ -378,12 +378,13 @@ class PrusaSlic3rCodeFile(GCodeFile):
         last_speed = None
         last_feed_rate = None
         for layer in self.layers:
-            layer.outer_perimeter_speed = self.outer_perimeter_speed
+            layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
             layer.outer_perimeter_feedrate = 0.05
 
 
 if __name__ == "__main__":
     import logger
     logger = logger.Logger(".")
-    s = PrusaSlic3rCodeFile(logger, PEEK, 4, "Automatic")
+    settings = Settings()
+    s = PrusaSlic3rCodeFile(logger, settings)
     print(s.check_layer_change(b" layer 1, Z = 1", None))

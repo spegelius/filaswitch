@@ -382,7 +382,7 @@ class Simplify3dGCodeFile(GCodeFile):
                     # detect retract/wipe
                     if gcode.last_match[2] < 0:
                         wipe_on = True
-                        wipe_speed = last_move_speed or self.default_speed
+                        wipe_speed = last_move_speed or self.settings.default_speed
                         wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
                         wipe_layer = layer
                 elif gcode.is_head_move(cmd) and wipe_on:
@@ -418,7 +418,7 @@ class Simplify3dGCodeFile(GCodeFile):
         for layer in self.layers:
             if not layer.outer_perimeter_speed:
                 if isinstance(layer, FirstLayer):
-                    layer.outer_perimeter_speed = self.first_layer_speed
+                    layer.outer_perimeter_speed = self.settings.first_layer_speed
                     layer.outer_perimeter_feedrate = last_feed_rate
                 else:
                     layer.outer_perimeter_speed = last_speed
