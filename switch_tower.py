@@ -7,22 +7,11 @@ import utils
 
 gcode = GCode()
 
-# hw configs
-PEEK = "PEEK-PRO-12"
-PTFE = "PTFE-PRO-12"
-PTFE4 = "PTFE-PRO-24"
-PEEK4 = "PEEK-PRO-24"
-E3DV6 = "PTFE-EV6"
-
-HW_CONFIGS = [PTFE, E3DV6, PEEK, PTFE4, PEEK4]
-
 AUTO = "Automatic"
 LEFT = "Left"
 RIGHT = "Right"
 TOP = "Top"
 BOTTOM = "Bottom"
-
-
 TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
 
 LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
@@ -53,15 +42,13 @@ class SwitchTower:
             self.slots[i]['flipflop_purge'] = False
             self.slots[i]['flipflop_infill'] = False
 
-        self.width = 50
-        self.pre_purge_height = 4.9
+        self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
+        lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
+
+        self.pre_purge_height = lines * self.settings.get_hw_config_float_value("prepurge.sweep.gap")
 
         # post purge line config
         self.purge_line_length = self.width + 0.6
-
-        if self.settings.hw_config == E3DV6:
-            self.settings.purge_lines -= 1
-            self.pre_purge_height = 6.3
 
         self.height = self.pre_purge_height + self.settings.purge_lines * 1.5
 
@@ -70,7 +57,7 @@ class SwitchTower:
 
         self.raft_done = False
         self.raft_width = self.width + 4.0
-        self.raft_height = (self.wall_height) * self.max_slots + 2.0
+        self.raft_height = self.wall_height * self.max_slots + 2.0
         self.raft_layer_height = 0.2
         self.angle = 0
 
@@ -361,158 +348,58 @@ class SwitchTower:
         return purge_speeds
 
     def get_pre_switch_gcode(self, extruder, flip, new_temp, tool):
-        # TODO: read from file
+        """
+        Generates pre tool switch g-code
+        :param extruder: active extruder
+        :param flip: flip
+        :param new_temp: new temperature value
+        :param tool:
+        :return:
+        """
+        feed_rate = self.settings.get_hw_config_float_value("prepurge.sweep.extrusion.length") / self.width
 
-        feed_rate = 4.5 / 50
+        if flip:
+            horizontal_dir = self.E
+            vertical_dir = self.N
+        else:
+            horizontal_dir = self.W
+            vertical_dir = self.S
+        sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
+        sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap")
+        sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
-        if self.settings.hw_config == PEEK:
-            if flip:
-                y_1 = 0.6
-                y_2 = 1.4
-                y_3 = 0.6
-                y_4 = 1.4
-            else:
-                y_1 = 1.4
-                y_2 = 0.6
-                y_3 = 1.4
-                y_4 = 0.6
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
+        for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
+            yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
-            yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
+        if new_temp:
+            yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
 
-            if new_temp:
-                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+        i = 0
+        while True:
+            try:
+                rr_len = self.settings.get_hw_config_float_value("rapid.retract.initial.length[{}]".format(i))
+                rr_speed = self.settings.get_hw_config_float_value("rapid.retract.initial.speed[{}]".format(i))
+                yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
+                i += 1
+            except:
+                break
 
-            yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
-            yield b"G4 P2000", b" 2s cooling period"
-            yield gcode.gen_extruder_move(-95, 1500), b" 25mm/s long retract"
+        pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
+        if pause:
+            yield "G4 P{}".format(pause).encode(), b" cooling period"
 
-        elif self.settings.hw_config == PEEK4:
-            if flip:
-                y_1 = 0.6
-                y_2 = 1.4
-                y_3 = 0.6
-                y_4 = 1.4
-            else:
-                y_1 = 1.4
-                y_2 = 0.6
-                y_3 = 1.4
-                y_4 = 0.6
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
+        i = 0
+        while True:
+            try:
+                rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long.length[{}]".format(i))
+                rr_long_speed = self.settings.get_hw_config_float_value("rapid.retract.long.speed[{}]".format(i))
+                yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
+                i += 1
+            except:
+                break
 
-            yield gcode.gen_extruder_move(-20, 1500), b" rapid retract"
-
-            if new_temp:
-                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
-
-            yield gcode.gen_extruder_move(-15, 1500), b" 25mm/s reshaping"
-            yield b"G4 P2000", b" 2s cooling period"
-            yield gcode.gen_extruder_move(-110, 1500), b" 25mm/s long retract"
-
-        elif self.settings.hw_config == PTFE:
-            if flip:
-                y_1 = 0.6
-                y_2 = 1.4
-                y_3 = 0.6
-                y_4 = 1.4
-            else:
-                y_1 = 1.4
-                y_2 = 0.6
-                y_3 = 1.4
-                y_4 = 0.6
-
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
-
-            yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
-
-            if new_temp:
-                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
-
-            yield b"G4 P2500", b" 2.5s cooling period"
-            yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
-
-        elif self.settings.hw_config == PTFE4:
-            if flip:
-                y_1 = 0.6
-                y_2 = 1.4
-                y_3 = 0.6
-                y_4 = 1.4
-            else:
-                y_1 = 1.4
-                y_2 = 0.6
-                y_3 = 1.4
-                y_4 = 0.6
-
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
-
-            yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
-
-            if new_temp:
-                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
-
-            yield b"G4 P2500", b" 2.5s cooling period"
-            yield gcode.gen_extruder_move(-155, 3000), b" 50mm/s long retract"
-
-        elif self.settings.hw_config == E3DV6:
-            if flip:
-                y_1 = 0.8
-                y_2 = 1.4
-                y_3 = 0.6
-                y_4 = 1.4
-                y_5 = 1
-            else:
-                y_1 = 1.4
-                y_2 = 0.6
-                y_3 = 1.4
-                y_4 = 0.6
-                y_5 = 1.4
-
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_1, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_2, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_3, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.W, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_4, 3000), b" Y shift"
-            yield gcode.gen_direction_move(self.E, self.width, 6000, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.N, y_5, 3000), b" Y shift"
-
-            yield gcode.gen_extruder_move(-20, 3000), b" rapid retract"
-
-            if new_temp:
-                yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
-
-            yield b"G4 P2500", b" 2.5s cooling period"
-            yield gcode.gen_extruder_move(-140, 3000), b" 50mm/s long retract"
 
     def get_post_switch_gcode(self, extruder):
         # TODO: read from file

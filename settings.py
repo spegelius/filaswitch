@@ -1,4 +1,7 @@
 
+import os
+import utils
+
 LINE_COUNT_DEFAULT = 6
 
 
@@ -23,6 +26,9 @@ class Settings:
         self._origin_offset_x = None
         self._origin_offset_y = None
         self._z_offset = 0
+
+        self.hw_configurations = {}
+        self.read_hw_configs()
 
     @property
     def hw_config(self):
@@ -144,3 +150,35 @@ class Settings:
     def z_offset(self, value: float):
         self._z_offset = value
 
+    def read_hw_configs(self):
+        _dir = os.path.dirname(os.path.realpath(__file__))
+        hw_dir = os.path.join(_dir, "hw_configurations")
+        for f in os.listdir(hw_dir):
+            path = os.path.join(hw_dir, f)
+            if f.endswith(".hwcfg"):
+                cfg_name = os.path.splitext(f)[0]
+                self.parse_hw_cfg(cfg_name, path)
+
+    def parse_hw_cfg(self, cfg_name, cfg_path):
+        self.hw_configurations[cfg_name] = {}
+        self.hw_configurations[cfg_name]["path"] = cfg_path
+
+        cfg = utils.load_status(cfg_path)
+        for k, v in cfg.items():
+            self.hw_configurations[cfg_name][k] = v
+
+    def get_hw_config_names(self):
+        return self.hw_configurations.keys()
+
+    def get_hw_config_value(self, key):
+        if not self.hw_config:
+            raise ValueError("Active HW configuration not defined")
+        return self.hw_configurations[self.hw_config].get(key)
+
+    def get_hw_config_float_value(self, key):
+        val = self.get_hw_config_value(key)
+        return float(val)
+
+    def get_hw_config_int_value(self, key):
+        val = self.get_hw_config_value(key)
+        return int(val)

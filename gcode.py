@@ -391,6 +391,17 @@ class GCode:
         x, y = self._get_coordinates(new_angle, length)
         return start_x + x, start_y + y
 
+    def opposite_dir(self, direction):
+        """
+        Returns direction directly opposite to given direction
+        :param direction: direction
+        :return:
+        """
+        if direction > 180:
+            return direction - 180
+        return direction + 180
+
+
 if __name__ == "__main__":
     # test stuff
     obj = GCode()
@@ -452,3 +463,5 @@ if __name__ == "__main__":
 
     print(obj.is_temp_wait(b"M109 S255"))
     print(obj.is_temp_wait_tool(b"M109 S255 T0"))
+
+    print(obj.opposite_dir(E))

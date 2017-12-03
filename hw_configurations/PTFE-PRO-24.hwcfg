@@ -1,0 +1,12 @@
+prepurge.sweep.length: 50
+prepurge.sweep.extrusion.length: 4.5
+prepurge.sweep.speed: 6000
+prepurge.sweep.count: 4
+prepurge.sweep.gap: 1
+prepurge.sweep.gap.speed: 3000
+
+rapid.retract.initial.length[0]: 20
+rapid.retract.initial.speed[0]: 3000
+rapid.retract.pause: 2500
+rapid.retract.long.length[0]: 155
+rapid.retract.long.speed[0]: 3000
