@@ -22,7 +22,6 @@ from slicer_simplify3d import Simplify3dGCodeFile
 from slicer_prusa_slic3r import PrusaSlic3rCodeFile
 
 from logger import Logger
-from switch_tower import PEEK, PTFE, E3DV6, HW_CONFIGS
 from switch_tower import AUTO, LEFT, RIGHT, TOP, BOTTOM, TOWER_POSITIONS
 from switch_tower import LINES
 
@@ -35,7 +34,11 @@ prog_dir = os.path.dirname(os.path.realpath(__file__))
 status_file = os.path.join(prog_dir, '.status')
 status = utils.load_status(status_file)
 
+# TODO: merge status to settings
+settings = Settings()
+
 version = "0.14"
+
 
 def detect_file_type(gcode_file, log):
     with open(gcode_file, 'r') as gf:
@@ -74,14 +77,16 @@ class TopFrame(Frame):
         self.hwlabel = Label(self, text="1. Select HW config").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.gc_label = Label(self, text="2. Select g-code to process").grid(row=2, column=0, sticky=W, padx=5, pady=3)
 
+        hw_configs = settings.get_hw_config_names()
+
         # HW config
         self.hw_var = StringVar(self)
-        if self.gui.last_hwconfig and self.gui.last_hwconfig in HW_CONFIGS:
+        if self.gui.last_hwconfig and self.gui.last_hwconfig in hw_configs:
             self.hw_var.set(self.gui.last_hwconfig)
         else:
-            self.hw_var.set(PTFE)
+            self.hw_var.set(hw_configs[0])
 
-        self.option = OptionMenu(self, self.hw_var, self.hw_var.get(), *HW_CONFIGS)
+        self.option = OptionMenu(self, self.hw_var, self.hw_var.get(), *hw_configs)
         self.option.grid(row=0, column=1, sticky=W, padx=5, pady=3)
 
         # browse
@@ -117,7 +122,6 @@ class TopFrame(Frame):
 
         if gcode_file:
             try:
-                settings = Settings()
                 settings.hw_config = self.hw_var.get()
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
@@ -265,9 +269,12 @@ def main():
         gui = GUI()
         gui.show_gui()
     else:
+
+        hw_configs = settings.get_hw_config_names()
+
         parser = argparse.ArgumentParser()
         parser.add_argument("file", help="Path to g-code file to process")
-        parser.add_argument("hw_config", help="Extruder/hotend configuration", choices=HW_CONFIGS)
+        parser.add_argument("hw_config", help="Extruder/hotend configuration", choices=hw_configs)
         parser.add_argument("--debug", help="Show debug prints", action="store_true")
         parser.add_argument("--lines", help="Purge lines to print after filament change", type=int,
                             default=LINE_COUNT_DEFAULT)
@@ -275,14 +282,14 @@ def main():
                             choices=TOWER_POSITIONS, default=AUTO)
         args = parser.parse_args()
 
-        options = Settings()
-        options.hw_config = args.hw_config
-        options.purge_lines = args.lines
-        options.tower_position = args.position
+
+        settings.hw_config = args.hw_config
+        settings.purge_lines = args.lines
+        settings.tower_position = args.position
 
         log = Logger(prog_dir, gui=False, debug=args.debug)
         print_type = detect_file_type(args.file, log)
-        pf = print_type(log, options)
+        pf = print_type(log, settings)
         result_file = pf.process(args.file)
         log.info("New file saved: %s" % result_file)
 

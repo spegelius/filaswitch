@@ -25,7 +25,7 @@ def load_status(status_file):
                 line = line.strip("\n")
                 if line:
                     vals = line.split(":")
-                    status[vals[0]] = vals[1]
+                    status[vals[0]] = vals[1].strip()
     except FileNotFoundError:
         return {}
     except Exception as e:
