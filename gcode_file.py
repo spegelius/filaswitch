@@ -169,17 +169,6 @@ class GCodeFile:
 
         self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min)
 
-    def add_switch_raft(self):
-        """
-        Add tower raft gcode lines after start gcode
-        :return:
-        """
-        # TODO: check for retraction
-        index = self.layers[0].start_gcode_end + 1
-        for cmd, comment in self.switch_tower.get_raft_lines(self.layers[0], self.extruders[0], False):
-            index += self.layers[0].insert_line(index, cmd, comment)
-        self.layers[0].start_gcode_end = index
-
     def add_tool_change_gcode(self):
         """
         Go through the g-code and add tool change g-code where needed.

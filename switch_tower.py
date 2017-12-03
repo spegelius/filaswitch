@@ -68,6 +68,7 @@ class SwitchTower:
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1.0
 
+        self.raft_done = False
         self.raft_width = self.width + 4.0
         self.raft_height = (self.wall_height) * self.max_slots + 2.0
         self.raft_layer_height = 0.2
@@ -705,6 +706,13 @@ class SwitchTower:
         :param z_hop: z_hop position
         :return: list of cmd, comment tuples
         """
+
+        # add raft if not added
+        if not self.raft_done:
+            for line in self.get_raft_lines(layer, old_e, False):
+                yield line
+            self.raft_done = True
+
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
 
@@ -830,6 +838,12 @@ class SwitchTower:
         :param z_hop: z_hop position
         :return: list of cmd, comment tuples
         """
+
+        # add raft if not added
+        if not self.raft_done:
+            for line in self.get_raft_lines(layer, extruder, False):
+                yield line
+            self.raft_done = True
 
         self.get_slot(layer)
 
