@@ -29,6 +29,16 @@ class SwitchTower:
         :param purge_lines: amount of post purge lines
         """
 
+        # localize
+        self.E = E
+        self.S = S
+        self.W = W
+        self.N = N
+        self.NE = NE
+        self.NW = NW
+        self.SW = SW
+        self.SE = SE
+
         self.settings = settings
         self.log = logger
         self.max_slots = max_slots
@@ -36,11 +46,6 @@ class SwitchTower:
 
         self.slot = 0
         self.slots = {}
-        for i in range(self.max_slots):
-            self.slots[i] = {}
-            self.slots[i]['last_z'] = self.z_offset
-            self.slots[i]['flipflop_purge'] = False
-            self.slots[i]['flipflop_infill'] = False
 
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
         lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
@@ -50,7 +55,7 @@ class SwitchTower:
         # post purge line config
         self.purge_line_length = self.width + 0.6
 
-        self.height = self.pre_purge_height + self.settings.purge_lines * 1.5
+        self.height = self.pre_purge_height + lines * 1.5
 
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1.0
@@ -60,9 +65,6 @@ class SwitchTower:
         self.raft_height = self.wall_height * self.max_slots + 2.0
         self.raft_layer_height = 0.2
         self.angle = 0
-
-        # is prepurge position positive or negative
-        self.prepurge_sign = 1
 
         self.start_pos_x = None
         self.start_pos_y = None
@@ -87,14 +89,17 @@ class SwitchTower:
 
         self.temperatures = {}
 
-        self.E = E
-        self.S = S
-        self.W = W
-        self.N = N
-        self.NE = NE
-        self.NW = NW
-        self.SW = SW
-        self.SE = SE
+    def initialize_slots(self):
+        """
+        Initialize tower slot data
+        :return:
+        """
+        for i in range(self.max_slots):
+            self.slots[i] = {}
+            self.slots[i]['last_z'] = self.z_offset
+            self.slots[i]['horizontal_dir'] = self.E
+            self.slots[i]['vertical_dir'] = self.N
+            self.slots[i]['flipflop_infill'] = False
 
     def rotate_tower(self, direction):
         """
@@ -126,7 +131,6 @@ class SwitchTower:
 
         bed_x_min = -self.settings.origin_offset_x
         bed_y_min = -self.settings.origin_offset_y
-
 
         # find a place that can accommodate the tower height
         if self.settings.tower_position == AUTO:
@@ -332,6 +336,9 @@ class SwitchTower:
         self.raft_pos_x = x
         self.raft_pos_y = y
 
+        # init slots after tower rotation is done
+        self.initialize_slots()
+
     def generate_purge_speeds(self, min_speed):
         """
         Initialize a list for purge speeds
@@ -339,15 +346,15 @@ class SwitchTower:
         :return: list of print speeds
         """
         speed = min_speed
-        min_speed_lines = 0
+        min_speed_lines = 2
         purge_speeds = []
         for i in range(self.settings.purge_lines):
             if i >= min_speed_lines:
-                speed = 2400
+                speed = self.settings.default_speed
             purge_speeds.insert(0, speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, flip, new_temp, tool):
+    def get_pre_switch_gcode(self, extruder, new_temp, tool):
         """
         Generates pre tool switch g-code
         :param extruder: active extruder
@@ -358,20 +365,19 @@ class SwitchTower:
         """
         feed_rate = self.settings.get_hw_config_float_value("prepurge.sweep.extrusion.length") / self.width
 
-        if flip:
-            horizontal_dir = self.E
-            vertical_dir = self.N
-        else:
-            horizontal_dir = self.W
-            vertical_dir = self.S
         sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
         sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
+
+        horizontal_dir = self.slots[self.slot]['horizontal_dir']
+        vertical_dir = self.slots[self.slot]['vertical_dir']
 
         for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
             yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, extruder, feed_rate=feed_rate), b" purge trail"
             yield gcode.gen_direction_move(vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
+        self.slots[self.slot]['horizontal_dir'] = horizontal_dir
 
         if new_temp:
             yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
@@ -400,41 +406,29 @@ class SwitchTower:
             except:
                 break
 
-
     def get_post_switch_gcode(self, extruder):
-        # TODO: read from file
-        feed_rate = 5 / 50
 
-        if self.settings.hw_config == PEEK:
-            yield b"G1 E10 F1500", b" 25mm/s feed"
-            yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E20 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
-            self.prepurge_sign = 1
-        elif self.settings.hw_config == PEEK4:
-            yield b"G1 E10 F1500", b" 25mm/s feed"
-            yield b"G1 E105 F3000", b" 50mm/s feed"
-            yield b"G1 E20 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
-            self.prepurge_sign = 1
-        elif self.settings.hw_config == PTFE:
-            yield b"G1 E10 F1500", b" 25mm/s feed"
-            yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E49 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
-            self.prepurge_sign = 1
-        elif self.settings.hw_config == PTFE4:
-            yield b"G1 E10 F1500", b" 25mm/s feed"
-            yield b"G1 E105 F3000", b" 50mm/s feed"
-            yield b"G1 E49 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(self.E, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
-            self.prepurge_sign = 1
-        elif self.settings.hw_config == E3DV6:
-            yield b"G1 E10 F1500", b" 25mm/s feed"
-            yield b"G1 E90 F3000", b" 50mm/s feed"
-            yield b"G1 E49 F1500", b" 25mm/s feed"
-            yield gcode.gen_direction_move(self.W, self.width, 900, extruder, feed_rate=feed_rate), b" prime trail"
-            self.prepurge_sign = -1
+        # feed new filament
+        i = 0
+        while True:
+            try:
+                feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+                i += 1
+            except:
+                break
+
+        # prime trail
+        prime_feed_rate = self.settings.get_hw_config_float_value("prime.trail.extrusion.length") / self.width
+        prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
+        yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
+                                       self.width,
+                                       prime_trail_speed,
+                                       extruder,
+                                       feed_rate=prime_feed_rate), b" prime trail"
+
+        self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
     def get_raft_lines(self, first_layer, extruder, retract):
         """
@@ -619,10 +613,11 @@ class SwitchTower:
             yield hop
 
         y_pos = (self.wall_height + 0.4) * self.slot
-        if self.slots[self.slot]['flipflop_purge']:
+        if self.slots[self.slot]['horizontal_dir'] == self.E:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2 + y_pos)
         else:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, 0.6, 0 + y_pos)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x + self.width,
+                                                    self.start_pos_y + self.height, 0.6, -0.2 + y_pos)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = 0.2 + self.slots[self.slot]['last_z']
@@ -637,9 +632,8 @@ class SwitchTower:
         if new_temp == old_temp:
             new_temp = None
 
-
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, self.slots[self.slot]['flipflop_purge'], new_temp, old_e.temperature_nr):
+        for line in self.get_pre_switch_gcode(old_e, new_temp, old_e.temperature_nr):
             yield line
 
         yield ("T%s" % new_e.tool).encode(), b" change tool"
@@ -651,7 +645,7 @@ class SwitchTower:
         if new_temp and abs(new_temp - old_temp) > 15:
             yield (gcode.gen_temperature_wait_tool(new_temp, new_e.temperature_nr), b" change nozzle temp, wait")
 
-        # last hurrah
+        # last feed
         yield b"G1 E5 F1500", b" 25mm/s feed"
 
         # post-switch purge
@@ -659,38 +653,26 @@ class SwitchTower:
         # switch direction depending of prepurge orientation
         purge_length = self.purge_line_length
 
-        if self.prepurge_sign == 1:
-            dir_1 = self.W
-            dir_2 = self.E
+        if self.slots[self.slot]['horizontal_dir'] == self.E:
+            gaps = [0.6, 0.9]
+            last_gap = 0.6
         else:
-            dir_1 = self.E
-            dir_2 = self.W
+            gaps = [0.9, 0.6]
+            last_gap = 0.9
+        gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         for speed in self.generate_purge_speeds(min_speed):
-            if self.slots[self.slot]['flipflop_purge']:
-                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
-                yield gcode.gen_direction_move(dir_1, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
-                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
-                yield gcode.gen_direction_move(dir_2, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
-            else:
-                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
-                yield gcode.gen_direction_move(dir_1, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
-                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
-                yield gcode.gen_direction_move(dir_2, purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
+            for gap in gaps:
+                yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'], gap, gap_speed), b" Y shift"
+                yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
+                                               purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
+                self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
-        if self.slots[self.slot]['flipflop_purge']:
-            yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
-        else:
-            yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
-        yield gcode.gen_direction_move(dir_1, purge_length, 2400, new_e, feed_rate=feed_rate), b" purge trail"
-
-        if self.settings.hw_config == E3DV6:
-            # one more purge line for E3Dv6
-            if self.slots[self.slot]['flipflop_purge']:
-                yield gcode.gen_direction_move(self.N, 0.9, 3000), b" Y shift"
-            else:
-                yield gcode.gen_direction_move(self.N, 0.6, 3000), b" Y shift"
-            yield gcode.gen_direction_move(dir_2, purge_length, min_speed, new_e, feed_rate=feed_rate), b" purge trail"
+        # last hurrah
+        yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'], last_gap, gap_speed), b" Y shift"
+        yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
+                                       purge_length,
+                                       self.settings.default_speed, new_e, feed_rate=feed_rate), b" purge trail"
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
@@ -703,7 +685,8 @@ class SwitchTower:
 
         yield new_e.get_retract_gcode()
         if new_e.wipe:
-            yield gcode.gen_direction_move(self.S, new_e.wipe, 3000), b" wipe"
+            wipe_dir = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
+            yield gcode.gen_direction_move(wipe_dir, new_e.wipe, gap_speed), b" wipe"
 
         yield b"G90", b" absolute positioning"
         yield b"M83", b" relative E"
@@ -713,8 +696,9 @@ class SwitchTower:
             yield hop
         yield None, b" TOWER END"
 
-        # flip the flop
-        self.slots[self.slot]['flipflop_purge'] = not self.slots[self.slot]['flipflop_purge']
+        # flip the directions
+        self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
+        self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
 
     def get_infill_lines(self, layer, e_pos, extruder, z_hop):
         """

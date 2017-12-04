@@ -1,7 +1,6 @@
 import logging
 import re
 from extruder import Extruder
-from switch_tower import PEEK
 from gcode import GCode, TYPE_CARTESIAN, TYPE_DELTA
 from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 

@@ -5,8 +5,18 @@ prepurge.sweep.count: 4
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
 
-rapid.retract.initial.length[0]: 20
-rapid.retract.initial.speed[0]: 3000
+rapid.retract.initial[0].length: 20
+rapid.retract.initial[0].speed: 3000
 rapid.retract.pause: 2500
-rapid.retract.long.length[0]: 155
-rapid.retract.long.speed[0]: 3000
+rapid.retract.long[0].length: 155
+rapid.retract.long[0].speed: 3000
+
+feed[0].length: 10
+feed[0].speed: 1500
+feed[1].length: 105
+feed[1].speed: 3000
+feed[2].length: 49
+feed[2].speed: 1500
+
+prime.trail.extrusion.length: 5
+prime.trail.speed: 900
