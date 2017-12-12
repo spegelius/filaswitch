@@ -373,6 +373,14 @@ class GCode:
         :param offset_y: offset y
         :return: tuple with new x-y coordinates
         """
+
+        if start_x == 0 and start_y == 0:
+            return start_x, start_y
+        elif offset_x == 0:
+            return start_x, start_y + offset_y
+        elif offset_y == 0:
+            return start_x + offset_x, start_y
+
         length = math.sqrt(offset_x ** 2 + offset_y ** 2)
 
         if offset_x < 0 and offset_y >= 0:
@@ -397,7 +405,7 @@ class GCode:
         :param direction: direction
         :return:
         """
-        if direction > 180:
+        if direction >= 180:
             return direction - 180
         return direction + 180
 
@@ -465,3 +473,4 @@ if __name__ == "__main__":
     print(obj.is_temp_wait_tool(b"M109 S255 T0"))
 
     print(obj.opposite_dir(E))
+    print(obj.opposite_dir(W))

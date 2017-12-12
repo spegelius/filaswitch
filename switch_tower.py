@@ -48,21 +48,23 @@ class SwitchTower:
         self.slots = {}
 
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
-        lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
+        pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
 
-        self.pre_purge_height = lines * self.settings.get_hw_config_float_value("prepurge.sweep.gap")
+        self.pre_purge_height = pre_purge_lines * self.settings.get_hw_config_float_value("prepurge.sweep.gap")
 
         # post purge line config
-        self.purge_line_length = self.width + 0.6
+        self.purge_line_length = self.width - 1
 
-        self.height = self.pre_purge_height + lines * 1.5
+        self.purge_line_width = 0.6
 
-        self.wall_width = self.width + 2.4
+        self.height = self.pre_purge_height + self.settings.purge_lines * self.purge_line_width * 2 + 0.2
+
+        self.wall_width = self.width + 1.4
         self.wall_height = self.height + 1.0
 
         self.raft_done = False
         self.raft_width = self.width + 4.0
-        self.raft_height = self.wall_height * self.max_slots + 2.0
+        self.raft_height = self.wall_height * self.max_slots + 1.5
         self.raft_layer_height = 0.2
         self.angle = 0
 
@@ -385,11 +387,13 @@ class SwitchTower:
         i = 0
         while True:
             try:
-                rr_len = self.settings.get_hw_config_float_value("rapid.retract.initial.length[{}]".format(i))
-                rr_speed = self.settings.get_hw_config_float_value("rapid.retract.initial.speed[{}]".format(i))
+                rr_len = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].length".format(i))
+                rr_speed = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].speed".format(i))
                 yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
                 i += 1
-            except:
+            except TypeError:
+                if i == 0:
+                    log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
@@ -399,25 +403,43 @@ class SwitchTower:
         i = 0
         while True:
             try:
-                rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long.length[{}]".format(i))
-                rr_long_speed = self.settings.get_hw_config_float_value("rapid.retract.long.speed[{}]".format(i))
+                rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long[{}].length".format(i))
+                rr_long_speed = self.settings.get_hw_config_float_value("rapid.retract.long[{}].speed".format(i))
                 yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
                 i += 1
-            except:
+            except TypeError:
+                if i == 0:
+                    log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
 
-    def get_post_switch_gcode(self, extruder):
+    def get_post_switch_gcode(self, extruder, new_temp):
 
         # feed new filament
+        values = []
         i = 0
         while True:
             try:
                 feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                 feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+                values.append((feed_len, feed_speed))
                 i += 1
-            except:
+            except TypeError:
+                if i == 0:
+                    log.warning("No feed[N].length or .speed found. Please check the HW-config")
                 break
+
+        # temperature change handling
+        if new_temp:
+            last_val = values[-1]
+            values[-1] = (last_val[0] - 5, last_val[1])
+            for feed_len, feed_speed in values:
+                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+            # stop 5mm before feed end to wait proper temp
+            yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
+            yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
+        else:
+            for feed_len, feed_speed in values:
+                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
 
         # prime trail
         prime_feed_rate = self.settings.get_hw_config_float_value("prime.trail.extrusion.length") / self.width
@@ -427,6 +449,10 @@ class SwitchTower:
                                        prime_trail_speed,
                                        extruder,
                                        feed_rate=prime_feed_rate), b" prime trail"
+
+        #if self.settings.get_hw_config_float_value("prepurge.sweep.count") % 2 == 0.0:
+        #    print("kee")
+        #    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], 0.6, self.settings.travel_xy_speed), b" purge position"
 
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
@@ -599,6 +625,8 @@ class SwitchTower:
 
         self.get_slot(layer)
 
+        initial_horizontal_dir = self.slots[self.slot]['horizontal_dir']
+
         # minimum speed
         min_speed, feed_rate = layer.get_outer_perimeter_rates()
 
@@ -614,10 +642,10 @@ class SwitchTower:
 
         y_pos = (self.wall_height + 0.4) * self.slot
         if self.slots[self.slot]['horizontal_dir'] == self.E:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.6, 0.2 + y_pos)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.5, 0.2 + y_pos)
         else:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x + self.width,
-                                                    self.start_pos_y + self.height, 0.6, -0.2 + y_pos)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x,
+                                                    self.start_pos_y, self.width-0.5, -0.2 + y_pos + self.height)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = 0.2 + self.slots[self.slot]['last_z']
@@ -639,40 +667,32 @@ class SwitchTower:
         yield ("T%s" % new_e.tool).encode(), b" change tool"
 
         # feed new filament
-        for line in self.get_post_switch_gcode(new_e):
-            yield line
-
         if new_temp and abs(new_temp - old_temp) > 15:
-            yield (gcode.gen_temperature_wait_tool(new_temp, new_e.temperature_nr), b" change nozzle temp, wait")
-
-        # last feed
-        yield b"G1 E5 F1500", b" 25mm/s feed"
+            for line in self.get_post_switch_gcode(new_e, new_temp):
+                yield line
+        else:
+            for line in self.get_post_switch_gcode(new_e, None):
+                yield line
 
         # post-switch purge
         purge_feed_rate = new_e.get_feed_rate(multiplier=1.2)
         # switch direction depending of prepurge orientation
         purge_length = self.purge_line_length
 
-        if self.slots[self.slot]['horizontal_dir'] == self.E:
-            gaps = [0.6, 0.9]
-            last_gap = 0.6
-        else:
-            gaps = [0.9, 0.6]
-            last_gap = 0.9
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
+        first_line = True
         for speed in self.generate_purge_speeds(min_speed):
-            for gap in gaps:
-                yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'], gap, gap_speed), b" Y shift"
+            for _ in range(2):
+                yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'],
+                                               self.purge_line_width, gap_speed), b" Y shift"
+                if first_line:
+                    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], 0.5,
+                                                   self.settings.travel_xy_speed), b" shift"
+                    first_line = False
                 yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
                                                purge_length, speed, new_e, feed_rate=purge_feed_rate), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
-
-        # last hurrah
-        yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'], last_gap, gap_speed), b" Y shift"
-        yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
-                                       purge_length,
-                                       self.settings.default_speed, new_e, feed_rate=feed_rate), b" purge trail"
 
         # move to purge zone upper left corner
         yield b"G90", b" absolute positioning"
@@ -697,7 +717,7 @@ class SwitchTower:
         yield None, b" TOWER END"
 
         # flip the directions
-        self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
+        self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
 
     def get_infill_lines(self, layer, e_pos, extruder, z_hop):
