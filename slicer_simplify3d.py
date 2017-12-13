@@ -43,6 +43,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.temperature_setpoints = []
         self.temperature_setpoint_layers = []
         self.temperature_setpoint_temps = []
+        self.temperature_heated_bed = []
 
     def process(self, gcode_file):
         self.open_file(gcode_file)
@@ -81,13 +82,25 @@ class Simplify3dGCodeFile(GCodeFile):
             ext.feed_rate_multiplier = self.extruder_multiplier[i]
 
             ext.temperature_nr = self.temperature_numbers[i]
-
-            for j in range(self.temperature_setpoints[i]):
-                index = self.temperature_setpoints[i] * i + j
-                layer_nr = self.temperature_setpoint_layers[index]
-                ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[index]
-
             self.extruders[t] = ext
+
+        # go through the temperature names and try to assign them to extruders
+        temp_setpoint_index = 0
+        for i in range(len(self.temperature_names)):
+            if self.temperature_heated_bed[i] == 0:
+                t = self.temperature_numbers[i]
+                ext = self.extruders[t]
+                for j in range(self.temperature_setpoints[i]):
+                    layer_nr = self.temperature_setpoint_layers[temp_setpoint_index]
+                    ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
+                    temp_setpoint_index += 1
+
+        last_setpoints = None
+        for e in self.extruders:
+            if self.extruders[e].temperature_setpoints:
+                last_setpoints = self.extruders[e].temperature_setpoints
+            else:
+                self.extruders[e].temperature_setpoints = last_setpoints
 
     def parse_header(self):
         """
@@ -192,6 +205,9 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"temperatureSetpointTemperatures" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_setpoint_temps.append(int(d))
+            elif b"temperatureHeatedBed" in comment:
+                for d in comment.split(b",")[1:]:
+                    self.temperature_heated_bed.append(int(d))
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
