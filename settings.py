@@ -168,7 +168,7 @@ class Settings:
             self.hw_configurations[cfg_name][k] = v
 
     def get_hw_config_names(self):
-        return self.hw_configurations.keys()
+        return list(self.hw_configurations.keys())
 
     def get_hw_config_value(self, key):
         if not self.hw_config:
