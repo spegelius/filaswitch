@@ -206,19 +206,28 @@ class GCodeFile:
             #print("layer", layer.num, e_pos)
             while True:
                 try:
+                    #Read ahead. Maybe should just do cmd check instead? Works for now.
+                    try:
+                        iszmove = gcode.is_z_move(layer.lines[index+1][0]) 
+                    except:
+                        iszmove = None
+
                     # when z height changes, check that tower height isn't too low versus layer
-                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
+                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height and not iszmove:
+                        
                         for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
-
+                         
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
-                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
+                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height and not iszmove:
                         # update purge tower with sparse infill
-                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
-                            index += layer.insert_line(index, cmd, comment)
-
+                        if not iszmove:
+                            for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
+                                index += layer.insert_line(index, cmd, comment)
+    
+                            
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
