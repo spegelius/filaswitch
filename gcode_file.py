@@ -101,6 +101,9 @@ class GCodeFile:
 
         # remove extra EOL and empty lines
         lines = [l.strip() for l in gf.readlines() if l.strip()]
+        # remove uneeded tool changes
+        lines = self.check_changes(lines)
+        
         gf.close()
         self.parse_layers(lines)
 
@@ -272,6 +275,24 @@ class GCodeFile:
                     break
                 index += 1
 
+    def check_changes(self, lines):
+        """
+        Remove for any redundant tool changes and remove them
+        """
+        ce = -1
+        i =  0
+        poplist = []
+        for line in lines:
+            if line == b'; TOOL CHANGE':
+                te = lines[i+1][1]
+                if te == ce:
+                    poplist.append(i)
+                    poplist.append(i+1)
+                ce = te
+            i+=1
+        modlines = [v for i, v in enumerate(lines) if i not in poplist]
+        return modlines
+        
     def parse_layers(self, lines):
         """
         Go through the g-code and find layer start points.
