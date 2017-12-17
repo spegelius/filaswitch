@@ -156,7 +156,7 @@ class AdvancedFrame(Frame):
 
         self.position_label = Label(self, text="Purge tower position").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.size_label = Label(self, text="Purge lines (default: 6)").grid(row=1, column=0, sticky=W, padx=5, pady=3)
-        self.raft_multi_label = Label(self, text="Raft extrusion multiplier").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=2, column=0, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
