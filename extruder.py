@@ -15,7 +15,7 @@ class Extruder:
         self.coasting = 0.0
         self.wipe = 0.0
         self.filament_type = None
-        self.temperature_nr = 0
+        self.temperature_nr = None
         self.temperature_setpoints = {}
 
     def get_feed_length(self, move_length, feed_rate=None):
