@@ -80,7 +80,7 @@ class Simplify3dGCodeFile(GCodeFile):
                 ext.wipe = self.extruder_wipe[i]
             ext.feed_rate_multiplier = self.extruder_multiplier[i]
 
-            ext.temperature_nr = self.temperature_numbers[i]
+
             self.extruders[t] = ext
 
         # go through the temperature names and try to assign them to extruders
@@ -89,6 +89,7 @@ class Simplify3dGCodeFile(GCodeFile):
             if self.temperature_heated_bed[i] == 0:
                 t = self.temperature_numbers[i]
                 ext = self.extruders[t]
+                ext.temperature_nr = t
                 for j in range(self.temperature_setpoints[i]):
                     layer_nr = self.temperature_setpoint_layers[temp_setpoint_index]
                     ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
@@ -96,10 +97,15 @@ class Simplify3dGCodeFile(GCodeFile):
 
         last_setpoints = None
         for e in self.extruders:
+            # setpoints
             if self.extruders[e].temperature_setpoints:
                 last_setpoints = self.extruders[e].temperature_setpoints
             else:
                 self.extruders[e].temperature_setpoints = last_setpoints
+
+            # temp nr. Use tool number if not defined
+            if self.extruders[e].temperature_nr is None:
+                self.extruders[e].temperature_nr = self.extruders[e].tool
 
     def parse_header(self):
         """
