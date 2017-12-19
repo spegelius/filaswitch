@@ -429,34 +429,49 @@ class SwitchTower:
                 break
                 
     def get_post_switch_gcode(self, extruder, new_temp):
-
+        # should we move head while feeding?
+        feedtrail = self.settings.get_hw_config_value("feed.trail")
         # feed new filament
         values = []
         i = 0
-        while True:
-            try:
-                feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
-                feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                values.append((feed_len, feed_speed))
-                i += 1
-            except TypeError:
-                if i == 0:
-                    log.warning("No feed[N].length or .speed found. Please check the HW-config")
-                break
+        if feedtrail:
+            horizontal_dir = self.slots[self.slot]['horizontal_dir']
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
+                    horizontal_dir = gcode.opposite_dir(horizontal_dir)
+                    i += 1
+                except TypeError:
+                    if i == 0:
+                        log.warning("No prime move steps. That's OK.")
+                    break
+        else:            
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    values.append((feed_len, feed_speed))
+                    i += 1
+                except TypeError:
+                    if i == 0:
+                        log.warning("No feed[N].length or .speed found. Please check the HW-config")
+                    break
 
-        # temperature change handling
-        if new_temp:
-            last_val = values[-1]
-            values[-1] = (last_val[0] - 5, last_val[1])
-            for feed_len, feed_speed in values:
-                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-            # stop 5mm before feed end to wait proper temp
-            yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
-            yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
-        else:
-            for feed_len, feed_speed in values:
-                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-
+            # temperature change handling
+            if new_temp:
+                last_val = values[-1]
+                values[-1] = (last_val[0] - 5, last_val[1])
+                for feed_len, feed_speed in values:
+                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+                # stop 5mm before feed end to wait proper temp
+                yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
+                yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
+            else:
+                for feed_len, feed_speed in values:
+                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+        
         # prime trail
         prime_feed_rate = self.settings.get_hw_config_float_value("prime.trail.extrusion.length") / self.width
         prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
@@ -497,6 +512,7 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
+
         # box
         width = self.raft_width + 0.8
         height = self.raft_height + 0.8
