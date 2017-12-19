@@ -336,7 +336,7 @@ class GCode:
         y = sine * length
         return x, y
 
-    def gen_direction_move(self, direction, length, speed, extruder=None, e_length=None, feed_rate=None, last_line=False):
+    def gen_direction_move(self, direction, length, speed, extruder=None, feed_rate=None, e_length=None, last_line=False):
         """
         Generate g-code for head move to given direction. Relative distances
         :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
