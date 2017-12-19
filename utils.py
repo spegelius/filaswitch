@@ -22,10 +22,12 @@ def load_status(status_file):
         with open(status_file, 'r') as sf:
             for line in sf.readlines():
                 line = line.strip()
+                if line.startswith("#"):
+                    continue
                 line = line.strip("\n")
                 if line:
-                    vals = line.split(":")
-                    status[vals[0]] = vals[1].strip()
+                    values = line.split(":")
+                    status[values[0]] = values[1].strip()
     except FileNotFoundError:
         return {}
     except Exception as e:
@@ -51,6 +53,7 @@ def save_status_file(status_file: str, status: dict):
         print(e)
         raise
 
+
 def is_float_zero(value: float, accuracy: int):
     """
     Checks if given float value is zero
@@ -61,9 +64,9 @@ def is_float_zero(value: float, accuracy: int):
     limit = 0.1**accuracy
     if value == 0.0:
         return True
-    elif value > 0 and value < limit:
+    elif 0 < value < limit:
         return True
-    elif value < 0 and value > -limit:
+    elif -limit < value < 0:
         return True
     return False
 
