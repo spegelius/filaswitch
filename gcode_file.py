@@ -32,7 +32,6 @@ class GCodeFile:
         self.material = None
         self.extruders = {}
         self.switch_tower = None
-
         self.layers = []
         self.filtered_layers = []
 
@@ -47,8 +46,9 @@ class GCodeFile:
 
         if self.settings.purge_lines > 15:
             self.settings.purge_lines = 15
-
-        self.tools = [0]
+            
+        #List of tools numbers in the order they are used
+        self.tools = []
 
         # max slots needed
         self.max_slots = None
@@ -70,7 +70,7 @@ class GCodeFile:
             if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
                 break
-
+        
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
                 if comment and comment.strip() == b"TOOL CHANGE":
@@ -81,7 +81,7 @@ class GCodeFile:
                         self.tools.append(gcode.last_match)
                     self.tool_switch_heights[gcode.last_match] = layer.z
                     is_tool_change = False
-
+    
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
@@ -101,9 +101,8 @@ class GCodeFile:
 
         # remove extra EOL and empty lines
         lines = [l.strip() for l in gf.readlines() if l.strip()]
-        # remove uneeded tool changes
+        # remove uneeded tool changes, build an ordered list of tools for priming
         lines = self.check_changes(lines)
-        
         gf.close()
         self.parse_layers(lines)
 
@@ -200,33 +199,50 @@ class GCodeFile:
             if pos > -0.00001:
                 pos = 0
             return pos
-
+            
+        def find_z_move(line):
+            try:
+                iszmove = gcode.is_z_move(line)
+            except:
+                iszmove = None            
+            return iszmove
+        
+        #Keep track of last X, Y position        
+        last_pos = None
+        
         for layer in self.filtered_layers:
             index = 0
             #print("layer", layer.num, e_pos)
+            
             while True:
                 try:
-                    #Read ahead. Maybe should just do cmd check instead? Works for now.
-                    try:
-                        iszmove = gcode.is_z_move(layer.lines[index+1][0]) 
-                    except:
-                        iszmove = None
-
                     # when z height changes, check that tower height isn't too low versus layer
-                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height and not iszmove:
-                        
+                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
+                        #read ahead
+                        iszmove = find_z_move(layer.lines[index+1][0]) 
+                            
                         for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
-                         
+                            
+                        if iszmove and last_pos:
+                            #put in ending position from last layer!
+                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
+                            
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
-                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height and not iszmove:
-                        # update purge tower with sparse infill
-                        if not iszmove:
-                            for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
-                                index += layer.insert_line(index, cmd, comment)
-    
+                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
+                        #read ahead
+                        iszmove = find_z_move(layer.lines[index+1][0])
+                         
+                        # update purge tower with sparse infill   
+                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
+                            index += layer.insert_line(index, cmd, comment)
+                            
+                        if iszmove and last_pos:
+                            #put in ending position from last layer!
+                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
+
                             
                     cmd, comment = layer.lines[index]
 
@@ -236,7 +252,7 @@ class GCodeFile:
                         # need command
                         index += 1
                         continue
-
+                    
                     if gcode.is_z_move(cmd):
                         # store current z position and z-hop
                         current_z, z_speed = gcode.last_match
@@ -265,6 +281,7 @@ class GCodeFile:
                             e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and add prime if needed
+                        last_pos = gcode.last_match
                         if prime_needed:
                             # reset prime flag when printing starts after tower
                             prime_needed = False
@@ -286,19 +303,22 @@ class GCodeFile:
 
     def check_changes(self, lines):
         """
-        Remove for any redundant tool changes and remove them
+        Look for any redundant tool changes and remove them
         """
+        #TODO: move this to parse_printer_settings. Should be easy to do.
+        from collections import OrderedDict
         ce = -1
         i =  0
         poplist = []
         for line in lines:
             if line == b'; TOOL CHANGE':
-                te = lines[i+1][1]
+                te = gcode.is_tool_change(lines[i+1])
                 if te == ce:
                     poplist.append(i)
                     poplist.append(i+1)
                 ce = te
             i+=1
+       
         modlines = [v for i, v in enumerate(lines) if i not in poplist]
         return modlines
         
