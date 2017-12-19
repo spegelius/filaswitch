@@ -1,3 +1,5 @@
+## Values are a mash-up of Slic3r PLA values and the E3DV6 settings
+
 prepurge.sweep.length: 50
 prepurge.sweep.extrusion.length: 4.5
 prepurge.sweep.speed: 6000
@@ -5,12 +7,22 @@ prepurge.sweep.count: 5
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
 
+## Prime all extruders off of print area, ending with the first extruder
+prerun.prime: True
+prerun.prime.length: 49
+prerun.prime.extrusion.length: 1.7
+prerun.prime.speed: 2200
+ 
+prerun.prime.purge:
+
 rapid.retract.initial[0].length: 15
 rapid.retract.initial[0].speed: 5000
 rapid.retract.initial[1].length: 50
 rapid.retract.initial[1].speed: 5400
 rapid.retract.initial[2].length: 15
 rapid.retract.initial[2].speed: 3000
+
+## Various filament cooling movements after major retract
 rapid.retract.cool[0].length: 3
 rapid.retract.cool[0].speed: 1600
 rapid.retract.cool[1].length: -5
@@ -28,10 +40,17 @@ rapid.retract.cool[6].speed: 2400
 rapid.retract.cool[7].length: -3
 rapid.retract.cool[7].speed: 2400
 
-rapid.retract.pause: 1
+rapid.retract.pause: 0
 rapid.retract.long[0].length: 12
 rapid.retract.long[0].speed: 2000
 
+##Perform a retract after last movement.
+end.retract: True
+
+## Do X movement during feeding to prevent blobs
+feed.trail: True
+
+## Values from Slic3r gcode
 feed[0].length: 20
 feed[0].speed: 1400
 feed[1].length: 40
