@@ -3,7 +3,7 @@ import os
 from gcode import GCode
 from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
-
+from preprime import PrePrime
 from settings import Settings
 
 gcode = GCode()
@@ -34,7 +34,7 @@ class GCodeFile:
         self.switch_tower = None
         self.layers = []
         self.filtered_layers = []
-
+        self.pr_index = None
         # material switch z heights
         self.layer_height = None
 
@@ -69,6 +69,7 @@ class GCodeFile:
 
             if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
+                self.pr_index = index
                 break
         
         for layer in self.layers:
@@ -87,7 +88,14 @@ class GCodeFile:
 
         if self.tool_switch_heights:
             self.last_switch_height = max(self.tool_switch_heights.values())
-
+            
+        if self.settings.get_hw_config_value("prerun.prime"):
+            self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
+            for cmd, comment in self.preprime.get_prime_lines():
+                self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
+        else:
+            print("No pre-prime run")   
+            
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
         self.gcode_file = gcode_file
@@ -101,7 +109,7 @@ class GCodeFile:
 
         # remove extra EOL and empty lines
         lines = [l.strip() for l in gf.readlines() if l.strip()]
-        # remove uneeded tool changes, build an ordered list of tools for priming
+        # remove uneeded tool changes
         lines = self.check_changes(lines)
         gf.close()
         self.parse_layers(lines)
@@ -145,7 +153,14 @@ class GCodeFile:
         :return: old or updated layer data
         """
         raise NotImplemented
-
+    
+    def prerun_prime(self):
+        """
+        Prime each tool in reverse order
+        :return: priming gcode to be inserted after start gcode
+        """
+                
+    
     def find_tower_position(self):
         """
         Find proper position for the switch tower
@@ -306,7 +321,6 @@ class GCodeFile:
         Look for any redundant tool changes and remove them
         """
         #TODO: move this to parse_printer_settings. Should be easy to do.
-        from collections import OrderedDict
         ce = -1
         i =  0
         poplist = []
