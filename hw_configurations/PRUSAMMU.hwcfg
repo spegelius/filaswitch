@@ -7,13 +7,16 @@ prepurge.sweep.count: 5
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
 
-## Prime all extruders off of print area, ending with the first extruder
+## Prime extruders
+## Comment out the next line to remove
 prerun.prime: True
 prerun.prime.length: 49
-prerun.prime.extrusion.length: 1.7
+prerun.prime.extrusion.length: 1.8
+prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
- 
-prerun.prime.purge:
+prerun.prime.xstart: 5.0
+prerun.prime.ystart: -3.0
+prerun.prime.purge.count: 5  
 
 rapid.retract.initial[0].length: 15
 rapid.retract.initial[0].speed: 5000
@@ -23,6 +26,7 @@ rapid.retract.initial[2].length: 15
 rapid.retract.initial[2].speed: 3000
 
 ## Various filament cooling movements after major retract
+## Serves as a wipe
 rapid.retract.cool[0].length: 3
 rapid.retract.cool[0].speed: 1600
 rapid.retract.cool[1].length: -5
@@ -44,12 +48,9 @@ rapid.retract.pause: 0
 rapid.retract.long[0].length: 12
 rapid.retract.long[0].speed: 2000
 
-##Perform a retract after last movement.
-end.retract: True
-
 ## Do X movement during feeding to prevent blobs
+## These are currently required for pre-prime
 feed.trail: True
-
 ## Values from Slic3r gcode
 feed[0].length: 20
 feed[0].speed: 1400
