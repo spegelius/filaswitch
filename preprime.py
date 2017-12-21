@@ -145,7 +145,9 @@ class PrePrime:
             #absolute movement
             yield (b"G90", b" absolute positioning")
             self.xstart = self.xstart + self.width + 1
-
+        #Reset extruder distance
+        yield(b"G92 E0", b" reset extruder")
+        yield None, b"PRIME END"
 
 if __name__ == "__main__":
     from logger import Logger
