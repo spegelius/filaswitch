@@ -16,7 +16,7 @@ prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
 prerun.prime.xstart: 5.0
 prerun.prime.ystart: -3.0
-prerun.prime.purge.count: 5  
+prerun.prime.purge.count: 6  
 
 rapid.retract.initial[0].length: 15
 rapid.retract.initial[0].speed: 5000
