@@ -16,9 +16,8 @@ class PrePrime:
         self.E = E
         self.N = N
 
-        self.max_slots = max_slots
-        self.slot = 0
-        self.slots = {}
+        self.vertical_dir = N
+        self.horizontal_dir = E
         
         self.settings = settings
         self.log = logger
@@ -57,13 +56,11 @@ class PrePrime:
         sweep_gap = self.settings.get_hw_config_float_value("prerun.prime.gap")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
-        horizontal_dir = self.slots[self.slot]['horizontal_dir']
-        vertical_dir = self.slots[self.slot]['vertical_dir']
-
         for _ in range(self.settings.get_hw_config_int_value("prerun.prime.purge.count")):
-            yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
-            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, extruder, feed_rate=feed_rate), b" purge trail"
+            yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
+            self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
+
 
     def get_retract_gcode(self, extruder):
         i = 0
@@ -90,45 +87,40 @@ class PrePrime:
                 break
                 
         #cooling retracts, also serves as wipe
-        horizontal_dir = self.slots[self.slot]['horizontal_dir']        
+
         i = 0
         while True:
             try:
                 rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
                 rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, extruder, e_length=rr_cool_len), b" cooling"
-                horizontal_dir = gcode.opposite_dir(horizontal_dir)
+                yield gcode.gen_direction_move(self.horizontal_dir, self.width, rr_cool_speed, extruder, e_length=rr_cool_len), b" cooling"
+                self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
                 if i == 0:
                     log.warning("No cooling steps. That's OK.")
                 break
-                       
+        self.horizontal_dir = E               
     def get_feed_gcode(self, extruder):
         
-        horizontal_dir = self.slots[self.slot]['horizontal_dir']
         i = 0
         #initial load using standard feed length and speed
         while True:
             try:
                 feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                 feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
-                horizontal_dir = gcode.opposite_dir(horizontal_dir)
+                yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
+                self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
                 if i == 0:
                     log.warning("No prime move steps. That's OK.")
                 break
 
-
-        #self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
-
     def get_prime_lines(self):
         """
 
         """
-        self.initialize_slots()
         yield None, b" PRIME START"
         #Reverse order
         for tool in self.tools[::-1]:
