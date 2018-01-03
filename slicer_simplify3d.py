@@ -194,8 +194,7 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"originOffsetYoverride" in comment:
                 self.settings.origin_offset_y = float(comment.split(b",")[-1])
             elif b"gcodeZoffset" in comment:
-                # buggy as hell S3D, 0.2 setting is actually 0.02...
-                self.settings.z_offset = float(comment.split(b",")[-1]) * 0.1
+                self.settings.z_offset = float(comment.split(b",")[-1])
             elif b"temperatureName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_names.append(d)

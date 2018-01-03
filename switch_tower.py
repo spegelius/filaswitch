@@ -30,26 +30,23 @@ LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 class SwitchTower:
 
-    def __init__(self, logger, settings: Settings, max_slots, z_offset):
+    def __init__(self, logger, settings: Settings, max_slots):
         """
         Filament switch tower functionality
         :param logger: Logger object
-        :param config: system configuration (PEEK, PTFE, E3Dv6)
+        :param settings: settings object
         :param max_slots: maximum number of tower slots
-        :param z_offset: z offset
-        :param purge_lines: amount of post purge lines
         """
 
         self.settings = settings
         self.log = logger
         self.max_slots = max_slots
-        self.z_offset = z_offset
 
         self.slot = 0
         self.slots = {}
         for i in range(self.max_slots):
             self.slots[i] = {}
-            self.slots[i]['last_z'] = self.z_offset
+            self.slots[i]['last_z'] = self.settings.z_offset
             self.slots[i]['flipflop_purge'] = False
             self.slots[i]['flipflop_infill'] = False
 
@@ -139,7 +136,6 @@ class SwitchTower:
 
         bed_x_min = -self.settings.origin_offset_x
         bed_y_min = -self.settings.origin_offset_y
-
 
         # find a place that can accommodate the tower height
         if self.settings.tower_position == AUTO:
@@ -563,14 +559,14 @@ class SwitchTower:
         feed_multi = (self.raft_layer_height / 0.2) * (self.settings.raft_multi/100)
 
         if extruder.z_hop:
-            z_hop = self.raft_layer_height + extruder.z_hop + self.z_offset
+            z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
         else:
             yield gcode.gen_z_move(self.raft_layer_height + 5, self.settings.travel_z_speed), b" move z close"
 
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
-        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
+        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
         yield b"G91", b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
@@ -611,7 +607,7 @@ class SwitchTower:
 
         # update slot z values
         for i in range(self.max_slots):
-            self.slots[i]['last_z'] = self.z_offset + self.raft_layer_height
+            self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
 
     def _get_z_hop(self, layer, extruder):
         """
