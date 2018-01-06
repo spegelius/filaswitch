@@ -1,3 +1,5 @@
+
+
 filaswitch
 ==============================
 Filament switch post processor for Simplify 3D (3.1.1 and 4.0.0) and Prusa Slic3r (1.36.2 and 1.37.1).
@@ -13,6 +15,9 @@ Perform retraction during wipe movement-bug (S3D 3.1.1):
  dual-extrusion g-code addition
 
 Disclaimer: i'm not responsible if anything bad happens due to use of this script.
+
+If this software has been helpful to you, buy me a coffee/beer :)
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/spegelius)
 
 Prerequisites
 -------------
