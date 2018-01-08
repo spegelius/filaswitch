@@ -96,17 +96,30 @@ class Simplify3dGCodeFile(GCodeFile):
                     ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
                     temp_setpoint_index += 1
 
+        # find proper setpoint temp
         last_setpoints = None
         for e in self.extruders:
             # setpoints
             if self.extruders[e].temperature_setpoints:
                 last_setpoints = self.extruders[e].temperature_setpoints
-            else:
+                break
+
+        # if not found, bad config
+        if not last_setpoints:
+            raise ValueError("Could not find valid temperature settings for extruder(s). Please check S3D profile")
+
+        warning = False
+        for e in self.extruders:
+            if not self.extruders[e].temperature_setpoints:
                 self.extruders[e].temperature_setpoints = last_setpoints
+                warning = True
 
             # temp nr. Use tool number if not defined
             if self.extruders[e].temperature_nr is None:
                 self.extruders[e].temperature_nr = self.extruders[e].tool
+
+        if warning:
+            self.log.warning("Not all extruders have valid temperature definitions. Using previous extruder values. Please check that the temperatures are correct")
 
     def parse_header(self):
         """
