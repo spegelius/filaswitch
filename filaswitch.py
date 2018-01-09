@@ -35,7 +35,7 @@ prog_dir = os.path.dirname(os.path.realpath(__file__))
 status_file = os.path.join(prog_dir, '.status')
 status = utils.load_status(status_file)
 
-version = "0.14"
+version = "0.15"
 
 def detect_file_type(gcode_file, log):
     with open(gcode_file, 'r') as gf:

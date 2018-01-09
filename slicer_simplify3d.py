@@ -119,7 +119,7 @@ class Simplify3dGCodeFile(GCodeFile):
                 self.extruders[e].temperature_nr = self.extruders[e].tool
 
         if warning:
-            self.log.warning("Not all extruders have valid temperature definitions. Using previous extruder values. Please check that the temperatures are correct")
+            self.log.info("Not all extruders have valid temperature definitions, using previous extruder values. Please check profile temperature settings")
 
     def parse_header(self):
         """
