@@ -511,7 +511,7 @@ class SwitchTower:
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
         yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
-        yield b"G91", b" relative positioning"
+        yield gcode.gen_relative_positioning(), b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
 
@@ -545,9 +545,9 @@ class SwitchTower:
 
         if retract:
             yield extruder.get_retract_gcode()
-        yield b"G90", b" absolute positioning"
-        yield b"M83", b" relative E"
-        yield b"G92 E0", b" reset extruder position"
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER RAFT END"
 
         # update slot z values
@@ -684,8 +684,8 @@ class SwitchTower:
 
         tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
-        yield ("G1 Z%.3f F%.1f" % (tower_z, self.settings.travel_z_speed)).encode(), b" move z close"
-        yield b"G91", b" relative positioning"
+        yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        yield gcode.gen_relative_positioning(), b" relative positioning"
         yield old_e.get_prime_gcode(change=-0.1)
 
         new_temp = new_e.get_temperature(layer.num)
@@ -729,9 +729,9 @@ class SwitchTower:
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
         # move to purge zone upper left corner
-        yield b"G90", b" absolute positioning"
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield self._get_wall_position_gcode(layer, False)
-        yield b"G91", b" relative positioning"
+        yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # wall gcode
         for line in self._get_wall_gcode(False, new_e, min_speed, feed_rate):
@@ -742,9 +742,9 @@ class SwitchTower:
             wipe_dir = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
             yield gcode.gen_direction_move(wipe_dir, new_e.wipe, gap_speed), b" wipe"
 
-        yield b"G90", b" absolute positioning"
-        yield b"M83", b" relative E"
-        yield b"G92 E0", b" reset extruder position"
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
         hop = self._get_z_hop(layer, old_e)
         if hop:
             yield hop
@@ -796,8 +796,8 @@ class SwitchTower:
         self.slots[self.slot]['last_z'] = tower_z
 
         yield self._get_wall_position_gcode(layer, self.slots[self.slot]['flipflop_infill'])
-        yield ("G1 Z%.3f F%.1f" % (tower_z, self.settings.travel_z_speed)).encode(), b" move z close"
-        yield b"G91", b" relative positioning"
+        yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        yield gcode.gen_relative_positioning(), b" relative positioning"
         yield extruder.get_prime_gcode()
 
         # infill
@@ -832,12 +832,12 @@ class SwitchTower:
         if extruder.wipe:
             yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000), b" wipe"
 
-        yield b"G90", b" absolute positioning"
-        yield b"M83", b" relative E"
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
         hop = self._get_z_hop(layer, extruder)
         if hop:
             yield hop
-        yield b"G92 E0", b" reset extruder position"
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
         # flip the flop

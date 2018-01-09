@@ -3,8 +3,6 @@ import math
 from gcode import GCode, E,N
 from settings import Settings
 
-import utils
-
 gcode = GCode()
 
 
@@ -33,18 +31,7 @@ class PrePrime:
         self.purgecount = settings.get_hw_config_int_value("prerun.prime.purge.count")
         self.xstart = settings.get_hw_config_float_value("prerun.prime.xstart")
         self.ystart = settings.get_hw_config_float_value("prerun.prime.ystart")
-        
-        
-    def initialize_slots(self):
-        """
-        Initialize slot data, just for horz/vert movement
-        :return:
-        """
-        self.max_slots = 16
-        for i in range(self.max_slots):
-            self.slots[i] = {}
-            self.slots[i]['horizontal_dir'] = self.E
-            self.slots[i]['vertical_dir'] = self.N
+        self.warnings_shown = False
 
     def get_prime_gcode(self, extruder):
         """
@@ -61,7 +48,6 @@ class PrePrime:
             yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
             self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
 
-
     def get_retract_gcode(self, extruder):
         i = 0
         while True:
@@ -71,8 +57,8 @@ class PrePrime:
                 yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
         i = 0
         while True:
@@ -82,8 +68,8 @@ class PrePrime:
                 yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
                 
         #cooling retracts, also serves as wipe
@@ -97,10 +83,11 @@ class PrePrime:
                 self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No cooling steps. That's OK.")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No cooling steps. That's OK.")
                 break
-        self.horizontal_dir = E               
+        self.horizontal_dir = E
+
     def get_feed_gcode(self, extruder):
         
         i = 0
@@ -113,8 +100,8 @@ class PrePrime:
                 self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No prime move steps. That's OK.")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No prime move steps. That's OK.")
                 break
 
     def get_prime_lines(self):
@@ -122,32 +109,44 @@ class PrePrime:
 
         """
         yield None, b" PRIME START"
-        #Reverse order
+        # Reverse order
         for tool in self.tools[::-1]:
-            #get extruder object from tool number
+            # get extruder object from tool number
             extruder = self.extruders[tool]
-            #print(extruder.tool)
-            yield ("T%s" % tool).encode(), b" change tool"
-            #move to start position
+
+            # print(extruder.tool)
+            yield gcode.gen_tool_change(tool), b" change tool"
+
+            # move to start position
             yield (gcode.gen_head_move(self.xstart, self.ystart, self.speed), b" move off print")
-            #relative movement
-            yield (b"G91", b" relative positioning")
-            #load and initial prime 
+
+            # relative movement
+            yield gcode.gen_relative_positioning(), b" relative positioning"
+
+            # load and initial prime
             for line in self.get_feed_gcode(extruder):
                 yield line
-            #handle unload and wipe
+
+            # handle unload and wipe
             for line in self.get_prime_gcode(extruder):
                 yield line
-            #Do retraction if not on the last extruder
+
+            # Do retraction if not on the last extruder
             if tool != self.tools[0]:
                 for line in self.get_retract_gcode(extruder):
                     yield line                   
-            #absolute movement
-            yield (b"G90", b" absolute positioning")
+
+            # absolute movement
+            yield gcode.gen_absolute_positioning(), b" absolute positioning"
+            yield gcode.gen_relative_e(), b" relative E"
+            yield gcode.gen_extruder_reset(), b" reset extruder"
+
             self.xstart = self.xstart + self.width + 1
-        #Reset extruder distance
-        yield(b"G92 E0", b" reset extruder")
+            self.warnings_shown = True
+
+        # Reset extruder distance
         yield None, b"PRIME END"
+
 
 if __name__ == "__main__":
     from logger import Logger
