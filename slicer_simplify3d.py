@@ -231,14 +231,15 @@ class Simplify3dGCodeFile(GCodeFile):
         """ S3D specific settings """
 
         super().parse_print_settings()
-
+        '''
         for cmd, comment, line_index in self.layers[0].read_lines():
             # find first tool change and remove it if it's T0. No need to
             # do tool change as e already have T0 active
             if line_index > self.layers[0].start_gcode_end and cmd and gcode.is_tool_change(cmd) == 0:
                 self.layers[0].delete_line(line_index)
                 break
-
+        '''
+        
     def parse_layers(self, lines):
         """
         Go through the g-code and find layer start points.

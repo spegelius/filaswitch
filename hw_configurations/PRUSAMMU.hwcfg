@@ -1,0 +1,65 @@
+## Values are a mash-up of Slic3r PLA values and the E3DV6 settings
+
+prepurge.sweep.length: 50
+prepurge.sweep.extrusion.length: 4.5
+prepurge.sweep.speed: 6000
+prepurge.sweep.count: 5
+prepurge.sweep.gap: 1
+prepurge.sweep.gap.speed: 3000
+
+## Prime extruders
+## Comment out the next line to remove
+prerun.prime: True
+prerun.prime.length: 49
+prerun.prime.extrusion.length: 1.8
+prerun.prime.gap: 0.48
+prerun.prime.speed: 2200
+prerun.prime.xstart: 5.0
+prerun.prime.ystart: -3.0
+prerun.prime.purge.count: 6  
+
+rapid.retract.initial[0].length: 15
+rapid.retract.initial[0].speed: 5000
+rapid.retract.initial[1].length: 50
+rapid.retract.initial[1].speed: 5400
+rapid.retract.initial[2].length: 15
+rapid.retract.initial[2].speed: 3000
+
+## Various filament cooling movements after major retract
+## Serves as a wipe
+rapid.retract.cool[0].length: 3
+rapid.retract.cool[0].speed: 1600
+rapid.retract.cool[1].length: -5
+rapid.retract.cool[1].speed: 1600
+rapid.retract.cool[2].length: 5
+rapid.retract.cool[2].speed: 2000
+rapid.retract.cool[3].length: -5
+rapid.retract.cool[3].speed: 2400
+rapid.retract.cool[4].length: 5
+rapid.retract.cool[4].speed: 2400
+rapid.retract.cool[5].length: -5
+rapid.retract.cool[5].speed: 2400
+rapid.retract.cool[6].length: 5
+rapid.retract.cool[6].speed: 2400
+rapid.retract.cool[7].length: -3
+rapid.retract.cool[7].speed: 2400
+
+rapid.retract.pause: 0
+rapid.retract.long[0].length: 12
+rapid.retract.long[0].speed: 2000
+
+## Do X movement during feeding to prevent blobs
+## These are currently required for pre-prime
+feed.trail: True
+## Values from Slic3r gcode
+feed[0].length: 20
+feed[0].speed: 1400
+feed[1].length: 40
+feed[1].speed: 3000
+feed[2].length: 20
+feed[2].speed: 1600
+feed[3].length: 10
+feed[3].speed: 1000
+
+prime.trail.extrusion.length: 5
+prime.trail.speed: 900

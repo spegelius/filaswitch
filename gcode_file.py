@@ -3,7 +3,7 @@ import os
 from gcode import GCode
 from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
-
+from preprime import PrePrime
 from settings import Settings
 
 gcode = GCode()
@@ -32,10 +32,9 @@ class GCodeFile:
         self.material = None
         self.extruders = {}
         self.switch_tower = None
-
         self.layers = []
         self.filtered_layers = []
-
+        self.pr_index = None
         # material switch z heights
         self.layer_height = None
 
@@ -47,8 +46,9 @@ class GCodeFile:
 
         if self.settings.purge_lines > 15:
             self.settings.purge_lines = 15
-
-        self.tools = [0]
+            
+        #List of tools numbers in the order they are used
+        self.tools = []
 
         # max slots needed
         self.max_slots = None
@@ -69,8 +69,9 @@ class GCodeFile:
 
             if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
+                self.pr_index = index
                 break
-
+        
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
                 if comment and comment.strip() == b"TOOL CHANGE":
@@ -81,13 +82,20 @@ class GCodeFile:
                         self.tools.append(gcode.last_match)
                     self.tool_switch_heights[gcode.last_match] = layer.z
                     is_tool_change = False
-
+    
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
         if self.tool_switch_heights:
             self.last_switch_height = max(self.tool_switch_heights.values())
-
+            
+        if self.settings.get_hw_config_value("prerun.prime"):
+            self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
+            for cmd, comment in self.preprime.get_prime_lines():
+                self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
+        else:
+            print("No pre-prime run")   
+            
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
         self.gcode_file = gcode_file
@@ -101,6 +109,8 @@ class GCodeFile:
 
         # remove extra EOL and empty lines
         lines = [l.strip() for l in gf.readlines() if l.strip()]
+        # remove uneeded tool changes
+        lines = self.check_changes(lines)
         gf.close()
         self.parse_layers(lines)
 
@@ -143,7 +153,14 @@ class GCodeFile:
         :return: old or updated layer data
         """
         raise NotImplemented
-
+    
+    def prerun_prime(self):
+        """
+        Prime each tool in reverse order
+        :return: priming gcode to be inserted after start gcode
+        """
+                
+    
     def find_tower_position(self):
         """
         Find proper position for the switch tower
@@ -197,25 +214,51 @@ class GCodeFile:
             if pos > -0.00001:
                 pos = 0
             return pos
-
+            
+        def find_z_move(line):
+            try:
+                iszmove = gcode.is_z_move(line)
+            except:
+                iszmove = None            
+            return iszmove
+        
+        #Keep track of last X, Y position        
+        last_pos = None
+        
         for layer in self.filtered_layers:
             index = 0
             #print("layer", layer.num, e_pos)
+            
             while True:
                 try:
                     # when z height changes, check that tower height isn't too low versus layer
                     if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
+                        #read ahead
+                        iszmove = find_z_move(layer.lines[index+1][0]) 
+                            
                         for cmd, comment in self.switch_tower.check_infill(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
-
+                            
+                        if iszmove and last_pos:
+                            #put in ending position from last layer!
+                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
+                            
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
-                        # update purge tower with sparse infill
+                        #read ahead
+                        iszmove = find_z_move(layer.lines[index+1][0])
+                         
+                        # update purge tower with sparse infill   
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
+                            
+                        if iszmove and last_pos:
+                            #put in ending position from last layer!
+                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
 
+                            
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
@@ -224,7 +267,7 @@ class GCodeFile:
                         # need command
                         index += 1
                         continue
-
+                    
                     if gcode.is_z_move(cmd):
                         # store current z position and z-hop
                         current_z, z_speed = gcode.last_match
@@ -253,6 +296,7 @@ class GCodeFile:
                             e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         # store extruder position and add prime if needed
+                        last_pos = gcode.last_match
                         if prime_needed:
                             # reset prime flag when printing starts after tower
                             prime_needed = False
@@ -272,6 +316,26 @@ class GCodeFile:
                     break
                 index += 1
 
+    def check_changes(self, lines):
+        """
+        Look for any redundant tool changes and remove them
+        """
+        #TODO: move this to parse_printer_settings. Should be easy to do.
+        ce = -1
+        i =  0
+        poplist = []
+        for line in lines:
+            if line == b'; TOOL CHANGE':
+                te = gcode.is_tool_change(lines[i+1])
+                if te == ce:
+                    poplist.append(i)
+                    poplist.append(i+1)
+                ce = te
+            i+=1
+       
+        modlines = [v for i, v in enumerate(lines) if i not in poplist]
+        return modlines
+        
     def parse_layers(self, lines):
         """
         Go through the g-code and find layer start points.

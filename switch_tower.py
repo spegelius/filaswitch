@@ -380,7 +380,9 @@ class SwitchTower:
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
+        
 
+        
         if new_temp:
             yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
 
@@ -411,36 +413,65 @@ class SwitchTower:
                 if i == 0:
                     log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
-
-    def get_post_switch_gcode(self, extruder, new_temp):
-
-        # feed new filament
-        values = []
+                
+        #Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py 
         i = 0
         while True:
             try:
-                feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
-                feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                values.append((feed_len, feed_speed))
+                rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
+                rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
+                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, extruder, e_length=rr_cool_len), b" cooling"
+                horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 i += 1
             except TypeError:
                 if i == 0:
-                    log.warning("No feed[N].length or .speed found. Please check the HW-config")
+                    log.warning("No cooling steps. That's OK.")
                 break
+                
+    def get_post_switch_gcode(self, extruder, new_temp):
+        # should we move head while feeding?
+        feedtrail = self.settings.get_hw_config_value("feed.trail")
+        # feed new filament
+        values = []
+        i = 0
+        if feedtrail:
+            horizontal_dir = self.slots[self.slot]['horizontal_dir']
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
+                    horizontal_dir = gcode.opposite_dir(horizontal_dir)
+                    i += 1
+                except TypeError:
+                    if i == 0:
+                        log.warning("No prime move steps. That's OK.")
+                    break
+        else:            
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    values.append((feed_len, feed_speed))
+                    i += 1
+                except TypeError:
+                    if i == 0:
+                        log.warning("No feed[N].length or .speed found. Please check the HW-config")
+                    break
 
-        # temperature change handling
-        if new_temp:
-            last_val = values[-1]
-            values[-1] = (last_val[0] - 5, last_val[1])
-            for feed_len, feed_speed in values:
-                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-            # stop 5mm before feed end to wait proper temp
-            yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
-            yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
-        else:
-            for feed_len, feed_speed in values:
-                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-
+            # temperature change handling
+            if new_temp:
+                last_val = values[-1]
+                values[-1] = (last_val[0] - 5, last_val[1])
+                for feed_len, feed_speed in values:
+                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+                # stop 5mm before feed end to wait proper temp
+                yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
+                yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
+            else:
+                for feed_len, feed_speed in values:
+                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+        
         # prime trail
         prime_feed_rate = self.settings.get_hw_config_float_value("prime.trail.extrusion.length") / self.width
         prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
@@ -481,32 +512,33 @@ class SwitchTower:
         yield b"G91", b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
+
         # box
         width = self.raft_width + 0.8
         height = self.raft_height + 0.8
         speed = self.settings.first_layer_speed
-        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
         height -= 0.4
-        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
         width -= 0.4
         height -= 0.4
-        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
 
         yield gcode.gen_direction_move(self.SE, 0.6, self.settings.travel_xy_speed), None
 
         feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
         speed = self.settings.first_layer_speed
         for _ in range(int(self.raft_width/2)):
-            yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate), b" raft1"
+            yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate=feed_rate), b" raft1"
             yield gcode.gen_direction_move(self.E, 1, speed), b" raft2"
-            yield gcode.gen_direction_move(self.S, self.raft_height, speed, extruder, feed_rate), b" raft3"
+            yield gcode.gen_direction_move(self.S, self.raft_height, speed, extruder, feed_rate=feed_rate), b" raft3"
             yield gcode.gen_direction_move(self.E, 1, speed), b" raft4"
 
         if retract:

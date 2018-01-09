@@ -336,7 +336,7 @@ class GCode:
         y = sine * length
         return x, y
 
-    def gen_direction_move(self, direction, length, speed, extruder=None, feed_rate=None, last_line=False):
+    def gen_direction_move(self, direction, length, speed, extruder=None, feed_rate=None, e_length=None, last_line=False):
         """
         Generate g-code for head move to given direction. Relative distances
         :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
@@ -360,7 +360,8 @@ class GCode:
             if not extruder:
                 yield self.gen_head_move(x, y, speed)
             else:
-                e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
+                if not e_length:
+                    e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
                 yield self.gen_extrusion_speed_move(x, y, speed, e_length)
 
     def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
