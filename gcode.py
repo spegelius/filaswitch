@@ -233,10 +233,11 @@ class GCode:
         :param speed: movement speed
         :return: byte string
         """
+        # handle zeroes... cannot omit 0-len axes
         if utils.is_float_zero(x, 3):
-            return ("G1 Y%.3f F%d" % (y, speed)).encode()
+            return ("G1 X0 Y%.3f F%d" % (y, speed)).encode()
         elif utils.is_float_zero(y, 3):
-            return ("G1 X%.3f F%d" % (x, speed)).encode()
+            return ("G1 X%.3f Y0 F%d" % (x, speed)).encode()
         return ("G1 X%.3f Y%.3f F%d" % (x, y, speed)).encode()
 
     def gen_extrusion_move(self, x, y, e_length):
@@ -247,10 +248,11 @@ class GCode:
         :param e_length: extrusion length
         :return: byte string
         """
+        # handle zeroes... cannot omit 0-len axes
         if utils.is_float_zero(x, 3):
-            return ("G1 Y%.3f E%.4f" % (y, e_length)).encode()
+            return ("G1 X0 Y%.3f E%.4f" % (y, e_length)).encode()
         elif utils.is_float_zero(y, 3):
-            return ("G1 X%.3f E%.4f" % (x, e_length)).encode()
+            return ("G1 X%.3f Y0 E%.4f" % (x, e_length)).encode()
         return ("G1 X%.3f Y%.3f E%.4f" % (x, y, e_length)).encode()
 
     def gen_extrusion_speed_move(self, x, y, speed, e_length):
@@ -262,10 +264,11 @@ class GCode:
         :param e_length: extrusion length
         :return: byte string
         """
+        # handle zeroes... cannot omit 0-len axes
         if utils.is_float_zero(x, 3):
-            return ("G1 Y%.3f E%.4f F%d" % (y, e_length, speed)).encode()
+            return ("G1 X0 Y%.3f E%.4f F%d" % (y, e_length, speed)).encode()
         elif utils.is_float_zero(y, 3):
-            return ("G1 X%.3f E%.4f F%d" % (x, e_length, speed)).encode()
+            return ("G1 X%.3f Y0 E%.4f F%d" % (x, e_length, speed)).encode()
         return ("G1 X%.3f Y%.3f E%.4f F%d" % (x, y, e_length, speed)).encode()
 
     def gen_extruder_move(self, e_length, speed):
@@ -319,6 +322,42 @@ class GCode:
         :return: byte string
         """
         return ("M109 S%d T%d" % (temperature, tool)).encode()
+
+    def gen_tool_change(self, tool):
+        """
+        Generate g-code line for tool change.
+        :param tool: tool to use
+        :return: byte string
+        """
+        return ("T%d" % tool).encode()
+
+    def gen_absolute_positioning(self):
+        """
+        Generate g-code line for absolute positioning.
+        :return: byte string
+        """
+        return b"G90"
+
+    def gen_relative_positioning(self):
+        """
+        Generate g-code line for relative positioning.
+        :return: byte string
+        """
+        return b"G91"
+
+    def gen_extruder_reset(self):
+        """
+        Generate g-code line for extruder position reset.
+        :return: byte string
+        """
+        return b"G92 E0"
+
+    def gen_relative_e(self):
+        """
+        Generate g-code line for extruder relative mode
+        :return: byte string
+        """
+        return b"M83"
 
     def _get_coordinates(self, direction, length):
         """
