@@ -94,7 +94,7 @@ class GCodeFile:
             for cmd, comment in self.preprime.get_prime_lines():
                 self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
         else:
-            print("No pre-prime run")   
+            self.log.warning("No pre-prime run")
             
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
@@ -160,7 +160,6 @@ class GCodeFile:
         :return: priming gcode to be inserted after start gcode
         """
                 
-    
     def find_tower_position(self):
         """
         Find proper position for the switch tower
@@ -205,7 +204,7 @@ class GCodeFile:
             """
             Update E position value. In case of negative value we want to have
             cumulative status to understand how much retraction is done. In case of positive
-            value we don't care, so 0 i ok.
+            value we don't care, so 0 is ok.
             :param pos: current position
             :param new_pos: new position
             :return: updated position
@@ -222,12 +221,12 @@ class GCodeFile:
                 iszmove = None            
             return iszmove
         
-        #Keep track of last X, Y position        
+        # Keep track of last X, Y position
         last_pos = None
         
         for layer in self.filtered_layers:
             index = 0
-            #print("layer", layer.num, e_pos)
+            self.log.debug("layer {}, e-pos {}".format(layer.num, e_pos))
             
             while True:
                 try:
@@ -258,7 +257,6 @@ class GCodeFile:
                             #put in ending position from last layer!
                             index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
 
-                            
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
@@ -320,9 +318,9 @@ class GCodeFile:
         """
         Look for any redundant tool changes and remove them
         """
-        #TODO: move this to parse_printer_settings. Should be easy to do.
+        # TODO: move this to parse_printer_settings. Should be easy to do.
         ce = -1
-        i =  0
+        i = 0
         poplist = []
         for line in lines:
             if line == b'; TOOL CHANGE':
@@ -331,7 +329,7 @@ class GCodeFile:
                     poplist.append(i)
                     poplist.append(i+1)
                 ce = te
-            i+=1
+            i += 1
        
         modlines = [v for i, v in enumerate(lines) if i not in poplist]
         return modlines

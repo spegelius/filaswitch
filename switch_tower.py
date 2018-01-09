@@ -90,6 +90,7 @@ class SwitchTower:
         self.z_slack_max = 1.2
 
         self.temperatures = {}
+        self.warnings_shown = False
 
     def initialize_slots(self):
         """
@@ -381,8 +382,6 @@ class SwitchTower:
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
         
-
-        
         if new_temp:
             yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
 
@@ -394,8 +393,8 @@ class SwitchTower:
                 yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
@@ -410,8 +409,8 @@ class SwitchTower:
                 yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
                 
         #Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py 
@@ -424,8 +423,8 @@ class SwitchTower:
                 horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 i += 1
             except TypeError:
-                if i == 0:
-                    log.warning("No cooling steps. That's OK.")
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No cooling steps. That's OK.")
                 break
                 
     def get_post_switch_gcode(self, extruder, new_temp):
@@ -444,8 +443,8 @@ class SwitchTower:
                     horizontal_dir = gcode.opposite_dir(horizontal_dir)
                     i += 1
                 except TypeError:
-                    if i == 0:
-                        log.warning("No prime move steps. That's OK.")
+                    if i == 0 and not self.warnings_shown:
+                        self.log.warning("No prime move steps. That's OK.")
                     break
         else:            
             while True:
@@ -455,8 +454,8 @@ class SwitchTower:
                     values.append((feed_len, feed_speed))
                     i += 1
                 except TypeError:
-                    if i == 0:
-                        log.warning("No feed[N].length or .speed found. Please check the HW-config")
+                    if i == 0 and not self.warnings_shown:
+                        self.log.warning("No feed[N].length or .speed found. Please check the HW-config")
                     break
 
             # temperature change handling
@@ -486,6 +485,9 @@ class SwitchTower:
         #    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], 0.6, self.settings.travel_xy_speed), b" purge position"
 
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
+
+        # no need to show the warnings again
+        self.warnings_shown = True
 
     def get_raft_lines(self, first_layer, extruder, retract):
         """
