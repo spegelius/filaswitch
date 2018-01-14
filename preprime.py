@@ -120,6 +120,9 @@ class PrePrime:
             # move to start position
             yield (gcode.gen_head_move(self.xstart, self.ystart, self.speed), b" move off print")
 
+            # move z close
+            yield gcode.gen_z_move(0.2, self.settings.travel_z_speed), b" move z close"
+
             # relative movement
             yield gcode.gen_relative_positioning(), b" relative positioning"
 
@@ -134,7 +137,11 @@ class PrePrime:
             # Do retraction if not on the last extruder
             if tool != self.tools[0]:
                 for line in self.get_retract_gcode(extruder):
-                    yield line                   
+                    yield line
+
+            if extruder.z_hop:
+                # z-hop
+                yield gcode.gen_z_move(0.2 + extruder.z_hop, self.settings.travel_z_speed), b" z-hop"
 
             # absolute movement
             yield gcode.gen_absolute_positioning(), b" absolute positioning"
