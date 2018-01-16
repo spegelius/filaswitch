@@ -171,7 +171,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.settings, self.max_slots, self.settings.z_offset)
+        self.switch_tower = SwitchTower(self.log, self.settings, self.max_slots)
         x = []
         y = []
 

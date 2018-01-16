@@ -95,17 +95,30 @@ class Simplify3dGCodeFile(GCodeFile):
                     ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
                     temp_setpoint_index += 1
 
+        # find proper setpoint temp
         last_setpoints = None
         for e in self.extruders:
             # setpoints
             if self.extruders[e].temperature_setpoints:
                 last_setpoints = self.extruders[e].temperature_setpoints
-            else:
+                break
+
+        # if not found, bad config
+        if not last_setpoints:
+            raise ValueError("Could not find valid temperature settings for extruder(s). Please check S3D profile")
+
+        warning = False
+        for e in self.extruders:
+            if not self.extruders[e].temperature_setpoints:
                 self.extruders[e].temperature_setpoints = last_setpoints
+                warning = True
 
             # temp nr. Use tool number if not defined
             if self.extruders[e].temperature_nr is None:
                 self.extruders[e].temperature_nr = self.extruders[e].tool
+
+        if warning:
+            self.log.info("Not all extruders have valid temperature definitions, using previous extruder values. Please check profile temperature settings")
 
     def parse_header(self):
         """
@@ -193,8 +206,7 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"originOffsetYoverride" in comment:
                 self.settings.origin_offset_y = float(comment.split(b",")[-1])
             elif b"gcodeZoffset" in comment:
-                # buggy as hell S3D, 0.2 setting is actually 0.02...
-                self.settings.z_offset = float(comment.split(b",")[-1]) * 0.1
+                self.settings.z_offset = float(comment.split(b",")[-1])
             elif b"temperatureName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_names.append(d)

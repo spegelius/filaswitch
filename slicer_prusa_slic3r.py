@@ -164,7 +164,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b"z_offset =" in comment:
                     # ; z_offset = 0
-                    z_offset = float(comment.split(b' = ')[1])
+                    self.settings.z_offset = float(comment.split(b' = ')[1])
 
                 elif b"first_layer_speed =" in comment:
                     # ; first_layer_speed = 70%
