@@ -1,3 +1,6 @@
+from gcode import GCode
+
+gcode = GCode()
 
 class Extruder:
     def __init__(self, tool, name=None):
@@ -48,7 +51,7 @@ class Extruder:
             change = 0
         if self.retract + change <= 0.05:
             return None
-        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), comment
+        return gcode.gen_extruder_move(-(self.retract+change), self.retract_speed), comment
 
     def get_prime_gcode(self, change=0):
         """
@@ -56,7 +59,7 @@ class Extruder:
         :param change: add this to the length
         :return: prime byt string
         """
-        return ("G1 E%.4f F%.1f" % (self.retract+change, self.retract_speed)).encode(), b" prime"
+        return gcode.gen_extruder_move(self.retract+change, self.retract_speed), b" prime"
 
     def get_feed_rate(self, multiplier=None):
         """

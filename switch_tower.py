@@ -96,7 +96,7 @@ class SwitchTower:
         """
         for i in range(self.max_slots):
             self.slots[i] = {}
-            self.slots[i]['last_z'] = self.z_offset
+            self.slots[i]['last_z'] = self.settings.z_offset
             self.slots[i]['horizontal_dir'] = self.E
             self.slots[i]['vertical_dir'] = self.N
             self.slots[i]['flipflop_infill'] = False
@@ -396,7 +396,7 @@ class SwitchTower:
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
-            yield "G4 P{}".format(pause).encode(), b" cooling period"
+            yield gcode.gen_pause(pause), b" cooling period"
 
         i = 0
         while True:
@@ -503,11 +503,11 @@ class SwitchTower:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
         else:
-            yield gcode.gen_z_move(self.raft_layer_height + 5, self.settings.travel_z_speed), b" move z close"
+            yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset + 5, self.settings.travel_z_speed), b" move z close"
 
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
-        yield ("G1 Z%.1f F%d" % (self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed)).encode(), b" move z close"
+        yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
@@ -583,7 +583,7 @@ class SwitchTower:
         if not utils.is_float_zero(retraction, 3) and retraction > 0:
             if retraction > extruder.retract:
                 retraction = extruder.retract
-            return ("G1 E%.4f F%.1f" % (-retraction, extruder.retract_speed)).encode(), b" tower retract"
+            return gcode.gen_extruder_move(-retraction, extruder.retract_speed), b" tower retract"
 
     def _get_wall_position_gcode(self, layer, flipflop):
         """
@@ -696,7 +696,7 @@ class SwitchTower:
         for line in self.get_pre_switch_gcode(old_e, new_temp, old_e.temperature_nr):
             yield line
 
-        yield ("T%s" % new_e.tool).encode(), b" change tool"
+        yield gcode.gen_tool_change(new_e.tool), b" change tool"
 
         # feed new filament
         if new_temp and abs(new_temp - old_temp) > 15:

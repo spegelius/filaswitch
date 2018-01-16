@@ -345,6 +345,14 @@ class GCode:
         """
         return b"G91"
 
+    def gen_pause(self, milliseconds):
+        """
+        Generate g-code line for pause.
+        :param: milliseconds: pause length
+        :return: byte string
+        """
+        return "G4 P{}".format(milliseconds).encode()
+
     def gen_extruder_reset(self):
         """
         Generate g-code line for extruder position reset.
