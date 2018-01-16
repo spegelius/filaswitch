@@ -161,6 +161,9 @@ class PrePrime:
 
             self.last_extruder = extruder
 
+        retract = self.last_extruder.get_retract_gcode()
+        if retract:
+            yield retract
         yield None, b"PRIME END"
 
 

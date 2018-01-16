@@ -653,6 +653,7 @@ class SwitchTower:
             for line in self.get_raft_lines(layer, old_e, False):
                 yield line
             self.raft_done = True
+            e_pos = 0
 
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
@@ -769,6 +770,7 @@ class SwitchTower:
             for line in self.get_raft_lines(layer, extruder, False):
                 yield line
             self.raft_done = True
+            e_pos = 0
 
         self.get_slot(layer)
 
