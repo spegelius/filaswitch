@@ -112,8 +112,7 @@ class GCodeFile:
         try:
             gf = open(gcode_file, 'rb')
         except Exception as e:
-            self.log.error("Cannot open file %s" % gcode_file)
-            self.log.debug(str(e))
+            self.log.exception("Cannot open file %s" % gcode_file)
             return 1
 
         # remove extra EOL and empty lines
@@ -126,9 +125,9 @@ class GCodeFile:
         Read lines from all layers
         :return: list of lines
         """
-        for layer in self.layers:
-            for cmd, comment in layer.lines:
-                yield gcode.format_to_string(cmd, comment)
+        lines = self.add_tool_change_gcode_post()
+        for line in lines:
+            yield gcode.format_to_string(*line)
 
     def save_new_file(self):
         """
@@ -145,7 +144,7 @@ class GCodeFile:
                 nf.write(result)
                 return new_file
         except Exception as e:
-            self.log.error("Could not save file, error: %s" % e)
+            self.log.exception("Could not save file, error: %s" % e)
             return 1
 
     def get_extruders(self):
@@ -200,16 +199,20 @@ class GCodeFile:
         """
         e_pos = 0
         z_hop = 0
+        is_tool_change = False
+
+        # last z-position
+        last_z = 0
+
+        # flag to indicate if z-move is needed after tower g-code
+        z_move_needed = False
         # flag to indicate if prime is needed after purge tower g-code
         prime_needed = False
-        z_move_needed = False
-        is_tool_change = False
-        last_z = 0
+        # flag for post-tower prime
+        prime_ok = False
 
         # Keep track of last X, Y position
         last_pos = None
-        last_pos_index = -1
-
 
         def update_retract_position(pos, new_pos):
             """
@@ -225,13 +228,6 @@ class GCodeFile:
                 pos = 0
             return pos
             
-        def find_z_move(line):
-            try:
-                iszmove = gcode.is_z_move(line)
-            except:
-                iszmove = None            
-            return iszmove
-
         for layer in self.filtered_layers:
             if isinstance(layer, FirstLayer):
                 index = layer.start_gcode_end
@@ -242,32 +238,24 @@ class GCodeFile:
             while True:
                 try:
                     # when z height changes, check that tower height isn't too low versus layer
-                    if layer.num != 1 and layer.z > last_z and layer.z < self.last_switch_height:
-                        #read ahead
-                        iszmove = find_z_move(layer.lines[index+1][0]) 
-                            
+                    if layer.num != 1 and last_z < layer.z < self.last_switch_height:
+
+                        added = False
                         for cmd, comment in self.switch_tower.check_infill(layer, e_pos, self.active_e, z_hop):
+                            added = True
                             index += layer.insert_line(index, cmd, comment)
-                            
-                        if iszmove and last_pos:
-                            #put in ending position from last layer!
-                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
+                        if added:
+                            e_pos = -self.active_e.retract
                             
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
-                        #read ahead
-                        iszmove = find_z_move(layer.lines[index+1][0])
-                         
-                        # update purge tower with sparse infill   
+                        # update purge tower with sparse infill
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
+                        e_pos = -self.active_e.retract
                             
-                        if iszmove and last_pos:
-                            #put in ending position from last layer!
-                            index += layer.insert_line(index, gcode.gen_head_move(last_pos[0],last_pos[1], self.settings.travel_xy_speed), b' update position')
-
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
@@ -286,24 +274,24 @@ class GCodeFile:
 
                         layer.delete_line(index)
 
-                        # check if tool change is needed
                         new_tool = gcode.last_match
+
+                        # check if tool change is needed
                         if self.active_e is not None and self.active_e.tool == new_tool:
                             self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
                         else:
-
-                            # add tool change g-code. First check if retract is needed
-
+                            # add tool change g-code
+                            # first check if retract is needed
                             retract = self.active_e.get_retract_gcode(change=e_pos, comment=b" pre-tower retract")
                             if retract:
-                                index += layer.insert_line(last_pos_index+1, *retract)
-                                e_pos = 0
+                                index += layer.insert_line(index, *retract)
+                                e_pos = -self.active_e.retract
 
                             new_e = self.extruders[new_tool]
-
                             for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, self.active_e, new_e, z_hop):
                                 index += layer.insert_line(index, cmd, comment)
                             prime_needed = True
+                            prime_ok = False
                             self.active_e = new_e
                             # always full retract after purge tower
                             e_pos = -new_e.retract
@@ -316,14 +304,23 @@ class GCodeFile:
                             # remove retracts after adding tower
                             layer.delete_line(index)
                             index -= 1
+                        elif prime_needed and not prime_ok:
+                            # no prime allowed before moving to position
+                            layer.delete_line(index)
+                            index -= 1
                         else:
                             # store extruder position
                             e_pos = update_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
-                        # store extruder position and add prime if needed
-                        last_pos = gcode.last_match
-                        last_pos_index = index
+                        # add prime if needed
                         if prime_needed:
+                            if not prime_ok:
+                                # if not in position, add move before prime
+                                x = last_pos[0]
+                                y = last_pos[1]
+                                index += layer.insert_line(index, gcode.gen_head_move(x, y,
+                                                                                      self.settings.travel_xy_speed),
+                                                            b' update position')
                             # reset prime flag when printing starts after tower
                             prime_needed = False
                             if e_pos < 0:
@@ -331,18 +328,59 @@ class GCodeFile:
                                 index += layer.insert_line(index,
                                                            *self.active_e.get_prime_gcode(change=prime_change_len))
                                 e_pos = 0
+
+                        # store extruder position
                         e_pos = update_retract_position(e_pos, gcode.last_match[2])
 
+                        # add z move if needed
                         if z_move_needed:
                             index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.settings.travel_z_speed))
                             z_move_needed = False
-                    elif gcode.is_head_move(cmd):
+
                         last_pos = gcode.last_match
-                        last_pos_index = index
+
+                    elif gcode.is_head_move(cmd):
+                        if prime_needed:
+                            prime_ok = True
+                        last_pos = gcode.last_match
 
                 except IndexError:
                     break
                 index += 1
+
+    def add_tool_change_gcode_post(self):
+        """
+        Run post steps for the layers, without the layer-object structuring. This should be run before saving
+        to file, after adding tool changes
+        :return: processed lines
+        """
+
+        lines = []
+        for layer in self.layers:
+            for cmd, comment in layer.lines:
+                lines.append((cmd, comment))
+
+        # tower retractions to proper place. This is hard to do in main tool change add loop as it's cumbersome to
+        # modify previous layer objects...
+        index = 0
+        last_pos_index = -1
+        while True:
+            try:
+                cmd, comment = lines[index]
+                if cmd:
+                    if gcode.is_head_move(cmd) or gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                        last_pos_index = index
+                if comment == b" pre-tower retract":
+                    if last_pos_index != -1:
+                        new_pos = last_pos_index+1
+                        if index != new_pos:
+                            lines.pop(index)
+                            lines.insert(last_pos_index+1, (cmd, comment))
+            except IndexError:
+                break
+            index += 1
+
+        return lines
 
     def parse_layers(self, lines):
         """
