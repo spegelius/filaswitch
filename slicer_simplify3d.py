@@ -123,7 +123,7 @@ class Simplify3dGCodeFile(GCodeFile):
                     m = self.VERSION_RE.match(comment)
                     self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
                 except Exception as e:
-                    print(e)
+                    self.log.exception("Version parsing exception: %s" % e)
             elif b"extruderName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_name.append(d)
@@ -213,6 +213,12 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"temperatureHeatedBed" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_heated_bed.append(int(d))
+            #elif b"toolChangeRetractionDistance" in comment:
+            #    if comment.split(b",")[1] != b"0":
+            #        self.log.warning("'toolChangeRetractionDistance' is set to 0. This might cause quality problems. Check 'Other'-tab in S3D.")
+            #elif b"toolChangeExtraRestartDistance" in comment:
+            #    if comment.split(b",")[1] != b"0":
+            #        self.log.warning("'toolChangeExtraRestartDistance' is not set to 0. This might cause quality problems. Check 'Other'-tab in S3D.")
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
@@ -222,22 +228,10 @@ class Simplify3dGCodeFile(GCodeFile):
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
 
         if self.layer_height != 0.2:
-            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
+            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other layer height at the moment")
 
         self.settings.outer_perimeter_speed *= self.settings.default_speed
         self.settings.first_layer_speed *= self.settings.default_speed
-
-    def parse_print_settings(self):
-        """ S3D specific settings """
-
-        super().parse_print_settings()
-        if not self.settings.get_hw_config_value("prerun.prime"):
-            for cmd, comment, line_index in self.layers[0].read_lines():
-                # if prerun prime not enabled, find first tool change and remove it if it's T0. No need to
-                # do tool change as e already have should have T0 active
-                if line_index > self.layers[0].start_gcode_end and cmd and gcode.is_tool_change(cmd) == 0:
-                    self.layers[0].delete_line(line_index)
-                    break
 
     def parse_layers(self, lines):
         """
@@ -306,7 +300,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
         layer_data = {}
 
-        # step 1: filter out empty layers and add populate dictionary
+        # step 1: filter out empty layers and populate dictionary
         for layer in self.layers:
             if layer.z not in layer_data:
                 layer_data[layer.z] = {'layers': []}

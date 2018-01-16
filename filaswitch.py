@@ -137,7 +137,7 @@ class TopFrame(Frame):
                 status["last_dir"] = file_dir
 
             except Exception as e:
-                self.log.error(str(e))
+                self.log.exception("Gcode processing failed: %s" % e)
                 #showerror("File open error", "Cannot open file %s" % gcode_file)
         else:
             self.log.info("Aborted")

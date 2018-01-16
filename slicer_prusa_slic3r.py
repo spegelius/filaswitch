@@ -59,7 +59,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         m = self.VERSION_RE.match(comment)
                         self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
                     except Exception as e:
-                        print(e)
+                        self.log.exception("Version parsing exception: %s" % e)
                 elif b"bed_shape =" in comment:
                     #; bed_shape = 0x0,145x0,145x148,0x148
                     values = comment.split(b' = ')[1].split(b",")

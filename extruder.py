@@ -44,6 +44,10 @@ class Extruder:
         """
         if change != 0 and abs(change) >= self.retract or change > 0:
             return None
+        if change > -0.05:
+            change = 0
+        if self.retract + change <= 0.05:
+            return None
         return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), comment
 
     def get_prime_gcode(self, change=0):
@@ -98,3 +102,5 @@ if __name__ == "__main__":
     print(test_e.get_retract_gcode(-0.1))
     print(test_e.get_retract_gcode(-0.5))
     print(test_e.get_retract_gcode(-1))
+    print(test_e.get_retract_gcode(-0.001))
+    print(test_e.get_retract_gcode(-0.995))
