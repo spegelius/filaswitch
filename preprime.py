@@ -67,7 +67,7 @@ class PrePrime:
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
-            yield "G4 P{}".format(pause).encode(), b" cooling period"
+            yield gcode.gen_pause(pause), b" cooling period"
 
         while True:
             try:

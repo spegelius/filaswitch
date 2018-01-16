@@ -237,6 +237,7 @@ class GCodeFile:
 
             while True:
                 try:
+                    # TODO: refactor this whole thing...
                     # when z height changes, check that tower height isn't too low versus layer
                     if layer.num != 1 and last_z < layer.z < self.last_switch_height:
 
@@ -246,7 +247,9 @@ class GCodeFile:
                             index += layer.insert_line(index, cmd, comment)
                         if added:
                             e_pos = -self.active_e.retract
-                            
+                        prime_needed = True
+                        prime_ok = False
+
                     last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
@@ -255,7 +258,9 @@ class GCodeFile:
                         for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e, z_hop):
                             index += layer.insert_line(index, cmd, comment)
                         e_pos = -self.active_e.retract
-                            
+                        prime_needed = True
+                        prime_ok = False
+
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
@@ -324,7 +329,7 @@ class GCodeFile:
                             # reset prime flag when printing starts after tower
                             prime_needed = False
                             if e_pos < 0:
-                                prime_change_len = -(e_pos + self.active_e.retract + 0.05)
+                                prime_change_len = -(e_pos + self.active_e.retract)
                                 index += layer.insert_line(index,
                                                            *self.active_e.get_prime_gcode(change=prime_change_len))
                                 e_pos = 0
