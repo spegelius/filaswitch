@@ -36,13 +36,15 @@ class Extruder:
             raise ValueError("Feed rate too high! Aborting")
         return move_length * rate
 
-    def get_retract_gcode(self, change=0):
+    def get_retract_gcode(self, change=0.0, comment=b" retract"):
         """
-        Get retraction g-code line
-        :param change: add this to the length
+        Get retraction g-code line. Optionally add negative change-length to reduce the retract
+        :param change: minus this of the length
         :return: retraction byte string
         """
-        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), b" retract"
+        if change != 0 and abs(change) >= self.retract or change > 0:
+            return None
+        return ("G1 E%.4f F%.1f" % (-(self.retract+change), self.retract_speed)).encode(), comment
 
     def get_prime_gcode(self, change=0):
         """
@@ -79,6 +81,8 @@ class Extruder:
 
 if __name__ == "__main__":
     test_e = Extruder(1)
+    test_e.retract = 1
+    test_e.retract_speed = 1500
     test_e.temperature_nr = 2
     test_e.temperature_setpoints[2] = 200
     test_e.temperature_setpoints[4] = 250
@@ -88,3 +92,9 @@ if __name__ == "__main__":
     print(test_e.get_temperature(4))
     print(test_e.get_temperature(5))
     print(test_e.get_temperature(6))
+
+    print(test_e.get_retract_gcode(1))
+    print(test_e.get_retract_gcode(0))
+    print(test_e.get_retract_gcode(-0.1))
+    print(test_e.get_retract_gcode(-0.5))
+    print(test_e.get_retract_gcode(-1))

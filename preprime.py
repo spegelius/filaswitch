@@ -33,6 +33,9 @@ class PrePrime:
         self.ystart = settings.get_hw_config_float_value("prerun.prime.ystart")
         self.warnings_shown = False
 
+        # index of the extruder that's primed last
+        self.last_extruder = None
+
     def get_prime_gcode(self, extruder):
         """
 
@@ -61,6 +64,11 @@ class PrePrime:
                     self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
         i = 0
+
+        pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
+        if pause:
+            yield "G4 P{}".format(pause).encode(), b" cooling period"
+
         while True:
             try:
                 rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long[{}].length".format(i))
@@ -151,7 +159,8 @@ class PrePrime:
             self.xstart = self.xstart + self.width + 1
             self.warnings_shown = True
 
-        # Reset extruder distance
+            self.last_extruder = extruder
+
         yield None, b"PRIME END"
 
 
