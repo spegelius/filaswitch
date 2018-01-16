@@ -192,3 +192,13 @@ class FirstLayer(Layer):
         if not self.outer_perimeter_speed:
             values = super().get_outer_perimeter_rates(search_comment=b"skirt")
         return values
+
+    def has_tool_changes(self):
+        """
+        Check if layer has tool changes
+        :return: true or false
+        """
+        for cmd, _ in self.lines[self.start_gcode_end:]:
+            if cmd and gcode.is_tool_change(cmd) is not None:
+                self.tool_change_count += 1
+        return self.tool_change_count
