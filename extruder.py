@@ -66,7 +66,7 @@ class Extruder:
         if prime <= 0:
             return
         elif prime > self.retract:
-            return
+            prime = self.retract
         elif prime <= self.minimum_extrusion:
             return None
         return gcode.gen_extruder_move(prime, self.retract_speed), comment
