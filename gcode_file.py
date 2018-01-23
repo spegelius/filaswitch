@@ -94,7 +94,7 @@ class GCodeFile:
 
         if self.tool_switch_heights:
             self.last_switch_height = max(self.tool_switch_heights.values())
-            
+
         if self.settings.get_hw_config_value("prerun.prime"):
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
             for cmd, comment in self.preprime.get_prime_lines():
@@ -328,7 +328,7 @@ class GCodeFile:
                                                             b' update position')
                             # reset prime flag when printing starts after tower
                             prime_needed = False
-                            if e_pos < 0:
+                            if e_pos < -self.active_e.minimum_extrusion:
                                 prime_change_len = -(e_pos + self.active_e.retract)
                                 index += layer.insert_line(index,
                                                            *self.active_e.get_prime_gcode(change=prime_change_len))

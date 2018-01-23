@@ -89,6 +89,8 @@ class SwitchTower:
         self.temperatures = {}
         self.warnings_shown = False
 
+        self.e_pos = 0
+
     def initialize_slots(self):
         """
         Initialize tower slot data
@@ -477,21 +479,16 @@ class SwitchTower:
                                        extruder,
                                        feed_rate=prime_feed_rate), b" prime trail"
 
-        #if self.settings.get_hw_config_float_value("prepurge.sweep.count") % 2 == 0.0:
-        #    print("kee")
-        #    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], 0.6, self.settings.travel_xy_speed), b" purge position"
-
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
         # no need to show the warnings again
         self.warnings_shown = True
 
-    def get_raft_lines(self, first_layer, extruder, retract):
+    def get_raft_lines(self, first_layer, extruder):
         """
         G-code lines for the raft
         :param first layer: first layer
         :param extruder: first extruder object
-        :param retract: to retract or not
         :return: list of cmd, comment tuples
         """
         yield None, b" TOWER RAFT START"
@@ -508,6 +505,11 @@ class SwitchTower:
         x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed), b" move z close"
+
+        prime = self._get_prime(extruder)
+        if prime:
+            yield prime
+
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
@@ -540,8 +542,9 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.S, self.raft_height, speed, extruder, feed_rate=feed_rate), b" raft3"
             yield gcode.gen_direction_move(self.E, 1, speed), b" raft4"
 
-        if retract:
-            yield extruder.get_retract_gcode()
+        yield extruder.get_retract_gcode()
+        self.e_pos = -extruder.retract
+
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
         yield gcode.gen_extruder_reset(), b" reset extruder position"
@@ -571,19 +574,33 @@ class SwitchTower:
             new_z_hop += extruder.z_hop
         return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
 
-    def _get_retraction(self, e_pos, extruder):
+    def _get_retraction(self, extruder):
         """
         Get g-code for retraction. Calculate needed retraction length from current e position
-        :param e_pos: extruder position
         :param extruder: extruder object
         :return: retraction g-code
         """
-        retraction = extruder.retract + e_pos
-        self.log.debug("Retraction to add: %s. E position: %s" %(retraction, e_pos))
-        if not utils.is_float_zero(retraction, 3) and retraction > 0:
-            if retraction > extruder.retract:
-                retraction = extruder.retract
-            return gcode.gen_extruder_move(-retraction, extruder.retract_speed), b" tower retract"
+        if not extruder.retract:
+            return
+
+        retraction = extruder.get_retract_gcode(self.e_pos, comment=b" tower retract")
+        if retraction:
+            self.e_pos = -extruder.retract
+            return retraction
+
+    def _get_prime(self, extruder):
+        """
+        Get g-code for prime. Calculate needed prime length from current e position
+        :param extruder: extruder object
+        :return: prime g-code
+        """
+        if not extruder.retract:
+            return
+
+        if self.e_pos < 0 and not utils.is_float_zero(self.e_pos, 3):
+            prime = extruder.retract + self.e_pos
+            self.e_pos = 0
+            return extruder.get_prime_gcode(change=prime, comment=b" tower prime")
 
     def _get_wall_position_gcode(self, layer, flipflop):
         """
@@ -645,12 +662,14 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
 
+        # TODO: move this to global state
+        self.e_pos = e_pos
+
         # add raft if not added
         if not self.raft_done:
-            for line in self.get_raft_lines(layer, old_e, False):
+            for line in self.get_raft_lines(layer, old_e):
                 yield line
             self.raft_done = True
-            e_pos = 0
 
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
@@ -663,7 +682,7 @@ class SwitchTower:
         min_speed, feed_rate = layer.get_outer_perimeter_rates()
 
         # handle retraction
-        retraction = self._get_retraction(e_pos, old_e)
+        retraction = self._get_retraction(old_e)
         if retraction:
             yield retraction
 
@@ -684,7 +703,10 @@ class SwitchTower:
         self.slots[self.slot]['last_z'] = tower_z
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
-        yield old_e.get_prime_gcode(change=-0.1)
+
+        prime = self._get_prime(old_e)
+        if prime:
+            yield prime
 
         new_temp = new_e.get_temperature(layer.num)
         old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer.num))
@@ -762,12 +784,14 @@ class SwitchTower:
         :return: list of cmd, comment tuples
         """
 
+        # TODO: move this to global state
+        self.e_pos = e_pos
+
         # add raft if not added
         if not self.raft_done:
-            for line in self.get_raft_lines(layer, extruder, False):
+            for line in self.get_raft_lines(layer, extruder):
                 yield line
             self.raft_done = True
-            e_pos = 0
 
         self.get_slot(layer)
 
@@ -782,7 +806,7 @@ class SwitchTower:
         min_speed, feed_rate = layer.get_outer_perimeter_rates()
 
         # handle retraction
-        retraction = self._get_retraction(e_pos, extruder)
+        retraction = self._get_retraction(extruder)
         if retraction:
             yield retraction
 
@@ -797,7 +821,10 @@ class SwitchTower:
         yield self._get_wall_position_gcode(layer, self.slots[self.slot]['flipflop_infill'])
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
-        yield extruder.get_prime_gcode()
+
+        prime = self._get_prime(extruder)
+        if prime:
+            yield prime
 
         # infill
         infill_x = self.wall_width/6
@@ -867,5 +894,8 @@ class SwitchTower:
 if __name__ == "__main__":
     from logger import Logger
     log = Logger(".")
-    st = SwitchTower(0, 1, log, PEEK)
+    settings = Settings()
+    print(settings.get_hw_config_names())
+    settings.hw_config = 'PTFE-PRO-12'
+    st = SwitchTower(log, settings, 3)
     print(st.generate_purge_speeds(600))

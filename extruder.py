@@ -20,6 +20,7 @@ class Extruder:
         self.filament_type = None
         self.temperature_nr = None
         self.temperature_setpoints = {}
+        self.minimum_extrusion = 0.01
 
     def get_feed_length(self, move_length, feed_rate=None):
         """
@@ -43,23 +44,32 @@ class Extruder:
         """
         Get retraction g-code line. Optionally add negative change-length to reduce the retract
         :param change: minus this of the length
+        :param: comment: gcode comment (default 'retract')
         :return: retraction byte string
         """
         if change != 0 and abs(change) >= self.retract or change > 0:
             return None
         if change > -0.05:
             change = 0
-        if self.retract + change <= 0.05:
+        if self.retract + change <= self.minimum_extrusion:
             return None
         return gcode.gen_extruder_move(-(self.retract+change), self.retract_speed), comment
 
-    def get_prime_gcode(self, change=0):
+    def get_prime_gcode(self, change=0.0, comment=b" prime"):
         """
         Get prime g-code line
         :param change: add this to the length
-        :return: prime byt string
+        :param: comment: gcode comment (default 'prime')
+        :return: prime byte string
         """
-        return gcode.gen_extruder_move(self.retract+change, self.retract_speed), b" prime"
+        prime = self.retract + change
+        if prime <= 0:
+            return
+        elif prime > self.retract:
+            return
+        elif prime <= self.minimum_extrusion:
+            return None
+        return gcode.gen_extruder_move(prime, self.retract_speed), comment
 
     def get_feed_rate(self, multiplier=None):
         """
@@ -100,6 +110,7 @@ if __name__ == "__main__":
     print(test_e.get_temperature(5))
     print(test_e.get_temperature(6))
 
+    print("RETRACT")
     print(test_e.get_retract_gcode(1))
     print(test_e.get_retract_gcode(0))
     print(test_e.get_retract_gcode(-0.1))
@@ -107,3 +118,12 @@ if __name__ == "__main__":
     print(test_e.get_retract_gcode(-1))
     print(test_e.get_retract_gcode(-0.001))
     print(test_e.get_retract_gcode(-0.995))
+
+    print("PRIME")
+    print(test_e.get_prime_gcode(1))
+    print(test_e.get_prime_gcode(0))
+    print(test_e.get_prime_gcode(-0.1))
+    print(test_e.get_prime_gcode(-0.5))
+    print(test_e.get_prime_gcode(-1))
+    print(test_e.get_prime_gcode(-0.001))
+    print(test_e.get_prime_gcode(-0.995))
