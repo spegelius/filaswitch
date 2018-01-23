@@ -41,6 +41,24 @@ class PrusaSlic3rCodeFile(GCodeFile):
             self.log.info("No tool changes detected, skipping tool change g-code additions")
         return self.save_new_file()
 
+    def open_file(self, gcode_file):
+        super().open_file(gcode_file)
+        prev_comment = None
+        index = 0
+        while True:
+            try:
+                cmd, comment = self.layers[0].lines[index]
+                if cmd and gcode.is_tool_change(cmd) is not None:
+                    # fix Prusa slicer first tool change with comment
+                    if prev_comment and prev_comment.strip() == b"TOOL CHANGE":
+                        continue
+                    self.layers[0].insert_line(index, None, b"TOOL CHANGE")
+                    index += 1
+                prev_comment = comment
+                index += 1
+            except IndexError:
+                break
+
     def parse_header(self):
         """
          Parse Prusa Slic3r header and stuff for print settings
@@ -219,16 +237,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
         """ Slic3r specific settings """
 
         super().parse_print_settings()
-        for cmd, comment, line_index in self.layers[0].read_lines():
-            # find first tool change and remove it if it's T0. No need to
-            # do tool change as e already have T0 active
-            if line_index > self.layers[0].start_gcode_end and cmd and gcode.is_tool_change(cmd) is not None:
-                if gcode.last_match == 0:
-                    self.layers[0].delete_line(line_index)
-                else:
-                    # fix Prusa slicer first tool change with comment
-                    self.layers[0].insert_line(line_index, None, b"TOOL CHANGE")
-                break
 
     def parse_layers(self, lines):
         """
