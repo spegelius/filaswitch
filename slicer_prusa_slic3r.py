@@ -381,8 +381,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
         Parses perimeter print speed and feed rate for each layer
         :return: none
         """
-        last_speed = None
-        last_feed_rate = None
+
+        # use static values for all layers
         for layer in self.layers:
             layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
             layer.outer_perimeter_feedrate = 0.05

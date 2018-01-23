@@ -429,29 +429,36 @@ class Simplify3dGCodeFile(GCodeFile):
         Parses perimeter print sped and feed rate for each layer
         :return: none
         """
-        last_speed = None
-        last_feed_rate = None
-        for layer in self.layers:
-            speed, rate = layer.get_outer_perimeter_rates()
-            if speed and rate:
-                last_speed = speed
-                last_feed_rate = rate
-            else:
-                layer.outer_perimeter_speed = last_speed
-                layer.outer_perimeter_feedrate = last_feed_rate
 
-        # second pass, check that every layer has a speed and feed rate
+        # use constant speed, too fancy to adjust all the time
+        # use static values for all layers
         for layer in self.layers:
-            if not layer.outer_perimeter_speed:
-                if isinstance(layer, FirstLayer):
-                    layer.outer_perimeter_speed = self.settings.first_layer_speed
-                    layer.outer_perimeter_feedrate = last_feed_rate
-                else:
-                    layer.outer_perimeter_speed = last_speed
-                    layer.outer_perimeter_feedrate = last_feed_rate
-            else:
-                last_speed = layer.outer_perimeter_speed
-                last_feed_rate = layer.outer_perimeter_feedrate
+            layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
+            layer.outer_perimeter_feedrate = 0.05
+
+        # last_speed = None
+        # last_feed_rate = None
+        # for layer in self.layers:
+        #     speed, rate = layer.get_outer_perimeter_rates()
+        #     if speed and rate:
+        #         last_speed = speed
+        #         last_feed_rate = rate
+        #     else:
+        #         layer.outer_perimeter_speed = last_speed
+        #         layer.outer_perimeter_feedrate = last_feed_rate
+        #
+        # # second pass, check that every layer has a speed and feed rate
+        # for layer in self.layers:
+        #     if not layer.outer_perimeter_speed:
+        #         if isinstance(layer, FirstLayer):
+        #             layer.outer_perimeter_speed = self.settings.first_layer_speed
+        #             layer.outer_perimeter_feedrate = last_feed_rate
+        #         else:
+        #             layer.outer_perimeter_speed = last_speed
+        #             layer.outer_perimeter_feedrate = last_feed_rate
+        #     else:
+        #         last_speed = layer.outer_perimeter_speed
+        #         last_feed_rate = layer.outer_perimeter_feedrate
 
 
 if __name__ == "__main__":
