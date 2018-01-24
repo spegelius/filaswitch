@@ -406,6 +406,6 @@
     <supportUnderspeed>0.8</supportUnderspeed>
     <rapidXYspeed>6000</rapidXYspeed>
     <rapidZspeed>720</rapidZspeed>
-    <postProcessing>{REPLACE &quot;; outer perimeter\n&quot; &quot;; outer perimeter\nM204 S600\n&quot;},{REPLACE &quot;; inner perimeter\n&quot; &quot;; inner perimeter\nM204 S1000\n&quot;},{REPLACE &quot;; solid layer\n&quot; &quot;; solid layer\nM204 S1000\n&quot;},{REPLACE &quot;; infill\n&quot; &quot;; infill\nM204 S2000\n&quot;},{REPLACE &quot;; TOOL CHANGE\nT5\n&quot;; &quot;; T5 removed\n&quot;},/home/paul/filaswitch/filaswitch.py [output_filepath] PRUSAMMU</postProcessing>
+    <postProcessing>{REPLACE &quot;; outer perimeter\n&quot; &quot;; outer perimeter\nM204 S600\n&quot;},{REPLACE &quot;; inner perimeter\n&quot; &quot;; inner perimeter\nM204 S1000\n&quot;},{REPLACE &quot;; solid layer\n&quot; &quot;; solid layer\nM204 S1000\n&quot;},{REPLACE &quot;; infill\n&quot; &quot;; infill\nM204 S2000\n&quot;},{REPLACE &quot;; TOOL CHANGE\nT5\n&quot;; &quot;; T5 removed\n&quot;},/your/pathto/filaswitch/filaswitch.py [output_filepath] PRUSAMMU</postProcessing>
   </autoConfigureQuality>
 </profile>
