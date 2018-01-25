@@ -180,6 +180,10 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     # ; perimeter_speed = 40
                     self.settings.default_speed = float(comment.split(b' = ')[1]) * 60
 
+                elif b" external_perimeter_speed =" in comment:
+                    # ; external_perimeter_speed = 30
+                    self.settings.outer_perimeter_speed = float(comment.split(b' = ')[1]) * 60
+
                 elif b" z_offset =" in comment:
                     # ; z_offset = 0
                     self.settings.z_offset = float(comment.split(b' = ')[1])
@@ -225,7 +229,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
         else:
             self.log.info("Slic3r version %d.%d.%d" % self.version)
 
-        self.settings.outer_perimeter_speed = self.settings.default_speed
         self.settings.first_layer_speed = (self.settings.first_layer_speed/100) * self.settings.outer_perimeter_speed
 
         for t in self.extruders:
