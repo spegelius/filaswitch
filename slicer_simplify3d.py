@@ -281,6 +281,8 @@ class Simplify3dGCodeFile(GCodeFile):
 
         # last layer
         self.layers.append(current_layer)
+        if len(self.layers) <= 1:
+            raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
 
     def check_layer_change(self, line, current_layer):
         """
