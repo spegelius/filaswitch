@@ -347,13 +347,14 @@ class SwitchTower:
         :param min_speed: minimum speed for last lines
         :return: list of print speeds
         """
+        max_speed = 3600
         speed = min_speed
         min_speed_lines = 2
         purge_speeds = []
         for i in range(self.settings.purge_lines):
             if i >= min_speed_lines:
-                speed = self.settings.default_speed
-            purge_speeds.insert(0, speed)
+                speed = max_speed
+            purge_speeds.append(speed)
         return purge_speeds
 
     def get_pre_switch_gcode(self, extruder, new_temp, tool):
@@ -616,24 +617,26 @@ class SwitchTower:
         #print(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
-    def _get_wall_gcode(self, flipflop, extruder, wall_speed, feed_rate):
+    def _get_wall_gcode(self, flipflop, extruder, feed_rate, last_speed):
         """
         Return g-code for printing the purge tower walls
         :param flipflop: flip or flop
         :param extruder: extruder object
+        :param last_speed: speed for the last line
         :return: list of g-code lines
         """
         last_y = self.wall_height - 0.3
+        wall_speed = self.settings.default_speed
         if flipflop:
             yield gcode.gen_direction_move(self.E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
             yield gcode.gen_direction_move(self.N, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
             yield gcode.gen_direction_move(self.W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.S, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
+            yield gcode.gen_direction_move(self.S, last_y, last_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
         else:
             yield gcode.gen_direction_move(self.W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
             yield gcode.gen_direction_move(self.S, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
             yield gcode.gen_direction_move(self.E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.N, last_y, wall_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
+            yield gcode.gen_direction_move(self.N, last_y, last_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
 
     def get_slot(self, layer):
         """
@@ -753,7 +756,8 @@ class SwitchTower:
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # wall gcode
-        for line in self._get_wall_gcode(self.slots[self.slot]['vertical_dir'] == self.S, new_e, min_speed, feed_rate):
+        for line in self._get_wall_gcode(self.slots[self.slot]['vertical_dir'] == self.S, new_e,
+                                         feed_rate, self.settings.outer_perimeter_speed):
             yield line
 
         yield new_e.get_retract_gcode()
@@ -832,14 +836,11 @@ class SwitchTower:
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
 
         # wall gcode
-        for line in self._get_wall_gcode(self.slots[self.slot]['flipflop_infill'], extruder, 2400, feed_rate):
+        for line in self._get_wall_gcode(self.slots[self.slot]['flipflop_infill'], extruder,
+                                         feed_rate, self.settings.default_speed):
             yield line
 
         flip = self.slots[self.slot]['flipflop_infill']
-
-        step = (2400-min_speed)/4
-        speeds = [2400 - i * step for i in range(4)]
-        speeds.extend([min_speed, min_speed])
 
         if flip:
             horizontal_dir = self.E
@@ -849,15 +850,21 @@ class SwitchTower:
 
         direction = infill_angle
 
-        round = len(speeds)
-        for speed in speeds:
+        rounds = 6
+        round = rounds
+        for _ in range(rounds):
             round -= 1
             if flip:
                 direction = horizontal_dir + infill_angle
             else:
                 direction = horizontal_dir + 360-infill_angle
-            yield gcode.gen_direction_move(direction, infill_path_length, speed, extruder, feed_rate=feed_rate,
-                                           last_line=round == 0), b" infill"
+            if round == 0:
+                yield gcode.gen_direction_move(direction, infill_path_length, self.settings.outer_perimeter_speed,
+                                               extruder, feed_rate=feed_rate, last_line=True), b" infill"
+            else:
+                yield gcode.gen_direction_move(direction, infill_path_length, self.settings.default_speed, extruder,
+                                               feed_rate=feed_rate, last_line=False), b" infill"
+
             flip = not flip
 
         yield extruder.get_retract_gcode()
