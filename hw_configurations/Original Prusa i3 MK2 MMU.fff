@@ -1,5 +1,5 @@
 <?xml version="1.0"?>
-<profile name="Original Prusa i3 MK2 MMU" version="2018-01-11 15:14:10" app="S3D-Software 4.0.1">
+<profile name="Original Prusa i3 MK2 MMU" version="2018-01-25 06:52:10" app="S3D-Software 4.0.0">
   <baseProfile>Default</baseProfile>
   <printMaterial>PLA</printMaterial>
   <printQuality>Normal 0.2</printQuality>
@@ -242,7 +242,7 @@
   <exportFileFormat>gcode</exportFileFormat>
   <celebration>0</celebration>
   <celebrationSong>Star Wars</celebrationSong>
-  <postProcessing>{REPLACE &quot;; outer perimeter\n&quot; &quot;; outer perimeter\nM204 S600\n&quot;},{REPLACE &quot;; inner perimeter\n&quot; &quot;; inner perimeter\nM204 S1000\n&quot;},{REPLACE &quot;; solid layer\n&quot; &quot;; solid layer\nM204 S1000\n&quot;},{REPLACE &quot;; infill\n&quot; &quot;; infill\nM204 S2000\n&quot;},{REPLACE &quot;; TOOL CHANGE\nT5\n&quot;; &quot;; T5 removed\n&quot;},/home/paul/filaswitch/filaswitch.py [output_filepath] PRUSAMMU</postProcessing>
+  <postProcessing>{REPLACE &quot;; outer perimeter\n&quot; &quot;; outer perimeter\nM204 S600\n&quot;},{REPLACE &quot;; inner perimeter\n&quot; &quot;; inner perimeter\nM204 S1000\n&quot;},{REPLACE &quot;; solid layer\n&quot; &quot;; solid layer\nM204 S1000\n&quot;},{REPLACE &quot;; infill\n&quot; &quot;; infill\nM204 S2000\n&quot;},{REPLACE &quot;; TOOL CHANGE\nT5\n&quot;; &quot;; T5 removed\n&quot;},/your/pathto/filaswitch/filaswitch.py [output_filepath] PRUSAMMU</postProcessing>
   <defaultSpeed>3600</defaultSpeed>
   <outlineUnderspeed>0.6</outlineUnderspeed>
   <solidInfillUnderspeed>0.6</solidInfillUnderspeed>
@@ -275,9 +275,9 @@
   <onlyWipeOutlines>0</onlyWipeOutlines>
   <avoidCrossingOutline>0</avoidCrossingOutline>
   <maxMovementDetourFactor>3</maxMovementDetourFactor>
-  <toolChangeRetractionDistance>12</toolChangeRetractionDistance>
-  <toolChangeExtraRestartDistance>-0.5</toolChangeExtraRestartDistance>
-  <toolChangeRetractionSpeed>600</toolChangeRetractionSpeed>
+  <toolChangeRetractionDistance>4.2</toolChangeRetractionDistance>
+  <toolChangeExtraRestartDistance>0</toolChangeExtraRestartDistance>
+  <toolChangeRetractionSpeed>3000</toolChangeRetractionSpeed>
   <externalThinWallType>0</externalThinWallType>
   <internalThinWallType>2</internalThinWallType>
   <thinWallAllowedOverlapPercentage>20</thinWallAllowedOverlapPercentage>
