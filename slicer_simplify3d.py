@@ -86,14 +86,19 @@ class Simplify3dGCodeFile(GCodeFile):
         # go through the temperature names and try to assign them to extruders
         temp_setpoint_index = 0
         for i in range(len(self.temperature_names)):
+            t = self.temperature_numbers[i]
             if self.temperature_heated_bed[i] == 0:
-                t = self.temperature_numbers[i]
                 ext = self.extruders[t]
                 ext.temperature_nr = t
-                for j in range(self.temperature_setpoints[i]):
+            else:
+                ext = None
+
+            # need to parse all setpoints to keep proper indexing even with bed
+            for j in range(self.temperature_setpoints[i]):
+                if ext:
                     layer_nr = self.temperature_setpoint_layers[temp_setpoint_index]
                     ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
-                    temp_setpoint_index += 1
+                temp_setpoint_index += 1
 
         # find proper setpoint temp
         last_setpoints = None
@@ -116,6 +121,10 @@ class Simplify3dGCodeFile(GCodeFile):
             # temp nr. Use tool number if not defined
             if self.extruders[e].temperature_nr is None:
                 self.extruders[e].temperature_nr = self.extruders[e].tool
+
+        # debug
+        # for e in self.extruders:
+        #    print(self.extruders[e].temperature_nr, self.extruders[e].temperature_setpoints)
 
         if warning:
             self.log.info("Not all extruders have valid temperature definitions, using previous extruder values. Please check profile temperature settings")
