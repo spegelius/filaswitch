@@ -2,30 +2,46 @@
 
 filaswitch
 ==============================
-Filament switch post processor for Simplify 3D (3.1.1 and 4.0.0) and Prusa Slic3r (1.36.2 and 1.37.1).
+Filament switch post-processor for Simplify 3D (3.1.1, 4.0.x) and Prusa Slic3r (1.36.2,1.37.1,1.38.6).
 
-Currently supports and tested with Prometheus System.
+This tool's main function is to add support for multi-color printing with single nozzle-multiple extruder systems with slicer software that don't support such systems. The main functionality is similar to Prusa MMU Slic3r's purge sequence.
+Main target currently is Simplify3D, which has support for multiple extruders, but doesn't have support for required advanced purge tower functionality.
+
+Currently supports and tested with Prometheus System and Prusa MK2 MMU (Prusa support thanks to https://github.com/paukstelis).
+
 Main features:
-- adds material switch purge tower g-code to Simplify3D and Prusa Slic3r dual-extruder prints (Prometheus System supported)
+- adds material switch purge tower g-code to Simplify3D and Prusa Slic3r multi-extruder prints
+- configurable purge amount (pre-extruder support coming)
 - fixes S3D ver 3.1.1 bug with 'Perform retraction during wipe movement'
+- configurable purge sequences. HW configurations stored in files, free for user to add and edit
+
+Filaswitch detects tool changes from sliced files and adds it's own purge tower, with required additional g-code used to make the filament change jam-free. In this case this means:
+- before changing tool, filament is 'rammed' out of the nozzle fast. This prepares the filament head for retraction
+- first retract happens right after ramming and is short enough to leave the tip opf the filament in the hot ends cold zone
+- after first retract, there's a pause to let the filament cool down somewhat
+- after pause, long retract pulls the filament out of the hot end and beyond the filament splitter part, to allow inserting new filament
+- optionally the long retract can have hot end cooling moves and filament moving back and fort inside the tube, for smoothing the tip
+
+After old filament is retracted fully, new filament is fed. To clear the color of old filament, some amount of purgin is needed and filaswitch does this by printing the purge material to the tower. 
 
 Perform retraction during wipe movement-bug (S3D 3.1.1):
 - filaswitch detects if this feature is enabled in S3D profile and applies the fix automatically.
-- also one doesn't need to have Prometheus System to apply this fix. Simply omit the dual-extrusion S3D configuration and filaswitch will skip 
+- one doesn't need to have Prometheus System to apply this fix. Simply omit the dual-extrusion S3D configuration and filaswitch will skip 
  dual-extrusion g-code addition
 
 Disclaimer: i'm not responsible if anything bad happens due to use of this script.
 
-If this software has been helpful to you, buy me a coffee/beer :)
+If this software has been helpful to you, buy me a coffee/beer/filament :)
+
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://paypal.me/spegelius)
 
 Prerequisites
 -------------
-* Python 3.5 to run this script.
+* Python 3.5/3.6 to run this script.
     * In Windows, make sure python is added to %PATH%
-    * In Linux, python3.5 should be available (Ubuntu). You do need package 'python3-tk', so use apt-get to install it
-* Simplify3D 3.1.1 or 4.0.0 (older versions not tested) or Prusa Slic3r
-* 3D Printer with 2 extruders - one nozzle setup (Prometheus system)
+    * In Linux, python should be available (Ubuntu). You do need package 'python3-tk', so use apt-get to install it
+* Simplify3D 3.1.1 or 4.0.0/4.0.1 (older versions not tested) or Prusa Slic3r
+* 3D Printer with 2 or more extruders - one nozzle setup (Prometheus system or Prusa MMU)
 * Printer profile in S3D/Slic3r configured for dual extrusion
 
 ##Use case1:
