@@ -72,12 +72,11 @@ class GCodeFile:
 
         is_tool_change = False
         for cmd, comment, index in self.layers[0].read_lines():
-
             if comment and comment.strip() == b"START SCRIPT END":
                 self.layers[0].start_gcode_end = index
                 self.pr_index = index
                 break
-        
+
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
                 if comment and comment.strip() == b"TOOL CHANGE":
@@ -105,7 +104,21 @@ class GCodeFile:
         else:
             self.log.warning("No pre-prime run")
             self.active_e = self.extruders[0]
-            
+
+        # find first tool change and remove it if it's before any print moves. No need to
+        # do tool change here
+        for cmd, comment, index in self.layers[0].read_lines():
+            if not cmd or index <= self.layers[0].start_gcode_end:
+                continue
+            if gcode.is_tool_change(cmd) is not None:
+                if self.settings.get_hw_config_value("prerun.prime") == "True" or gcode.last_match == 0:
+                    self.log.debug("Remove first tool change: {}".format(gcode.last_match))
+                    self.layers[0].delete_line(index)
+                break
+            elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                # if print move before tool change, bail out. Tool change cannot be removed
+                break
+
     def open_file(self, gcode_file):
         """ Read given g-code file into list """
         self.gcode_file = gcode_file
