@@ -57,12 +57,13 @@ Print multi-color/material model with multi-extruder printers and Simplify3D/Pru
 
 ### 1. Simplify3D configuration for Prometheus dual-extrusion
 
+#### 1.1. Use example profile
 filaswitch comes with some default Simplify3D profiles (located in Simplify3D_profiles), which can be used as a base for
 creating your own printer profiles. New printer profile additions welcome.
 
 These example profiles probably won't match your printer configurations so some experience with setting up a printer in Simplify3D is recommended.
 
-#### 1.1. Manual profile setup
+#### 1.2. Manual profile setup
 
 To create a new printer profile from scratch, use 'Configuration Assistant' in Help-menu and select 'Other'. This will create a properly
 initialized multi-extruder profile. Don't use existing single-extruder profile. Reason for this is that Simplify3D stores
@@ -79,10 +80,10 @@ Add new process and finish all the settings that are specific to your printer.
 
 Following are filaswitch specific settings that are needed for filaswitch to work.
 
-##### 1.1.1. Advanced settings
-###### 1.1.1.1. G-code-tab
+##### 1.2.1. Advanced settings
+###### 1.2.1.1. G-code-tab
 * select 'Relative extrusion distances' (IMPORTANT)
-###### 1.1.1.2. Scripts-tab 
+###### 1.2.1.2. Scripts-tab 
 * Add following G-Code lines to Simplify3D scripts
 * **Starting Script**: Enclose your starting script with:
 > `; START SCRIPT START`
@@ -98,19 +99,19 @@ Following are filaswitch specific settings that are needed for filaswitch to wor
 
 * (optional) to run the post-processing automatically, add this to the 'Additional terminal commands'-box:
 * Linux:
-    * /path/to/filaswitch.py [output_filepath] YOUR-HW-CONFIG
+    * /path/to/filaswitch.sh [output_filepath] YOUR-HW-CONFIG
 * Windows:
     * c:\path\to\filaswitch.bat [output_filepath] YOUR-HW-CONFIG
 * replace YOUR-HW-CONFIG with your hw-config. HW config list can be seen by opening the filaswitch GUI   
     
-###### 1.1.1.3. Cooling-tab and Speeds-tab
+###### 1.2.1.3. Cooling-tab and Speeds-tab
 * depending of your material and cooling needs it might be a good idea to lower the minimum layer time before increasing
 cooling and slowing down. Filaswitch does add some extra time when printing the tower so the need for extra cooling decreases.
 
-###### 1.1.1.4. Advanced-tab
+###### 1.2.1.4. Advanced-tab
 * Set Tool Change Retraction distance to your normal retraction distance
     * also check retraction speed to match the normal retraction speed
-#### 1.2. Slicing
+#### 1.3. Slicing
 Instructions for setting up prints TBD.
 
 ### 2. Slic3r configuration for Prometheus dual-extrusion
@@ -148,7 +149,7 @@ Following shows how to configure the printer settings for filaswitch use
 * in Slic3r, terminal commands are tied to print settings. Open the settings-tab 
 * add following line to 'Output options' - 'Post-processing scripts':
 * Linux:
-    * /path/to/filaswitch.py YOUR-HW-CONFIG
+    * /path/to/filaswitch.sh YOUR-HW-CONFIG
 * Windows:
     * c:\path\to\filaswitch.bat YOUR-HW-CONFIG
 * replace YOUR-HW-CONFIG with your hw-config. HW config list can be seen by opening the filaswitch GUI
@@ -164,16 +165,36 @@ First slice your dual-color model in Simplify3D/Prusa Sic3r. Instructions for se
 Save g-code to disk.
 
 #### 3.1. Post processing (GUI):
-* Open the GUI, in Windows use filaswitch.bat, in Linux use shell (python3 filaswitch.py)
+* Open the GUI, in Windows use filaswitch.bat, in Linux use shell ./filaswitch.sh
 * Select your HW configuration from the drop-down list
 * Click the 'Browse...'to select the g-code file
 * Check info screen for information
 
 ####3.2. Post processing (cli):
-* python3 filaswitch.py /path/to/yourgcodefile.gcode (Linux) PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
-* python filaswitch.py \path\to\yourgcodefile.gcode PEEK-PRO-12|PTFE-PRO-12|PTFE-EV6
+* Linux:
+    * ./filaswitch.sh /path/to/yourgcodefile.gcode YOUR-HW-CONFIG
+* Windows 
+    * filaswitch.bat \path\to\yourgcodefile.gcode YOUR-HW-CONFIG
+* replace YOUR-HW-CONFIG with your hw-config. HW config list can be seen by opening the filaswitch GUI
 
 Result is a new file, with _fs.gcode ending. You're ready to print :).
+
+## 4. Adding new hw-configuration
+Hw configurations are list of parameters that define how the filament switch sequence is executed. Various purge and
+retract lengths and peeds can be altered and even disabled by commenting lines out. Some values are required and 
+filaswitch will fail to process if something mandatory is missing.
+
+To add new hw config, go to hw_configurations directory and make a copy of one of the existing files. The name of the
+file will be the name of the configuration as seen in the filaswitch GUI dro-down menu. Now alter the values as you see
+fit for your hardware.
+
+What configuration to copy? Well that's hard to say as your hardware might something that isn't previously supported. If
+you have a variation of Prometheus System, all Prometheus config variants should be a good starting point. But to
+properly configure the filament switch sequence, you'll need to understand your hardware anyways, so the starting point
+shouldn't matter that much. 
+
+If you want your new shiny profile to be added to main filaswitch repo, fork the repo, make a commit to your repo and
+create a pull request. I'll be happy to include new configurations for other people to use.
 
 ##Use case2:
 Only fix S3D 3.1.1 bug with Retract during wipe (does someone still use 3.1.1?)
@@ -181,4 +202,4 @@ Only fix S3D 3.1.1 bug with Retract during wipe (does someone still use 3.1.1?)
 First slice your model in Simplify3D, no need to change any settings.
 Save g-code to disk.
 
-Usage as in section 3.2.
+Usage as in section 3.
