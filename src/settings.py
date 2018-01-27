@@ -152,7 +152,8 @@ class Settings:
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))
-        hw_dir = os.path.join(_dir, "hw_configurations")
+        root_dir = os.path.realpath(os.path.join(_dir, ".."))
+        hw_dir = os.path.join(root_dir, "hw_configurations")
         for f in os.listdir(hw_dir):
             path = os.path.join(hw_dir, f)
             if f.endswith(".hwcfg"):

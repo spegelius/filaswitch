@@ -30,8 +30,9 @@ from settings import Settings, LINE_COUNT_DEFAULT
 import utils
 
 prog_dir = os.path.dirname(os.path.realpath(__file__))
+root_dir = os.path.realpath(os.path.join(prog_dir, ".."))
 
-status_file = os.path.join(prog_dir, '.status')
+status_file = os.path.join(root_dir, '.status')
 status = utils.load_status(status_file)
 
 # TODO: merge status to settings
@@ -227,7 +228,7 @@ class GUI:
 
     def __init__(self):
 
-        self.log = Logger(prog_dir)
+        self.log = Logger(os.path.join(root_dir, "logs"))
 
         self.last_hwconfig = status.get("last_hwconfig")
         self.last_position = status.get("last_position")
@@ -288,7 +289,7 @@ def main():
         settings.purge_lines = args.lines
         settings.tower_position = args.position
 
-        log = Logger(prog_dir, gui=False, debug=args.debug)
+        log = Logger(os.path.join(root_dir, "logs"), gui=False, debug=args.debug)
         print_type = detect_file_type(args.file, log)
         pf = print_type(log, settings)
         result_file = pf.process(args.file)
