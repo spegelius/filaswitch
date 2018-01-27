@@ -177,6 +177,13 @@ Save g-code to disk.
     * filaswitch.bat \path\to\yourgcodefile.gcode YOUR-HW-CONFIG
 * replace YOUR-HW-CONFIG with your hw-config. HW config list can be seen by opening the filaswitch GUI
 
+####3.3. Printing
+At the end of the post-processing, filaswitch will print info about what extruder needs to be loaded or if all extruders
+need to be unloaded. Basically if the HW configuration you used has prerun prime enabled, all extruders need to be unloaded.
+If prerun prime is disabled, filaswitch expects T0 to be loaded (this might change in the future). What is prerun prime?
+Prerun prime is a pre-print sequence which loads and unloads each extruder used in the current print to make sure they
+are primed for the print. The last prime is not unloaded as print is going to start with it.
+ 
 Result is a new file, with _fs.gcode ending. You're ready to print :).
 
 ## 4. Adding new hw-configuration
