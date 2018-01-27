@@ -388,8 +388,6 @@ class SwitchTower:
             yield gcode.gen_direction_move(vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
-        self.slots[self.slot]['horizontal_dir'] = horizontal_dir
-        
         if new_temp:
             yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
 
@@ -421,7 +419,7 @@ class SwitchTower:
                     self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
                 
-        #Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py 
+        # Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py
         i = 0
         while True:
             try:
@@ -434,6 +432,8 @@ class SwitchTower:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning("No cooling steps. That's OK.")
                 break
+
+        self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
     def get_post_switch_gcode(self, extruder, new_temp):
         # should we move head while feeding?
@@ -455,7 +455,9 @@ class SwitchTower:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning("No prime move steps. That's OK.")
                     break
-        else:            
+
+            self.slots[self.slot]['horizontal_dir'] = horizontal_dir
+        else:
             while True:
                 try:
                     feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
