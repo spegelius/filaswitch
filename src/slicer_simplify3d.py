@@ -57,6 +57,7 @@ class Simplify3dGCodeFile(GCodeFile):
             self.add_tool_change_gcode()
         else:
             self.log.info("No tool changes detected, skipping tool change g-code additions")
+        self.print_summary()
         return self.save_new_file()
 
     def get_extruders(self):
@@ -292,6 +293,26 @@ class Simplify3dGCodeFile(GCodeFile):
         self.layers.append(current_layer)
         if len(self.layers) <= 1:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
+
+    def parse_print_settings(self):
+        """
+        Slic3r specific settings
+        :return:
+        """
+        super().parse_print_settings()
+
+        if self.settings.get_hw_config_value("prerun.prime") == "True":
+            return
+        for cmd, comment, line_index in self.layers[0].read_lines():
+            # find first tool change and remove it if it's T0. No need to
+            # do tool change as e already have T0 active
+            if not cmd:
+                continue
+            if line_index > self.layers[0].start_gcode_end and gcode.is_tool_change(cmd) is not None:
+                if gcode.last_match == 0:
+                    self.log.debug("Remove first T0")
+                    self.layers[0].delete_line(line_index)
+                break
 
     def check_layer_change(self, line, current_layer):
         """

@@ -96,6 +96,7 @@ class GCodeFile:
             self.last_switch_height = max(self.tool_switch_heights.values())
 
         if self.settings.get_hw_config_value("prerun.prime") == "True":
+            self.log.debug("Preprime enabled")
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
             for cmd, comment in self.preprime.get_prime_lines():
                 self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
@@ -407,3 +408,14 @@ class GCodeFile:
     def process(self, gcode_file):
         """ Runs processing """
         raise NotImplemented
+
+    def print_summary(self):
+        """
+        Print summary info about the print
+        :return:
+        """
+        self.log.info("Gcode succesfully processed.")
+        if self.settings.get_hw_config_value("prerun.prime") == "True":
+            self.log.info("Before print: make sure all extruders are UNLOADED")
+        else:
+            self.log.info("Before print: make sure T0 has filament LOADED")

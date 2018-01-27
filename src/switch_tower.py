@@ -431,6 +431,8 @@ class SwitchTower:
             except TypeError:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning("No cooling steps. That's OK.")
+                else:
+                    self.log.debug("Cooling movements enabled")
                 break
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
@@ -443,6 +445,7 @@ class SwitchTower:
         i = 0
 
         if feedtrail == "True":
+            self.log.debug("Feedtrail enabled")
             horizontal_dir = self.slots[self.slot]['horizontal_dir']
             while True:
                 try:
@@ -633,7 +636,7 @@ class SwitchTower:
             y_offset = -0.5 + y_pos
 
         x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, x_offset, y_offset)
-        self.log.debug(self.start_pos_x, self.start_pos_y, x, y)
+        #self.log.debug(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
     def _get_wall_gcode(self, extruder, feed_rate, last_speed, x_direction, y_direction):
