@@ -441,7 +441,8 @@ class SwitchTower:
         # feed new filament
         values = []
         i = 0
-        if feedtrail:
+
+        if feedtrail == "True":
             horizontal_dir = self.slots[self.slot]['horizontal_dir']
             while True:
                 try:
@@ -611,40 +612,52 @@ class SwitchTower:
             self.e_pos = 0
             return extruder.get_prime_gcode(change=prime, comment=b" tower prime")
 
-    def _get_wall_position_gcode(self, flipflop):
+    def _get_wall_position_gcode(self, x_direction, y_direction):
         """
         Retun g-code line for positioning head for wall print
-        :param flipflop: flip or flop
+        :param x_direction: current x direction
+        :param y_direction: current y direction
         :return: g-code line
         """
         y_pos = (self.wall_height + 0.4) * self.slot
-        if not flipflop:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, self.wall_width - 1.2, self.wall_height - 0.5 + y_pos)
+        if x_direction == self.E:
+            x_offset = -1.2
         else:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -1.2, -0.5 + y_pos)
-        #print(self.start_pos_x, self.start_pos_y, x, y)
+            x_offset = self.wall_width - 1.2
+
+        if y_direction == self.N:
+            y_offset = self.wall_height - 0.5 + y_pos
+        else:
+            y_offset = -0.5 + y_pos
+
+        x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, x_offset, y_offset)
+        self.log.debug(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
-    def _get_wall_gcode(self, flipflop, extruder, feed_rate, last_speed):
+    def _get_wall_gcode(self, extruder, feed_rate, last_speed, x_direction, y_direction):
         """
         Return g-code for printing the purge tower walls
         :param flipflop: flip or flop
         :param extruder: extruder object
         :param last_speed: speed for the last line
+        :param x_direction: current x direction
+        :param y_direction: current y direction
         :return: list of g-code lines
         """
         last_y = self.wall_height - 0.3
         wall_speed = self.settings.default_speed
-        if flipflop:
-            yield gcode.gen_direction_move(self.E, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.N, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.W, self.wall_width, last_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.S, last_y, last_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
-        else:
-            yield gcode.gen_direction_move(self.W, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.S, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.E, self.wall_width, last_speed, extruder, feed_rate=feed_rate), b" wall"
-            yield gcode.gen_direction_move(self.N, last_y, last_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
+
+        x_dir = x_direction
+        y_dir = gcode.opposite_dir(y_direction)
+
+        yield gcode.gen_direction_move(x_dir, self.wall_width, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+        yield gcode.gen_direction_move(y_dir, self.wall_height, wall_speed, extruder, feed_rate=feed_rate), b" wall"
+
+        x_dir = gcode.opposite_dir(x_dir)
+        y_dir = gcode.opposite_dir(y_dir)
+
+        yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, extruder, feed_rate=feed_rate), b" wall"
+        yield gcode.gen_direction_move(y_dir, last_y, last_speed, extruder, feed_rate=feed_rate, last_line=True), b" wall"
 
     def get_slot(self, layer):
         """
@@ -760,12 +773,14 @@ class SwitchTower:
 
         # move to purge zone wall start position
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
-        yield self._get_wall_position_gcode(self.slots[self.slot]['vertical_dir'] == self.S)
+        yield self._get_wall_position_gcode(self.slots[self.slot]['horizontal_dir'],
+                                            self.slots[self.slot]['vertical_dir'])
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # wall gcode
-        for line in self._get_wall_gcode(self.slots[self.slot]['vertical_dir'] == self.S, new_e,
-                                         feed_rate, self.settings.outer_perimeter_speed):
+        for line in self._get_wall_gcode(new_e, feed_rate, self.settings.outer_perimeter_speed,
+                                         self.slots[self.slot]['horizontal_dir'],
+                                         self.slots[self.slot]['vertical_dir']):
             yield line
 
         yield new_e.get_retract_gcode()
@@ -829,7 +844,23 @@ class SwitchTower:
         tower_z = 0.2 + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
 
-        yield self._get_wall_position_gcode(self.slots[self.slot]['flipflop_infill'])
+        # infill
+        infill_x = self.wall_width/6
+        infill_y = self.wall_height-0.3
+        infill_angle = math.degrees(math.atan(infill_y/infill_x))
+        infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
+
+        flip = self.slots[self.slot]['flipflop_infill']
+        if flip:
+            horizontal_dir = self.E
+            vertical_dir = self.S
+
+        else:
+            horizontal_dir = self.W
+            vertical_dir = self.N
+            infill_angle = -infill_angle
+
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
@@ -837,24 +868,10 @@ class SwitchTower:
         if prime:
             yield prime
 
-        # infill
-        infill_x = self.wall_width/6
-        infill_y = self.wall_height-0.3
-        infill_angle = math.degrees(math.atan(infill_y/infill_x))
-        infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
-
         # wall gcode
-        for line in self._get_wall_gcode(self.slots[self.slot]['flipflop_infill'], extruder,
-                                         feed_rate, self.settings.default_speed):
+        for line in self._get_wall_gcode(extruder, feed_rate, self.settings.default_speed,
+                                         horizontal_dir, vertical_dir):
             yield line
-
-        flip = self.slots[self.slot]['flipflop_infill']
-
-        if flip:
-            horizontal_dir = self.E
-        else:
-            horizontal_dir = self.W
-            infill_angle = -infill_angle
 
         direction = infill_angle
 

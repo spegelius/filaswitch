@@ -95,7 +95,7 @@ class GCodeFile:
         if self.tool_switch_heights:
             self.last_switch_height = max(self.tool_switch_heights.values())
 
-        if self.settings.get_hw_config_value("prerun.prime"):
+        if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
             for cmd, comment in self.preprime.get_prime_lines():
                 self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
