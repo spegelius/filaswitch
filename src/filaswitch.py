@@ -3,7 +3,7 @@
 """
 # filaswitch
 
-G-code post processor for adding proper purge tower for 2 extruder - one hotend setup.
+G-code post processor for adding proper purge tower for multi-extruder - one hotend setup.
 
 Disclaimer: i'm not responsible if anything, good or bad, happens due to use of this script.
 
@@ -38,7 +38,7 @@ status = utils.load_status(status_file)
 # TODO: merge status to settings
 settings = Settings()
 
-version = "0.15"
+version = "0.16.0"
 
 
 def detect_file_type(gcode_file, log):
