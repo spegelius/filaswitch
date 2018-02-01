@@ -447,6 +447,18 @@ class GCode:
         x, y = self._get_coordinates(new_angle, length)
         return start_x + x, start_y + y
 
+    def rotate(self, direction, rotation):
+        """
+        Calculate new rotated angle for give directory and rotation
+        :param direction: current direction
+        :param rotation: rotation angle
+        :return: roated direction
+        """
+        new_dir = direction + rotation
+        if new_dir >= 360:
+            return new_dir - 360
+        return new_dir
+
     def opposite_dir(self, direction):
         """
         Returns direction directly opposite to given direction
@@ -522,3 +534,12 @@ if __name__ == "__main__":
 
     print(obj.opposite_dir(E))
     print(obj.opposite_dir(W))
+    print(obj.opposite_dir(S))
+    print(obj.opposite_dir(N))
+
+    print(obj.opposite_dir(E+270))
+    print(obj.opposite_dir(W+270))
+    print(obj.opposite_dir(S+270))
+    print(obj.opposite_dir(N+270))
+
+    print(obj.rotate(W, 270))

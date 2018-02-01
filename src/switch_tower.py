@@ -117,14 +117,14 @@ class SwitchTower:
         :param direction: angle (counter clockwise from East)
         :return:
         """
-        self.E += direction
-        self.S += direction
-        self.W += direction
-        self.N += direction
-        self.NE += direction
-        self.NW += direction
-        self.SE += direction
-        self.SW += direction
+        self.E = gcode.rotate(self.E, direction)
+        self.S = gcode.rotate(self.S, direction)
+        self.W = gcode.rotate(self.W, direction)
+        self.N = gcode.rotate(self.N, direction)
+        self.NE = gcode.rotate(self.NE, direction)
+        self.NW = gcode.rotate(self.NW, direction)
+        self.SE = gcode.rotate(self.SE, direction)
+        self.SW = gcode.rotate(self.SW, direction)
 
     def _cartesian_position(self, x_max, x_min, y_max, y_min):
         """
