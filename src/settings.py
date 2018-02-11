@@ -13,6 +13,7 @@ class Settings:
         self._tower_position = None
         self._raft_multi = 100
 
+        # print settings
         self._default_speed = None
         self._travel_xy_speed = None
         self._travel_z_speed = None
@@ -26,6 +27,10 @@ class Settings:
         self._origin_offset_x = None
         self._origin_offset_y = None
         self._z_offset = 0
+        self._extrusion_width = None
+
+        # print settings
+        self._brim = 2
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -149,6 +154,25 @@ class Settings:
     @z_offset.setter
     def z_offset(self, value: float):
         self._z_offset = value
+
+    @property
+    def brim(self):
+        return self._brim
+
+    @brim.setter
+    def brim(self, value: int):
+        if value < 2:
+            self._brim = 2
+        else:
+            self._brim = value
+
+    @property
+    def extrusion_width(self):
+        return self._extrusion_width
+
+    @extrusion_width.setter
+    def extrusion_width(self, value: float):
+        self._extrusion_width = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))

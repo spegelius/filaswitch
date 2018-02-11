@@ -136,6 +136,10 @@ class Simplify3dGCodeFile(GCodeFile):
         :return: none
         """
 
+        skirt = False
+        brim = False
+        brim_lines = 0
+        extruder_widths = []
         for cmd, comment in self.layers[0].lines:
 
             if not comment:
@@ -158,6 +162,9 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"extruderDiameter" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_diameter.append(float(d))
+            elif b"extruderWidth" in comment:
+                for d in comment.split(b",")[1:]:
+                    extruder_widths.append(float(d))
             elif b"extrusionMultiplier" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_multiplier.append(float(d))
@@ -235,6 +242,13 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"temperatureHeatedBed" in comment:
                 for d in comment.split(b",")[1:]:
                     self.temperature_heated_bed.append(int(d))
+            elif b"useSkirt,1" in comment:
+                skirt = True
+            elif b"skirtOffset,0" in comment:
+                brim = True
+            elif b"skirtOutlines" in comment:
+                brim_lines = int(comment.split(b",")[-1])
+
             #elif b"toolChangeRetractionDistance" in comment:
             #    if comment.split(b",")[1] != b"0":
             #        self.log.warning("'toolChangeRetractionDistance' is set to 0. This might cause quality problems. Check 'Other'-tab in S3D.")
@@ -254,6 +268,11 @@ class Simplify3dGCodeFile(GCodeFile):
 
         self.settings.outer_perimeter_speed *= self.settings.default_speed
         self.settings.first_layer_speed *= self.settings.default_speed
+
+        self.settings.extrusion_width = sum(extruder_widths) / len(extruder_widths)
+
+        if skirt and brim:
+            self.settings.brim = brim_lines
 
     def parse_layers(self, lines):
         """

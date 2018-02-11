@@ -110,8 +110,10 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         self.extruders[tool].feed_rate_multiplier = float(d)
                         tool += 1
 
-                # elif b"external perimeters extrusion width" in comment:
-                #     self.external_perimeter_widths.append(float(comment.split(b"=")[1:].strip()))
+                elif b" external_perimeter_extrusion_width" in comment:
+                    # ; external_perimeter_extrusion_width = 0.45
+                    self.settings.extrusion_width = float(comment.split(b" = ")[1])
+
                 # elif b"perimeters extrusion width" in comment:
                 #     self.perimeter_widths.append(float(comment.split(b"=")[1:].strip()))
                 # elif b"infill extrusion width" in comment:
@@ -193,6 +195,16 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     # ; first_layer_speed = 70%
                     self.settings.first_layer_speed = float(comment.split(b' = ')[1].strip(b"%"))
 
+                elif b" nozzle_diameter = " in comment:
+                    # ; nozzle_diameter = 0.4,0.4,0.4,0.4
+                    values = comment.split(b' = ')[1]
+                    tool = 0
+                    for d in values.split(b","):
+                        if tool not in self.extruders:
+                            self.extruders[tool] = Extruder(tool)
+                        self.extruders[tool].nozzle = float(d)
+                        tool += 1
+
                 elif b" travel_speed =" in comment:
                     # ; travel_speed = 120
                     self.settings.travel_xy_speed = float(comment.split(b' = ')[1]) * 60
@@ -222,6 +234,10 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         self.extruders[tool].temperature_setpoints[2] = int(d)
                         tool += 1
 
+                elif b" brim_width =" in comment:
+                    # ; brim_width = 3
+                    self.settings.brim = int(comment.split(b" = ")[1])
+
         if self.layer_height != 0.2:
             raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
 
@@ -236,6 +252,9 @@ class PrusaSlic3rCodeFile(GCodeFile):
             self.extruders[t].z_offset = z_offset
 
         self.settings.travel_z_speed = self.settings.travel_xy_speed
+
+        # Slic3r brim is in mm, convert to lines
+        self.settings.brim = int(self.settings.brim / self.settings.extrusion_width)
 
     def parse_print_settings(self):
         """ Slic3r specific settings """
