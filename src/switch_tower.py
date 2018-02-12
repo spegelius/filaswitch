@@ -488,11 +488,12 @@ class SwitchTower:
         # no need to show the warnings again
         self.warnings_shown = True
 
-    def get_raft_lines(self, first_layer, extruder):
+    def get_brim_raft_lines(self, first_layer, extruder, raft=True):
         """
-        G-code lines for the raft
+        G-code lines for the brim and raft
         :param first layer: first layer
         :param extruder: first extruder object
+        :param raft: print raft or not
         :return: list of cmd, comment tuples
         """
         yield None, b" TOWER RAFT START"
@@ -540,19 +541,20 @@ class SwitchTower:
             yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
             width -= self.settings.extrusion_width
 
-        yield gcode.gen_direction_move(self.SE+30, 1, self.settings.travel_xy_speed), None
+        if raft:
+            yield gcode.gen_direction_move(self.SE+30, 1, self.settings.travel_xy_speed), None
 
-        feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
-        speed = self.settings.first_layer_speed
+            feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
+            speed = self.settings.first_layer_speed
 
-        raft_lines = int((self.raft_width - 2 * self.brim_width)/2)
-        raft_line_gap = (self.raft_width - 2 * self.brim_width)/raft_lines/2
+            raft_lines = int((self.raft_width - 2 * self.brim_width)/2)
+            raft_line_gap = (self.raft_width - 2 * self.brim_width)/raft_lines/2
 
-        for _ in range(raft_lines):
-            yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft1"
-            yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft2"
-            yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft3"
-            yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft4"
+            for _ in range(raft_lines):
+                yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft1"
+                yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft2"
+                yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft3"
+                yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft4"
 
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract
@@ -692,7 +694,7 @@ class SwitchTower:
 
         # add raft if not added
         if not self.raft_done:
-            for line in self.get_raft_lines(layer, old_e):
+            for line in self.get_brim_raft_lines(layer, old_e, raft=self.settings.force_raft):
                 yield line
             self.raft_done = True
 
@@ -817,9 +819,10 @@ class SwitchTower:
 
         # add raft if not added
         if not self.raft_done:
-            for line in self.get_raft_lines(layer, extruder):
+            for line in self.get_brim_raft_lines(layer, extruder, raft=True):
                 yield line
             self.raft_done = True
+            return
 
         self.get_slot(layer)
 

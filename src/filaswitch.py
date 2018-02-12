@@ -105,6 +105,7 @@ class TopFrame(Frame):
         status["last_hwconfig"] = self.hw_var.get()
         status["last_position"] = self.gui.adv_frame.position_var.get()
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
+        status["force_raft"] = "true" if self.gui.adv_frame.raft_force_var.get() else "false"
         status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
@@ -132,9 +133,9 @@ class TopFrame(Frame):
                 settings.hw_config = self.hw_var.get()
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
+                settings.force_raft = self.gui.adv_frame.raft_force_var.get()
                 settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
                 brim_val = self.gui.adv_frame.brim_size_var.get()
-                print(brim_val)
                 if brim_val == BRIM_AUTO:
                     settings.brim = BRIM_DEFAULT
                     settings.brim_auto = True
@@ -171,7 +172,8 @@ class AdvancedFrame(Frame):
 
         self.position_label = Label(self, text="Purge tower position").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.size_label = Label(self, text="Purge lines (default: 6)").grid(row=1, column=0, sticky=W, padx=5, pady=3)
-        self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.raft_force_label = Label(self, text="Force raft").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=3, column=0, sticky=W, padx=5, pady=3)
         self.brim_label = Label(self, text="Tower brim loops").grid(row=0, column=2, sticky=W, padx=5, pady=3)
 
         # position
@@ -210,7 +212,14 @@ class AdvancedFrame(Frame):
             self.raft_multi_var.set(100)
 
         self.raft_multi_box = OptionMenu(self, self.raft_multi_var, self.raft_multi_var.get(), *raft_multi_values)
-        self.raft_multi_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+        self.raft_multi_box.grid(row=3, column=1, sticky=W, padx=5, pady=3)
+
+        # raft force
+        self.raft_force_var = BooleanVar(self)
+        self.raft_force_var.set(self.gui.force_raft)
+
+        self.raft_force_box = Checkbutton(self, variable=self.raft_force_var)
+        self.raft_force_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
 
         # brim size
         self.brim_size_var = StringVar(self)
@@ -232,7 +241,7 @@ class BottomFrame(Frame):
     def __init__(self, master, gui):
         super().__init__(master)
         self.gui = gui
-        self.grid(row=6)
+        self.grid(row=7)
         self.line_count = 0
         self.create_widgets()
 
@@ -277,13 +286,14 @@ class GUI:
             self.brim_size = BRIM_SIZE[0]
 
         self.brim_auto = status.get("brim_auto") == "true"
+        self.force_raft = status.get("force_raft") == "true"
 
     def show_gui(self):
 
         self.top = Tk()
         self.top.title('FilaSwitch v%s' % version)
         # top.geometry('500x500')
-        self.top.rowconfigure(6, weight=1)
+        self.top.rowconfigure(7, weight=1)
         self.top.columnconfigure(5, weight=1)
 
         self.nb = Notebook(self.top)

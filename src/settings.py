@@ -44,6 +44,7 @@ class Settings:
         # print settings
         self._brim = BRIM_DEFAULT
         self._brim_auto = False
+        self._force_raft = False
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -194,6 +195,14 @@ class Settings:
     @extrusion_width.setter
     def extrusion_width(self, value: float):
         self._extrusion_width = value
+
+    @property
+    def force_raft(self):
+        return self._force_raft
+
+    @force_raft.setter
+    def force_raft(self, value: bool):
+        self._force_raft = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))
