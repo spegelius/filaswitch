@@ -22,10 +22,8 @@ from slicer_simplify3d import Simplify3dGCodeFile
 from slicer_prusa_slic3r import PrusaSlic3rCodeFile
 
 from logger import Logger
-from switch_tower import AUTO, LEFT, RIGHT, TOP, BOTTOM, TOWER_POSITIONS
-from switch_tower import LINES
 
-from settings import Settings, LINE_COUNT_DEFAULT
+from settings import Settings, LINE_COUNT_DEFAULT, AUTO, TOWER_POSITIONS, LINES, BRIM_SIZE, BRIM_DEFAULT, BRIM_AUTO
 
 import utils
 
@@ -108,6 +106,13 @@ class TopFrame(Frame):
         status["last_position"] = self.gui.adv_frame.position_var.get()
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
         status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
+        brim_var = self.gui.adv_frame.brim_size_var.get()
+        if brim_var == BRIM_AUTO:
+            status["brim_size"] = BRIM_DEFAULT
+            status["brim_auto"] = "true"
+        else:
+            status["brim_size"] = brim_var
+            status["brim_auto"] = "false"
 
     def quit(self):
         self.update_status()
@@ -128,6 +133,14 @@ class TopFrame(Frame):
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
                 settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
+                brim_val = self.gui.adv_frame.brim_size_var.get()
+                print(brim_val)
+                if brim_val == BRIM_AUTO:
+                    settings.brim = BRIM_DEFAULT
+                    settings.brim_auto = True
+                else:
+                    settings.brim = int(brim_val)
+                    settings.brim_auto = False
 
                 print_type = detect_file_type(gcode_file, self.log)
                 pf = print_type(self.log, settings)
@@ -159,6 +172,7 @@ class AdvancedFrame(Frame):
         self.position_label = Label(self, text="Purge tower position").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.size_label = Label(self, text="Purge lines (default: 6)").grid(row=1, column=0, sticky=W, padx=5, pady=3)
         self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.brim_label = Label(self, text="Tower brim loops").grid(row=0, column=2, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -174,9 +188,10 @@ class AdvancedFrame(Frame):
         # size
         self.lines_var = StringVar(self)
         if self.gui.last_line_count:
-            val = int(self.gui.last_line_count)
-            if val in LINES:
-                self.lines_var.set(val)
+            if self.gui.last_line_count in LINES:
+                self.lines_var.set(self.gui.last_line_count)
+            else:
+                self.lines_var.set(LINE_COUNT_DEFAULT)
         else:
             self.lines_var.set(LINE_COUNT_DEFAULT)
 
@@ -184,16 +199,32 @@ class AdvancedFrame(Frame):
         self.lines_box.grid(row=1, column=1, sticky=W, padx=5, pady=3)
 
         # raft extrusion multiplier
+        raft_multi_values = [80 + val * 5 for val in range(9)]
         self.raft_multi_var = StringVar(self)
         if self.gui.raft_multi:
-            val = int(self.gui.raft_multi)
-            self.raft_multi_var.set(val)
+            if self.gui.raft_multi in raft_multi_values:
+                self.raft_multi_var.set(self.gui.raft_multi)
+            else:
+                self.raft_multi_var.set(100)
         else:
             self.raft_multi_var.set(100)
 
-        raft_multi_values = [80 + val * 5 for val in range(9)]
         self.raft_multi_box = OptionMenu(self, self.raft_multi_var, self.raft_multi_var.get(), *raft_multi_values)
         self.raft_multi_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+
+        # brim size
+        self.brim_size_var = StringVar(self)
+        brim_opts = [BRIM_AUTO]
+        brim_opts.extend(BRIM_SIZE)
+        if self.gui.brim_auto:
+            self.brim_size_var.set(BRIM_AUTO)
+        elif self.gui.brim_size and self.gui.brim_size in BRIM_SIZE:
+            self.brim_size_var.set(self.gui.brim_size)
+        else:
+            self.brim_size_var.set(BRIM_AUTO)
+
+        self.brim_size_box = OptionMenu(self, self.brim_size_var, self.brim_size_var.get(), *brim_opts)
+        self.brim_size_box.grid(row=0, column=3, sticky=W, padx=5, pady=3)
 
 
 class BottomFrame(Frame):
@@ -232,8 +263,20 @@ class GUI:
 
         self.last_hwconfig = status.get("last_hwconfig")
         self.last_position = status.get("last_position")
-        self.last_line_count = status.get("last_line_count")
-        self.raft_multi = status.get("raft_multi")
+        try:
+            self.last_line_count = int(status.get("last_line_count"))
+        except (ValueError, TypeError):
+            self.last_line_count = LINE_COUNT_DEFAULT
+        try:
+            self.raft_multi = int(status.get("raft_multi"))
+        except (ValueError, TypeError):
+            self.raft_multi = 100
+        try:
+            self.brim_size = int(status.get("brim_size"))
+        except (ValueError, TypeError):
+            self.brim_size = BRIM_SIZE[0]
+
+        self.brim_auto = status.get("brim_auto") == "true"
 
     def show_gui(self):
 

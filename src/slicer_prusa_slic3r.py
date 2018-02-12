@@ -67,7 +67,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         """
 
         z_offset = 0
-
+        brim = -1
         for layer in self.layers:
             for cmd, comment in layer.lines:
                 if cmd:
@@ -236,7 +236,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b" brim_width =" in comment:
                     # ; brim_width = 3
-                    self.settings.brim = int(comment.split(b" = ")[1])
+                    brim = int(comment.split(b" = ")[1])
 
         if self.layer_height != 0.2:
             raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
@@ -253,8 +253,9 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
         self.settings.travel_z_speed = self.settings.travel_xy_speed
 
-        # Slic3r brim is in mm, convert to lines
-        self.settings.brim = int(self.settings.brim / self.settings.extrusion_width)
+        if self.settings.brim_auto and brim != -1:
+            # Slic3r brim is in mm, convert to lines
+            self.settings.brim = int(brim / self.settings.extrusion_width)
 
     def parse_print_settings(self):
         """ Slic3r specific settings """

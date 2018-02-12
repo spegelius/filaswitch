@@ -1,20 +1,11 @@
 import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
-from settings import Settings
+from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM
 
 import utils
 
 gcode = GCode()
-
-AUTO = "Automatic"
-LEFT = "Left"
-RIGHT = "Right"
-TOP = "Top"
-BOTTOM = "Bottom"
-TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
-
-LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 
 
 class SwitchTower:
@@ -59,9 +50,13 @@ class SwitchTower:
         self.wall_width = self.width + 1.4
         self.wall_height = self.height + 1.0
 
+        self.brim_width = self.settings.brim * self.settings.extrusion_width
+        print(self.settings.brim)
+
         self.raft_done = False
-        self.raft_width = self.width + 4.0
-        self.raft_height = self.wall_height * self.max_slots + 1.5
+        self.raft_width = self.width + 2 * self.brim_width - 1
+        print(self.raft_width)
+        self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
         self.raft_layer_height = 0.2
         self.angle = 0
 
@@ -72,11 +67,11 @@ class SwitchTower:
         self.raft_pos_y = None
 
         # offset from model
-        self.tower_offset = 5.0
+        self.tower_offset = self.brim_width + self.settings.extrusion_width + 1
 
         # total values in terms of space taken
         self.total_height = self.raft_height + self.tower_offset
-        self.total_width = self.raft_width + 3
+        self.total_width = self.raft_width
         self.extra_width = self.total_width - self.width
 
         # build volume mid points, populated in find tower-fuction
@@ -320,11 +315,6 @@ class SwitchTower:
         :param x_min: print objects x min
         :param y_max: print objects y max
         :param y_min: print objects y min
-        :param machine_type: printer type; 0 = cartesian, 1 = delta
-        :param stroke_x: bed width
-        :param stroke_y: bed height
-        :param origin_offset_x: origin x offset
-        :param origin_offset_y: origin y offset
         :return:
         """
 
@@ -342,7 +332,8 @@ class SwitchTower:
         self.log.info("Tower start coordinate: X%.3f, Y%.3f, position %s" %(self.start_pos_x, self.start_pos_y, position))
 
         # get raft position
-        x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -2, -1.2)
+        x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y,
+                                                -self.brim_width, -self.brim_width)
         self.raft_pos_x = x
         self.raft_pos_y = y
 
@@ -517,8 +508,7 @@ class SwitchTower:
         else:
             yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset + 5, self.settings.travel_z_speed), b" move z close"
 
-        x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y, -0.4, -0.4)
-        yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
+        yield gcode.gen_head_move(self.raft_pos_x, self.raft_pos_y, self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed), b" move z close"
 
         prime = self._get_prime(extruder)
@@ -530,32 +520,41 @@ class SwitchTower:
         feed_rate = extruder.get_feed_rate(multiplier=feed_multi)
 
         # box
-        width = self.raft_width + 0.8
-        height = self.raft_height + 0.8
+        width = self.raft_width
+        height = self.raft_height
         speed = self.settings.first_layer_speed
-        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        width -= 0.4
-        height -= 0.4
-        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        height -= 0.4
-        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        width -= 0.4
-        height -= 0.4
-        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
-        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
 
-        yield gcode.gen_direction_move(self.SE, 0.6, self.settings.travel_xy_speed), None
+        # first round
+        yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        height -= self.settings.extrusion_width
+        yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+        width -= self.settings.extrusion_width
+
+        for bl in range(self.settings.brim - 1):
+            yield gcode.gen_direction_move(self.E, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+            width -= self.settings.extrusion_width
+            height -= self.settings.extrusion_width
+            yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+            yield gcode.gen_direction_move(self.W, width, speed, extruder, feed_rate=feed_rate), b" raft wall"
+            height -= self.settings.extrusion_width
+            yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft wall"
+            width -= self.settings.extrusion_width
+
+        yield gcode.gen_direction_move(self.SE+30, 1, self.settings.travel_xy_speed), None
 
         feed_rate = extruder.get_feed_rate(multiplier=1.3 * feed_multi)
         speed = self.settings.first_layer_speed
-        for _ in range(int(self.raft_width/2)):
-            yield gcode.gen_direction_move(self.N, self.raft_height, speed, extruder, feed_rate=feed_rate), b" raft1"
-            yield gcode.gen_direction_move(self.E, 1, speed), b" raft2"
-            yield gcode.gen_direction_move(self.S, self.raft_height, speed, extruder, feed_rate=feed_rate), b" raft3"
-            yield gcode.gen_direction_move(self.E, 1, speed), b" raft4"
+
+        raft_lines = int((self.raft_width - 2 * self.brim_width)/2)
+        raft_line_gap = (self.raft_width - 2 * self.brim_width)/raft_lines/2
+
+        for _ in range(raft_lines):
+            yield gcode.gen_direction_move(self.N, height, speed, extruder, feed_rate=feed_rate), b" raft1"
+            yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft2"
+            yield gcode.gen_direction_move(self.S, height, speed, extruder, feed_rate=feed_rate), b" raft3"
+            yield gcode.gen_direction_move(self.E, raft_line_gap, speed), b" raft4"
 
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract

@@ -271,7 +271,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
         self.settings.extrusion_width = sum(extruder_widths) / len(extruder_widths)
 
-        if skirt and brim:
+        if self.settings.brim_auto and skirt and brim:
             self.settings.brim = brim_lines
 
     def parse_layers(self, lines):

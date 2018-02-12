@@ -2,8 +2,20 @@
 import os
 import utils
 
+AUTO = "Automatic"
+LEFT = "Left"
+RIGHT = "Right"
+TOP = "Top"
+BOTTOM = "Bottom"
+TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
+
+LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
 LINE_COUNT_DEFAULT = 6
 
+# -1 is Auto
+BRIM_SIZE = [2, 3, 4, 5, 6, 7, 8, 9, 10]
+BRIM_DEFAULT = 3
+BRIM_AUTO = "Auto"
 
 class Settings:
 
@@ -30,7 +42,8 @@ class Settings:
         self._extrusion_width = None
 
         # print settings
-        self._brim = 2
+        self._brim = BRIM_DEFAULT
+        self._brim_auto = False
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -161,10 +174,18 @@ class Settings:
 
     @brim.setter
     def brim(self, value: int):
-        if value < 2:
-            self._brim = 2
+        if value not in BRIM_SIZE:
+            self._brim = BRIM_DEFAULT
         else:
             self._brim = value
+
+    @property
+    def brim_auto(self):
+        return self._brim_auto
+
+    @brim_auto.setter
+    def brim_auto(self, value: bool):
+        self._brim_auto = value
 
     @property
     def extrusion_width(self):
