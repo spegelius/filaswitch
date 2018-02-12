@@ -51,11 +51,9 @@ class SwitchTower:
         self.wall_height = self.height + 1.0
 
         self.brim_width = self.settings.brim * self.settings.extrusion_width
-        print(self.settings.brim)
 
         self.raft_done = False
         self.raft_width = self.width + 2 * self.brim_width - 1
-        print(self.raft_width)
         self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
         self.raft_layer_height = 0.2
         self.angle = 0
