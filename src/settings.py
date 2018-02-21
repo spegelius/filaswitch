@@ -176,7 +176,10 @@ class Settings:
     @brim.setter
     def brim(self, value: int):
         if value not in BRIM_SIZE:
-            self._brim = BRIM_DEFAULT
+            if value > max(BRIM_SIZE):
+                self._brim = max(BRIM_SIZE)
+            elif value < min(BRIM_SIZE):
+                self._brim = min(BRIM_SIZE)
         else:
             self._brim = value
 
