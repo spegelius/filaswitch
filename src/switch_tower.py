@@ -354,13 +354,12 @@ class SwitchTower:
             purge_speeds.append(speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, new_temp, tool):
+    def get_pre_switch_gcode(self, extruder, new_temp, temp_nr):
         """
         Generates pre tool switch g-code
         :param extruder: active extruder
-        :param flip: flip
         :param new_temp: new temperature value
-        :param tool:
+        :param temp_nr: tool temperature controller nr (id)
         :return:
         """
         feed_rate = self.settings.get_hw_config_float_value("prepurge.sweep.extrusion.length") / self.width
@@ -378,7 +377,10 @@ class SwitchTower:
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
         if new_temp:
-            yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
+            if self.settings.get_hw_config_bool_value("tool.temperature.use_id"):
+                yield (gcode.gen_temperature_nowait_tool(new_temp, temp_nr), b" change nozzle temp")
+            else:
+                yield (gcode.gen_temperature_nowait(new_temp), b" change nozzle temp")
 
         i = 0
         while True:
@@ -468,7 +470,10 @@ class SwitchTower:
                 for feed_len, feed_speed in values:
                     yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
                 # stop 5mm before feed end to wait proper temp
-                yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
+                if self.settings.get_hw_config_bool_value("tool.temperature.use_id"):
+                    yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
+                else:
+                    yield (gcode.gen_temperature_wait(new_temp), b" change nozzle temp, wait")
                 yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
             else:
                 for feed_len, feed_speed in values:

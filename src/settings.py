@@ -249,3 +249,11 @@ class Settings:
     def get_hw_config_int_value(self, key):
         val = self.get_hw_config_value(key)
         return int(val)
+
+    def get_hw_config_bool_value(self, key):
+        val = self.get_hw_config_value(key)
+        try:
+            return val.lower() == "true"
+        except:
+            pass
+        return False

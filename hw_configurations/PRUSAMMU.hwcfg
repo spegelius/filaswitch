@@ -2,6 +2,10 @@
 
 ## Hint: [0] means array of values ([0], [1], [2]...)
 
+## Temperature handling
+## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
+tool.temperature.use_id:  False
+
 ## Prepurge means the fast purge movements that purge old material
 ## before tool change
 ## length = length of one sweep
