@@ -256,3 +256,11 @@ class Settings:
             return int(val)
         except ValueError:
             raise ValueError("Cannot parse int value for key '{}'".format(key))
+
+    def get_hw_config_bool_value(self, key):
+        val = self.get_hw_config_value(key)
+        try:
+            return val.lower() == "true"
+        except:
+            pass
+        return False
