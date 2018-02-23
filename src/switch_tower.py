@@ -731,6 +731,10 @@ class SwitchTower:
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
+        # turn linear advance off, if set
+        if self.settings.linear_advance != 0:
+            yield gcode.gen_lin_advance(0), b" turn off linear advance"
+
         prime = self._get_prime(old_e)
         if prime:
             yield prime
@@ -761,6 +765,9 @@ class SwitchTower:
         purge_length = self.purge_line_length
 
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
+
+        if self.settings.linear_advance != 0:
+            yield gcode.gen_lin_advance(self.settings.linear_advance), b" turn on linear advance"
 
         first_line = True
         for speed in self.generate_purge_speeds(min_speed):

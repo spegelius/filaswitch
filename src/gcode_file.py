@@ -80,14 +80,23 @@ class GCodeFile:
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
                 if comment and comment.strip() == b"TOOL CHANGE":
+                    first_layer = isinstance(layer, FirstLayer)
+                    if first_layer and index < layer.start_gcode_end:
+                        continue
                     is_tool_change = True
-                elif cmd and is_tool_change and gcode.is_tool_change(cmd) is not None:
-                    # add unique tools to list
-                    if gcode.last_match not in self.tools:
-                        self.tools.append(gcode.last_match)
-                    self.tool_switch_heights[gcode.last_match] = layer.z
+
+                elif cmd:
+                    if is_tool_change and gcode.is_tool_change(cmd) is not None:
+                        # add unique tools to list
+                        if gcode.last_match not in self.tools:
+                            self.tools.append(gcode.last_match)
+                        self.tool_switch_heights[gcode.last_match] = layer.z
+                    elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
+                        self.settings.linear_advance = gcode.last_match
                     is_tool_change = False
-    
+                else:
+                    is_tool_change = False
+
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 

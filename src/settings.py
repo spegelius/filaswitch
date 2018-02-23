@@ -40,6 +40,7 @@ class Settings:
         self._origin_offset_y = None
         self._z_offset = 0
         self._extrusion_width = None
+        self._linear_advance = 0
 
         # print settings
         self._brim = BRIM_DEFAULT
@@ -206,6 +207,14 @@ class Settings:
     @force_raft.setter
     def force_raft(self, value: bool):
         self._force_raft = value
+
+    @property
+    def linear_advance(self):
+        return self._linear_advance
+
+    @linear_advance.setter
+    def linear_advance(self, value: int):
+        self._linear_advance = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))
