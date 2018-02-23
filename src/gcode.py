@@ -31,6 +31,7 @@ class GCode:
     TEMP_NOWAIT_TOOL_RE = re.compile(b"M104\s+S(\d+)\s+T(\d)$")
     TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
+    LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
 
     def __init__(self):
         self.last_match = None
@@ -224,6 +225,26 @@ class GCode:
         if m:
             self.last_match = int(m.groups()[0]), int(m.groups()[1])
         return self.last_match
+
+    def is_lin_advance(self, line):
+        """
+        Match given line against linear advance regex
+        :param line: g-code line
+        :return: K value or none
+        """
+        self.last_match = None
+        m = self.LIN_ADVANCE_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0])
+        return self.last_match
+
+    def gen_lin_advance(self, k_val: int):
+        """
+        Generate linear advance K-value set gcode
+        :param k_val: K value
+        :return:
+        """
+        return ("M900 K%d" % k_val).encode()
 
     def gen_head_move(self, x, y, speed):
         """
