@@ -335,12 +335,14 @@ def main():
                             default=LINE_COUNT_DEFAULT)
         parser.add_argument("--position", help="Purge tower position. Default Auto. Auto will try to find a position with enough free space for the tower",
                             choices=TOWER_POSITIONS, default=AUTO)
+        parser.add_argument("--force_raft", help="Set to True to force a tower raft", type=bool, default=False)
         args = parser.parse_args()
 
 
         settings.hw_config = args.hw_config
         settings.purge_lines = args.lines
         settings.tower_position = args.position
+        settings.force_raft = args.force_raft
 
         log = Logger(os.path.join(root_dir, "logs"), gui=False, debug=args.debug)
         print_type = detect_file_type(args.file, log)

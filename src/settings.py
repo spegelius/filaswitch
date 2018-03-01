@@ -45,7 +45,7 @@ class Settings:
         # print settings
         self._brim = BRIM_DEFAULT
         self._brim_auto = False
-        self._force_raft = False
+        self._force_raft = None
 
         self.hw_configurations = {}
         self.read_hw_configs()
