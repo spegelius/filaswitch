@@ -565,8 +565,9 @@ class SwitchTower:
         yield None, b" TOWER RAFT END"
 
         # update slot z values
-        for i in range(self.max_slots):
-            self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
+        if raft:
+            for i in range(self.max_slots):
+                self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
 
     def _get_z_hop(self, layer, extruder):
         """
