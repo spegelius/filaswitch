@@ -70,6 +70,7 @@ class GCodeFile:
     def parse_print_settings(self):
         """ Parse print settings """
 
+        # find start script end
         is_tool_change = False
         for cmd, comment, index in self.layers[0].read_lines():
             if comment and comment.strip() == b"START SCRIPT END":
@@ -79,6 +80,7 @@ class GCodeFile:
 
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
+                # find valid tool changes
                 if comment and comment.strip() == b"TOOL CHANGE":
                     first_layer = isinstance(layer, FirstLayer)
                     if first_layer and index < layer.start_gcode_end:
@@ -86,6 +88,7 @@ class GCodeFile:
                     is_tool_change = True
 
                 elif cmd:
+                    # find linear advance commands
                     if is_tool_change and gcode.is_tool_change(cmd) is not None:
                         # add unique tools to list
                         if gcode.last_match not in self.tools:
@@ -103,6 +106,7 @@ class GCodeFile:
         if self.tool_switch_heights:
             self.last_switch_height = max(self.tool_switch_heights.values())
 
+        # prerun prime handling
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
@@ -127,6 +131,15 @@ class GCodeFile:
             elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                 # if print move before tool change, bail out. Tool change cannot be removed
                 break
+
+        # update extruder coasting value
+        try:
+            coasting = self.settings.get_hw_config_float_value("post.tower.coast")
+            if coasting:
+                for e in self.extruders:
+                    self.extruders[e].coasting += coasting
+        except TypeError:
+            pass
 
     def open_file(self, gcode_file):
         """ Read given g-code file into list """

@@ -61,3 +61,6 @@ feed.trail: False
 
 prime.trail.extrusion.length: 5
 prime.trail.speed: 900
+
+## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
+post.tower.coast: 0.2

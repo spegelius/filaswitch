@@ -244,8 +244,14 @@ class Settings:
 
     def get_hw_config_float_value(self, key):
         val = self.get_hw_config_value(key)
-        return float(val)
+        try:
+            return float(val)
+        except ValueError:
+            raise ValueError("Cannot parse float value for key '{}'".format(key))
 
     def get_hw_config_int_value(self, key):
         val = self.get_hw_config_value(key)
-        return int(val)
+        try:
+            return int(val)
+        except ValueError:
+            raise ValueError("Cannot parse int value for key '{}'".format(key))
