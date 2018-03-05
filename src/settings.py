@@ -9,7 +9,7 @@ TOP = "Top"
 BOTTOM = "Bottom"
 TOWER_POSITIONS = [AUTO, LEFT, RIGHT, TOP, BOTTOM]
 
-LINES = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15]
+LINES = [l for l in range(26)]
 LINE_COUNT_DEFAULT = 6
 
 # -1 is Auto
