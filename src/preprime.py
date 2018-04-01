@@ -40,15 +40,15 @@ class PrePrime:
         """
 
         """
-        feed_rate = self.settings.get_hw_config_float_value("prerun.prime.extrusion.length") / self.width
+        e_length = self.settings.get_hw_config_float_value("prerun.prime.extrusion.length")
 
         sweep_speed = self.settings.get_hw_config_float_value("prerun.prime.speed")
         sweep_gap = self.settings.get_hw_config_float_value("prerun.prime.gap")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         for _ in range(self.settings.get_hw_config_int_value("prerun.prime.purge.count")):
-            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, extruder, feed_rate=feed_rate), b" purge trail"
-            yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed), b" Y shift"
+            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, 0.2, extruder=extruder, e_length=e_length), b" purge trail"
+            yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed, 0.2), b" Y shift"
             self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
 
     def get_retract_gcode(self, extruder):

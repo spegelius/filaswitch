@@ -404,14 +404,17 @@ class GCode:
         y = sine * length
         return x, y
 
-    def gen_direction_move(self, direction, length, speed, extruder=None, feed_rate=None, e_length=None, last_line=False):
+    def gen_direction_move(self, direction, length, speed, layer_h,
+                           extruder=None, feed_multi=1.0, e_length=None, last_line=False):
         """
         Generate g-code for head move to given direction. Relative distances
         :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
         :param length: move length
         :param speed: move speed
+        :param layer_h: layer_height
         :param extruder: extruder object or None
-        :param feed_rate: feed rate override
+        :param feed_multi: feed rate multiplier
+        :param e_length: extrusion length override
         :param last_line: last line before move. Used only with extrusion moves
         :return:
         """
@@ -419,7 +422,7 @@ class GCode:
             _length = abs(length) - extruder.coasting
             x, y = self._get_coordinates(direction, _length)
             c_x, c_y = self._get_coordinates(direction, extruder.coasting)
-            e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
+            e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
             yield self.gen_extrusion_speed_move(x, y, speed, e_length)
             yield self.gen_head_move(c_x, c_y, speed)
         else:
@@ -429,7 +432,7 @@ class GCode:
                 yield self.gen_head_move(x, y, speed)
             else:
                 if not e_length:
-                    e_length = extruder.get_feed_length(_length, feed_rate=feed_rate)
+                    e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
                 yield self.gen_extrusion_speed_move(x, y, speed, e_length)
 
     def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
@@ -452,13 +455,13 @@ class GCode:
 
         length = math.sqrt(offset_x ** 2 + offset_y ** 2)
 
-        if offset_x < 0 and offset_y >= 0:
+        if offset_x < 0 <= offset_y:
             angle = math.atan(abs(offset_x) / abs(offset_y))
             new_angle = math.degrees(angle) + direction + 90
         elif offset_x < 0 and offset_y < 0:
             angle = math.atan(abs(offset_y) / abs(offset_x))
             new_angle = math.degrees(angle) + direction + 180
-        elif offset_x >= 0 and offset_y < 0:
+        elif offset_x >= 0 > offset_y:
             angle = math.atan(abs(offset_x) / abs(offset_y))
             new_angle = math.degrees(angle) + direction + 270
         else:

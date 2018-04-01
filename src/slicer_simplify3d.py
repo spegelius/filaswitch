@@ -262,9 +262,6 @@ class Simplify3dGCodeFile(GCodeFile):
         else:
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
 
-        if self.layer_height != 0.2:
-            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other layer height at the moment")
-
         self.settings.outer_perimeter_speed *= self.settings.default_speed
         self.settings.first_layer_speed *= self.settings.default_speed
 

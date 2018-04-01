@@ -1,3 +1,4 @@
+import math
 import os
 
 
@@ -69,6 +70,19 @@ def is_float_zero(value: float, accuracy: int):
     elif -limit < value < 0:
         return True
     return False
+
+
+def extrusion_feed_rate(extrusion_w, layer_h, filament_d):
+    """
+    Calculate extrusion feed rate
+    :param: extrusion_w: extrusion width
+    :param: layer_h: layer height
+    :param: filament_d: filament diameter
+    :return:
+    """
+    f_vol = math.pi*(filament_d/2)*(filament_d/2)
+    e_vol = layer_h * extrusion_w
+    return e_vol/f_vol
 
 
 if __name__ == "__main__":

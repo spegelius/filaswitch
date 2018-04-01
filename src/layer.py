@@ -20,7 +20,7 @@ class Layer:
 
         self.line_index = 0
         self.outer_perimeter_speed = None
-        self.outer_perimeter_feedrate = None
+        self.outer_perimeter_feedrate = None  # deprecated
 
         self.tool_change_count = 0
         self.action = ACT_PASS
@@ -175,7 +175,7 @@ class Layer:
                 self.outer_perimeter_speed = sum(speeds)/len(speeds)
                 self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
 
-        return self.outer_perimeter_speed, self.outer_perimeter_feedrate
+        return self.outer_perimeter_speed
 
     def __str__(self):
         return str(self.num)

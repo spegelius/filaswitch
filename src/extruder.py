@@ -1,8 +1,12 @@
+import utils
+
 from gcode import GCode
 
 gcode = GCode()
 
+
 class Extruder:
+
     def __init__(self, tool, name=None):
         self.tool = tool
         self.name = name
@@ -11,33 +15,30 @@ class Extruder:
         self.retract_speed = 0.0
         self.z_hop = 0.0
         self.z_offset = 0.0
-        self.feed_rate = 0.04 # TODO: need autodetection?
         self.feed_rate_max = 0.2 # don't go over this
-        self.feed_rate_multiplier = 1
+        self.feed_rate_multiplier = 1 # slicer default feed multi
         self.current_z = None
         self.coasting = 0.0
         self.wipe = 0.0
         self.filament_type = None
+        self.filament_d = 1.75
         self.temperature_nr = None
         self.temperature_setpoints = {}
         self.minimum_extrusion = 0.01
 
-    def get_feed_length(self, move_length, feed_rate=None):
+    def get_feed_length(self, move_length, layer_height, feed_multi=1.0):
         """
         Returns the lenght of filament to extrude for given move.
-            Values in mm.
+        Values in mm.
         :param move_length: x/y movement length
-        :param feed_rate: optional feed rate value
+        :param layer_height: layer height
+        :param feed_multi: optional feed rate multiplier
         :return: extrusion feed length
         """
-        if not feed_rate:
-            rate = self.feed_rate
-        else:
-            rate = feed_rate
-
-        rate *= self.feed_rate_multiplier
+        rate = utils.extrusion_feed_rate(self.nozzle, layer_height, self.filament_d)
+        rate *= self.feed_rate_multiplier * feed_multi
         if rate > self.feed_rate_max:
-            raise ValueError("Feed rate too high! Aborting")
+            raise ValueError("Feed rate too high ({}, layer h {})! Aborting.".format(rate, layer_height))
         return move_length * rate
 
     def get_retract_gcode(self, change=0.0, comment=b" retract"):
@@ -71,15 +72,17 @@ class Extruder:
             return None
         return gcode.gen_extruder_move(prime, self.retract_speed), comment
 
-    def get_feed_rate(self, multiplier=None):
+    def get_feed_rate(self, layer_height, multiplier=None):
         """
         Return extruder feed rate
+        :param layer_height: layer height
         :param multiplier: optional multiplier
         :return: feed rate
         """
+        rate = utils.extrusion_feed_rate(self.nozzle, layer_height, self.filament_d)
         if not multiplier:
-            return self.feed_rate * self.feed_rate_multiplier
-        return self.feed_rate * self.feed_rate_multiplier * multiplier
+            return rate * self.feed_rate_multiplier
+        return rate * self.feed_rate_multiplier * multiplier
 
     def get_temperature(self, layer_nr):
         """
