@@ -49,6 +49,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.parse_header()
         self.get_extruders()
         self.parse_print_settings()
+        self.fix_layer_ordering()
         self.filter_layers()
         self.fix_retract_during_wipe()
         self.parse_perimeter_rates()
@@ -80,8 +81,6 @@ class Simplify3dGCodeFile(GCodeFile):
             if self.extruder_use_wipe[i]:
                 ext.wipe = self.extruder_wipe[i]
             ext.feed_rate_multiplier = self.extruder_multiplier[i]
-
-
             self.extruders[t] = ext
 
         # go through the temperature names and try to assign them to extruders
@@ -289,15 +288,15 @@ class Simplify3dGCodeFile(GCodeFile):
                 ret = self.check_layer_change(comment, None)
                 if ret:
                     if current_layer.num == 1 and ret[0] == 1:
-                        current_layer.z = ret[1]
-                        current_layer.height = ret[1]
+                        current_layer.z = round(ret[1], 3)
+                        current_layer.height = round(ret[1], 3)
                     else:
                         if prev_layer:
                             prev_z = prev_layer.z
                         else:
                             prev_z = 0
 
-                        height = current_layer.z - prev_z
+                        height = round((current_layer.z - prev_z), 3)
                         if height:
                             prev_height = height
                         else:
@@ -305,13 +304,16 @@ class Simplify3dGCodeFile(GCodeFile):
 
                         self.layers.append(current_layer)
                         prev_layer = current_layer
-                        current_layer = Layer(ret[0], ret[1], height)
+                        current_layer = Layer(round(ret[0], 3), round(ret[1], 3), height)
             current_layer.add_line(cmd, comment)
 
         # last layer
         self.layers.append(current_layer)
         if len(self.layers) <= 1:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
+        # debug
+        #for l in self.layers:
+        #    print(l.height == self.layer_height)
 
     def parse_print_settings(self):
         """
@@ -462,9 +464,58 @@ class Simplify3dGCodeFile(GCodeFile):
                     # tool change, set active extruder
                     extruder = self.extruders[gcode.last_match]
 
+    def fix_layer_ordering(self):
+        """
+        S3D ver 4.0.1 has a bug that prints dc layers in wrong order. This functions tries to fix the layer ordering.
+        :return:
+        """
+
+        if self.version == (4,0,1):
+            # fix multicolor layer fuckups
+
+            # debug
+            # for l in self.layers:
+            #     print(l.num, l.z, l.height)
+
+            ok_layers = []
+            f_ed_layers = []
+            prev_z = self.layer_height + 0.005  # account for floating point accuracy errors
+            for l in self.layers:
+                diff = l.z - (prev_z + 0.005)
+                if diff <= self.layer_height:
+                    ok_layers.append(l)
+                    prev_z = l.z
+                else:
+                    f_ed_layers.append(l)
+
+            num = 1
+            index = 0
+            while True:
+                try:
+                    l = ok_layers[index]
+                except IndexError:
+                    break
+                if f_ed_layers and f_ed_layers[0].z < l.z:
+                    fl = f_ed_layers.pop(0)
+                    fl.height = self.layer_height
+                    fl.num = num
+                    ok_layers.insert(index, fl)
+                    index += 1
+                    num += 1
+                l.num = num
+                l.height = self.layer_height
+                index += 1
+                num += 1
+
+            self.layers = ok_layers
+
+            # debug
+            # for l in self.layers:
+            #     print(l.num, l.z, l.height)
+
     def parse_perimeter_rates(self):
         """
-        Parses perimeter print sped and feed rate for each layer
+        Parses perimeter print speed and feed rate for each layer
         :return: none
         """
 
