@@ -33,6 +33,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.extruder_coasting = []
         self.extruder_use_wipe = []
         self.extruder_wipe = []
+        self.extruder_widths = []
         self.relative_e = False
         self.retract_while_wiping = False
         self.version = None
@@ -81,6 +82,7 @@ class Simplify3dGCodeFile(GCodeFile):
             if self.extruder_use_wipe[i]:
                 ext.wipe = self.extruder_wipe[i]
             ext.feed_rate_multiplier = self.extruder_multiplier[i]
+            ext.extrusion_width = self.extruder_widths[i]
             self.extruders[t] = ext
 
         # go through the temperature names and try to assign them to extruders
@@ -138,7 +140,6 @@ class Simplify3dGCodeFile(GCodeFile):
         skirt = False
         brim = False
         brim_lines = 0
-        extruder_widths = []
         for cmd, comment in self.layers[0].lines:
 
             if not comment:
@@ -163,7 +164,7 @@ class Simplify3dGCodeFile(GCodeFile):
                     self.extruder_diameter.append(float(d))
             elif b"extruderWidth" in comment:
                 for d in comment.split(b",")[1:]:
-                    extruder_widths.append(float(d))
+                    self.extruder_widths.append(float(d))
             elif b"extrusionMultiplier" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_multiplier.append(float(d))
@@ -265,7 +266,7 @@ class Simplify3dGCodeFile(GCodeFile):
         self.settings.outer_perimeter_speed *= self.settings.default_speed
         self.settings.first_layer_speed *= self.settings.default_speed
 
-        self.settings.extrusion_width = sum(extruder_widths) / len(extruder_widths)
+        self.settings.extrusion_width = sum(self.extruder_widths) / len(self.extruder_widths)
 
         if self.settings.brim_auto and skirt and brim:
             self.settings.brim = brim_lines
@@ -279,6 +280,7 @@ class Simplify3dGCodeFile(GCodeFile):
         prev_layer = None
         prev_height = 0
         current_layer = FirstLayer(1, 0.2, 0.2)
+        min_z = 10
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
             if comment:
@@ -293,8 +295,9 @@ class Simplify3dGCodeFile(GCodeFile):
                         else:
                             prev_z = 0
 
+                        # calculate and check layer height.
                         height = round((current_layer.z - prev_z), 3)
-                        if height:
+                        if height and height > 0:
                             prev_height = height
                         else:
                             height = prev_height
@@ -302,12 +305,18 @@ class Simplify3dGCodeFile(GCodeFile):
                         self.layers.append(current_layer)
                         prev_layer = current_layer
                         current_layer = Layer(round(ret[0], 3), round(ret[1], 3), height)
+
+                        if current_layer.height < min_z:
+                            min_z = current_layer.height
+
             current_layer.add_line(cmd, comment)
 
         # last layer
         self.layers.append(current_layer)
         if len(self.layers) <= 1:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
+
+        self.min_z = min_z
         # debug
         #for l in self.layers:
         #    print(l.height == self.layer_height)

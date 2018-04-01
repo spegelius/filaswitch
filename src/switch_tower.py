@@ -10,12 +10,13 @@ gcode = GCode()
 
 class SwitchTower:
 
-    def __init__(self, logger, settings: Settings, max_slots):
+    def __init__(self, logger, settings: Settings, max_slots, min_z: float):
         """
         Filament switch tower functionality
         :param logger: Logger object
         :param settings: settings object
         :param max_slots: maximum number of tower slots
+        :param min_z: minimum z height
         """
 
         # localize
@@ -45,7 +46,12 @@ class SwitchTower:
 
         self.purge_line_width = 0.6
 
-        self.height = self.pre_purge_height + self.settings.purge_lines * self.purge_line_width * 2 + 0.2
+        # Hackish way to expand purge area by using 0.2 mm layer as the base value.
+        # Tower needs more space with smaller layer heights...
+        layer_height_factor = 0.2 / min_z
+        self.purge_lines = int(self.settings.purge_lines * layer_height_factor)
+
+        self.height = self.pre_purge_height + self.purge_lines * self.purge_line_width * 2 + 0.2
 
         self.wall_width = self.width + 1.4
         self.wall_height = self.height + 1.0
@@ -348,7 +354,7 @@ class SwitchTower:
         speed = min_speed
         min_speed_lines = 2
         purge_speeds = []
-        for i in range(self.settings.purge_lines):
+        for i in range(self.purge_lines):
             if i >= min_speed_lines:
                 speed = max_speed
             purge_speeds.append(speed)

@@ -238,9 +238,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     # ; brim_width = 3
                     brim = int(comment.split(b" = ")[1])
 
-        if self.layer_height != 0.2:
-            raise ValueError("Layer height must be 0.2, Filaswitch does not support any other lauer height at the moment")
-
         if not self.version:
             self.log.warning("Could not detect Slic3r version. Use at your own risk!")
         else:
@@ -250,6 +247,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
+            self.extruders[t].extrusion_width = self.settings.extrusion_width
 
         self.settings.travel_z_speed = self.settings.travel_xy_speed
 
@@ -274,6 +272,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
         layer_start = False
         layer_num = 0
         layer_z = 0
+
+        min_z = 10
 
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
@@ -305,10 +305,15 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         current_layer = Layer(layer_num, layer_z, height)
             current_layer.add_line(cmd, comment)
 
+            if current_layer.height < min_z:
+                min_z = current_layer.height
+
         # last layer
         self.layers.append(current_layer)
         if len(self.layers) <= 1:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
+
+        self.min_z = min_z
 
     def check_layer_change(self, line, current_layer):
         """

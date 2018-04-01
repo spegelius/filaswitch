@@ -11,6 +11,7 @@ class Extruder:
         self.tool = tool
         self.name = name
         self.nozzle = 0.0
+        self.extrusion_width = 0.0
         self.retract = 0.0
         self.retract_speed = 0.0
         self.z_hop = 0.0
@@ -35,7 +36,7 @@ class Extruder:
         :param feed_multi: optional feed rate multiplier
         :return: extrusion feed length
         """
-        rate = utils.extrusion_feed_rate(self.nozzle, layer_height, self.filament_d)
+        rate = utils.extrusion_feed_rate(self.extrusion_width, layer_height, self.filament_d)
         rate *= self.feed_rate_multiplier * feed_multi
         if rate > self.feed_rate_max:
             raise ValueError("Feed rate too high ({}, layer h {})! Aborting.".format(rate, layer_height))
