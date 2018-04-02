@@ -422,7 +422,8 @@ class SwitchTower:
             try:
                 rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
                 rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, extruder, e_length=rr_cool_len), b" cooling"
+                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, layer.height,
+                                               extruder=extruder, e_length=rr_cool_len), b" cooling"
                 horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 i += 1
             except TypeError:
@@ -434,7 +435,14 @@ class SwitchTower:
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
-    def get_post_switch_gcode(self, extruder, new_temp):
+    def get_post_switch_gcode(self, extruder, new_temp, layer):
+        """
+        Generate gcode for actions after tool change
+        :param extruder: extruder
+        :param new_temp: new temperature
+        :param layer: current layer
+        :return:
+        """
         # should we move head while feeding?
         feedtrail = self.settings.get_hw_config_value("feed.trail")
         # feed new filament
@@ -448,7 +456,8 @@ class SwitchTower:
                 try:
                     feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                     feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                    yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
+                    yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, layer.height,
+                                                   extruder=extruder, e_length=feed_len), b" prime move"
                     horizontal_dir = gcode.opposite_dir(horizontal_dir)
                     i += 1
                 except TypeError:
@@ -488,7 +497,8 @@ class SwitchTower:
         yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
                                        self.width,
                                        prime_trail_speed,
-                                       extruder,
+                                       layer.height,
+                                       extruder=extruder,
                                        e_length=prime_e_length), b" prime trail"
 
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
@@ -767,10 +777,10 @@ class SwitchTower:
 
         # feed new filament
         if new_temp and abs(new_temp - old_temp) > 15:
-            for line in self.get_post_switch_gcode(new_e, new_temp):
+            for line in self.get_post_switch_gcode(new_e, new_temp, layer):
                 yield line
         else:
-            for line in self.get_post_switch_gcode(new_e, None):
+            for line in self.get_post_switch_gcode(new_e, None, layer):
                 yield line
 
         # post-switch purge
