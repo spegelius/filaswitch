@@ -273,8 +273,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
         layer_num = 0
         layer_z = 0
 
-        min_z = 10
-
+        min_layer_height = 10
+        max_z = 0
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
             if comment:
@@ -305,15 +305,17 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         current_layer = Layer(layer_num, layer_z, height)
             current_layer.add_line(cmd, comment)
 
-            if current_layer.height < min_z:
-                min_z = current_layer.height
+            if current_layer.height < min_layer_height:
+                min_layer_height = current_layer.height
+            if current_layer.z > max_z:
+                max_z = current_layer.z
 
         # last layer
         self.layers.append(current_layer)
-        if len(self.layers) <= 1:
+        if len(self.layers) <= 1 and max_z > self.layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
 
-        self.min_z = min_z
+        self.min_layer_h = min_layer_height
 
     def check_layer_change(self, line, current_layer):
         """

@@ -60,7 +60,7 @@ class GCodeFile:
         self.active_e = 0
 
         # min z height
-        self.min_z = None
+        self.min_layer_h = None
 
     def parse_header(self):
         """
@@ -210,7 +210,7 @@ class GCodeFile:
         Find proper position for the switch tower
         :return:
         """
-        self.switch_tower = SwitchTower(self.log, self.settings, self.max_slots, self.min_z)
+        self.switch_tower = SwitchTower(self.log, self.settings, self.max_slots, self.min_layer_h)
         x = []
         y = []
 

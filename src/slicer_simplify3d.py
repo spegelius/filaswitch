@@ -280,7 +280,8 @@ class Simplify3dGCodeFile(GCodeFile):
         prev_layer = None
         prev_height = 0
         current_layer = FirstLayer(1, 0.2, 0.2)
-        min_z = 10
+        min_layer_height = 10
+        max_z = 0
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
             if comment:
@@ -306,17 +307,19 @@ class Simplify3dGCodeFile(GCodeFile):
                         prev_layer = current_layer
                         current_layer = Layer(round(ret[0], 3), round(ret[1], 3), height)
 
-                        if current_layer.height < min_z:
-                            min_z = current_layer.height
+                        if current_layer.height < min_layer_height:
+                            min_layer_height = current_layer.height
+                        if current_layer.z > max_z:
+                            max_z = current_layer.z
 
             current_layer.add_line(cmd, comment)
 
         # last layer
         self.layers.append(current_layer)
-        if len(self.layers) <= 1:
+        if len(self.layers) <= 1 and max_z > self.layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
 
-        self.min_z = min_z
+        self.min_layer_h = min_layer_height
         # debug
         #for l in self.layers:
         #    print(l.height == self.layer_height)
