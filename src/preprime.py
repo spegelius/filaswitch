@@ -47,7 +47,8 @@ class PrePrime:
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         for _ in range(self.settings.get_hw_config_int_value("prerun.prime.purge.count")):
-            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, 0.2, extruder=extruder, e_length=e_length), b" purge trail"
+            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, 0.2, extruder=extruder,
+                                           e_length=e_length), b" purge trail"
             yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed, 0.2), b" Y shift"
             self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
 
@@ -87,7 +88,8 @@ class PrePrime:
             try:
                 rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
                 rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(self.horizontal_dir, self.width, rr_cool_speed, extruder, e_length=rr_cool_len), b" cooling"
+                yield gcode.gen_direction_move(self.horizontal_dir, self.width, rr_cool_speed, 0.2, extruder=extruder,
+                                               e_length=rr_cool_len), b" cooling"
                 self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
@@ -104,7 +106,8 @@ class PrePrime:
             try:
                 feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                 feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, extruder, e_length=feed_len), b" prime move"
+                yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, 0.2, extruder=extruder,
+                                               e_length=feed_len), b" prime move"
                 self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:
