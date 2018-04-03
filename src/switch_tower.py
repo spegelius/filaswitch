@@ -36,20 +36,26 @@ class SwitchTower:
         self.slot = 0
         self.slots = {}
 
+        # Hackish way to expand purge area by using 0.2 mm layer as the base value.
+        # Tower needs more space with smaller layer heights...
+        scale_factor = 0.2 / min_layer_h
+
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
         pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
 
-        self.pre_purge_height = pre_purge_lines * self.settings.get_hw_config_float_value("prepurge.sweep.gap")
+        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor
+        self.pre_purge_jitter = self.pre_purge_sweep_gap - self.settings.get_hw_config_float_value("prepurge.sweep.gap")
+        if self.pre_purge_jitter < 0:
+            self.pre_purge_jitter = 0
+
+        self.pre_purge_height = pre_purge_lines * self.pre_purge_sweep_gap + self.pre_purge_jitter
 
         # post purge line config
         self.purge_line_length = self.width - 1
 
         self.purge_line_width = 0.6
 
-        # Hackish way to expand purge area by using 0.2 mm layer as the base value.
-        # Tower needs more space with smaller layer heights...
-        layer_height_factor = 0.2 / min_layer_h
-        self.purge_lines = int(self.settings.purge_lines * layer_height_factor)
+        self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
         self.height = self.pre_purge_height + self.purge_lines * self.purge_line_width * 2 + 0.2
 
@@ -109,6 +115,8 @@ class SwitchTower:
             self.slots[i]['horizontal_dir'] = self.E
             self.slots[i]['vertical_dir'] = self.N
             self.slots[i]['flipflop_infill'] = False
+            self.slots[i]['jitter'] = { self.N: False,
+                                        self.S: False }
 
     def rotate_tower(self, direction):
         """
@@ -373,17 +381,31 @@ class SwitchTower:
         e_length = self.settings.get_hw_config_float_value("prepurge.sweep.extrusion.length")
 
         sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
-        sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         horizontal_dir = self.slots[self.slot]['horizontal_dir']
         vertical_dir = self.slots[self.slot]['vertical_dir']
 
+        # jitter
+        if self.pre_purge_jitter and self.slots[self.slot]['jitter'][vertical_dir]:
+            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
+                                           layer.height), b" pre-purge jitter"
+
         for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
             yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, layer.height,
                                            extruder=extruder, e_length=e_length), b" purge trail"
-            yield gcode.gen_direction_move(vertical_dir, sweep_gap, sweep_gap_speed, layer.height), b" Y shift"
+            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_sweep_gap, sweep_gap_speed,
+                                           layer.height), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
+        # jitter
+        if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
+            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
+                                           layer.height), b" pre-purge jitter"
+
+        # update jitter flag
+        if self.pre_purge_jitter:
+            self.slots[self.slot]['jitter'][vertical_dir] = not self.slots[self.slot]['jitter'][vertical_dir]
 
         if new_temp:
             yield (gcode.gen_temperature_nowait_tool(new_temp, tool), b" change nozzle temp")
