@@ -67,7 +67,7 @@ class SwitchTower:
         self.raft_done = False
         self.raft_width = self.width + 2 * self.brim_width - 1
         self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
-        self.raft_layer_height = 0.2
+        self.raft_layer_height = None
         self.angle = 0
 
         self.start_pos_x = None
@@ -971,7 +971,7 @@ class SwitchTower:
         while True:
             count = 0
             for s in range(layer.tower_slots):
-                if self.slots[s]['last_z'] < layer.z - 0.2:
+                if self.slots[s]['last_z'] < layer.z - layer.height:
                     for l in self.get_infill_lines(layer, e_pos, extruder, z_hop):
                         yield l
                     count += 1
