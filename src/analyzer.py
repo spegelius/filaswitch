@@ -45,27 +45,27 @@ def debug_wipes(lines, show_lines=False):
             feed_rates = []
         if not cmd:
             continue
-        elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+        elif gcode.is_extrusion_move(cmd):
             ## debugging feed rates
             pos = (gcode.last_match[0], gcode.last_match[1])
 
             try:
-                last_speed = gcode.last_match[3]
+                last_speed = gcode.last_match[4]
             except Exception as e:
                 #print(e)
                 pass
 
             if prev_position:
-                if gcode.last_match[2] < 0:
-                    e_pos += gcode.last_match[2]
+                if gcode.last_match[3] < 0:
+                    e_pos += gcode.last_match[3]
                     move_type = "wipe"
-                    wipes.append(gcode.last_match[2])
+                    wipes.append(gcode.last_match[3])
                 else:
                     move_type = "print"
                     e_pos = 0
                 length = gcode.calculate_path_length(prev_position, pos)
                 if length > 0.1:
-                    _e_pos = gcode.last_match[2]
+                    _e_pos = gcode.last_match[3]
                     feed_rate = gcode.calculate_feed_rate(length, _e_pos)
                     feed_rates.append(feed_rate)
                     if show_lines:
@@ -108,6 +108,7 @@ def debug_outer_perimeter(lines):
         lnr += 1
         cmd, comment = gcode.read_gcode_line(line)
         if comment:
+            # S3D comment
             if b"outer perimeter" in comment:
                 is_outer = True
             else:
@@ -115,16 +116,14 @@ def debug_outer_perimeter(lines):
         if cmd:
             if is_outer:
                 position = None
-                if gcode.is_extrusion_speed_move(cmd):
-                    if gcode.last_match[2] > 0:
-                        speeds.append(gcode.last_match[3])
-                    position = gcode.last_match[0], gcode.last_match[1]
-                elif gcode.is_extrusion_move(cmd):
+                if gcode.is_extrusion_move(cmd):
+                    if gcode.last_match[3] > 0 and gcode.last_match[4] is not None:
+                        speeds.append(gcode.last_match[4])
                     position = gcode.last_match[0], gcode.last_match[1]
 
                 if prev_position and position:
                     length = gcode.calculate_path_length(prev_position, position)
-                    _e_pos = gcode.last_match[2]
+                    _e_pos = gcode.last_match[3]
                     if _e_pos > 0:
                         feed_rate = gcode.calculate_feed_rate(length, _e_pos)
                         print(lnr, feed_rate)

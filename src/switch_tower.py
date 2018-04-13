@@ -743,14 +743,13 @@ class SwitchTower:
                 min_z = self.slots[s]['last_z']
         self.slot = slot
 
-    def get_tower_lines(self, layer, e_pos, old_e, new_e, z_hop):
+    def get_tower_lines(self, layer, e_pos, old_e, new_e):
         """
         G-code for switch tower
         :param layer: current layer
         :param e_pos: extruder position
         :param old_e: old extruder
         :param new_e: new extruder
-        :param z_hop: z_hop position
         :return: list of cmd, comment tuples
         """
 
@@ -870,13 +869,12 @@ class SwitchTower:
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
 
-    def get_infill_lines(self, layer, e_pos, extruder, z_hop):
+    def get_infill_lines(self, layer, e_pos, extruder):
         """
         G-code for switch tower infill
         :param layer: current layer
         :param e_pos: extruder position
         :param extruder: active extruder
-        :param z_hop: z_hop position
         :return: list of cmd, comment tuples
         """
 
@@ -962,13 +960,12 @@ class SwitchTower:
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
 
-    def check_infill(self, layer, e_pos, extruder, z_hop):
+    def check_infill(self, layer, e_pos, extruder):
         """
         Checks if tower z is too low versus layer and adds infill if needed
         :param layer: current layer
         :param e_pos: extruder position
         :param extruder: active extruder
-        :param z_hop: z_hop position
         :return: list of cmd, comment tuples
         """
         # TODO: rethink whole line thing. Maybe Writer object?
@@ -977,7 +974,7 @@ class SwitchTower:
             count = 0
             for s in range(layer.tower_slots):
                 if self.slots[s]['last_z'] < layer.z - layer.height:
-                    for l in self.get_infill_lines(layer, e_pos, extruder, z_hop):
+                    for l in self.get_infill_lines(layer, e_pos, extruder):
                         yield l
                     count += 1
             if not count:

@@ -17,12 +17,17 @@ TYPE_DELTA = 1
 
 
 class GCode:
-    EXTRUDER_MOVE_RE = re.compile(b"^G1\s+E([-]*\d+\.*\d*)\s+F(\d+\.*\d*)$")
-    Z_MOVE_RE = re.compile(b"^G1\s+Z([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
-    EXTRUSION_MOVE_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)$")
-    EXTRUSION_MOVE_SPEED_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+E([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
-    MOVE_HEAD_RE = re.compile(b"^G1\s+X([-]*\d+\.\d+)\s+Y([-]*\d+\.\d+)\s+F(\d+\.*\d*)$")
-    SPEED_RE = re.compile(b"^G1\s+F(\d+\.*\d*)$")
+
+    MOVE_RE = re.compile(b"^G1\s+")
+    X_COORD_RE = re.compile(b".*\s+X([-]*\d+\.*\d*)")
+    Y_COORD_RE = re.compile(b".*\s+Y([-]*\d+\.*\d*)")
+    E_COORD_RE = re.compile(b".*\s+E([-]*\d+\.*\d*)")
+    Z_COORD_RE = re.compile(b".*\s+Z([-]*\d+\.*\d*)")
+
+    SPEED_VAL_RE = re.compile(b".*\s+F(\d+\.*\d*)")
+
+    #SPEED_RE = re.compile(b"^G1\s+F(\d+\.*\d*)$")
+
     EXTRUDER_POSITION_RE = re.compile(b"^G92\s+E0$")
     TOOL_RE = re.compile(b"T(\d)")
     RELATIVE_POSITIONING_RE = re.compile(b"^G91")
@@ -103,24 +108,43 @@ class GCode:
         :return: None or tuple with X, Y and E positions
         """
         self.last_match = None
-        m = self.EXTRUSION_MOVE_RE.match(line)
-        if m:
-            g = m.groups()
-            self.last_match = float(g[0]), float(g[1]), float(g[2])
+        m = self._parse_move_args(line)
+        if m and (m[0] is not None or m[1] is not None) and m[3] is not None and m[3] != 0:
+            self.last_match = m
         return self.last_match
 
-    def is_extrusion_speed_move(self, line):
-        """
-        Match given line against extrusion speed move regex
-        :param line: g-code line
-        :return: None or tuple with X, Y, E positions and speed
-        """
+    def _parse_move_args(self, line):
+
         self.last_match = None
-        m = self.EXTRUSION_MOVE_SPEED_RE.match(line)
+        m = self.MOVE_RE.match(line)
         if m:
-            g = m.groups()
-            self.last_match = float(g[0]), float(g[1]), float(g[2]), float(g[3])
-        return self.last_match
+            x = None
+            y = None
+            z = None
+            e = None
+            speed = None
+
+            m = self.X_COORD_RE.match(line)
+            if m:
+                x = float(m.groups()[0])
+
+            m = self.Y_COORD_RE.match(line)
+            if m:
+                y = float(m.groups()[0])
+
+            m = self.Z_COORD_RE.match(line)
+            if m:
+                z = float(m.groups()[0])
+
+            m = self.E_COORD_RE.match(line)
+            if m:
+                e = float(m.groups()[0])
+
+            m = self.SPEED_VAL_RE.match(line)
+            if m:
+                speed = float(m.groups()[0])
+
+            return x, y, z, e, speed
 
     def is_z_move(self, line):
         """
@@ -129,9 +153,9 @@ class GCode:
         :return: None or z value
         """
         self.last_match = None
-        m = self.Z_MOVE_RE.match(line)
-        if m:
-            self.last_match = float(m.groups()[0]), float(m.groups()[1])
+        m = self._parse_move_args(line)
+        if m and m[0] is None and m[1] is None and m[2] is not None:
+            self.last_match = (m[2], m[4])
         return self.last_match
 
     def is_extruder_move(self, line):
@@ -141,9 +165,9 @@ class GCode:
         :return: None or extruder position and speed
         """
         self.last_match = None
-        m = self.EXTRUDER_MOVE_RE.match(line)
-        if m:
-            self.last_match = float(m.groups()[0]), float(m.groups()[1])
+        m = self._parse_move_args(line)
+        if m and m[0] is None and m[1] is None and m[2] is None and m[3] is not None:
+            self.last_match = (m[3], m[4])
         return self.last_match
 
     def is_head_move(self, line):
@@ -153,9 +177,9 @@ class GCode:
         :return: None or head position and speed
         """
         self.last_match = None
-        m = self.MOVE_HEAD_RE.match(line)
-        if m:
-            self.last_match = float(m.groups()[0]), float(m.groups()[1]), float(m.groups()[2])
+        m = self._parse_move_args(line)
+        if m and (m[0] is not None or m[1] is not None) and (m[3] is None or m[3] == 0):
+            self.last_match = (m[0], m[1], m[2], m[4])
         return self.last_match
 
     def is_relative_positioning(self, line):
@@ -534,30 +558,51 @@ class GCode:
 if __name__ == "__main__":
     # test stuff
     obj = GCode()
+    print("\n*** Extruder move")
     print(obj.is_extruder_move(b"G1 E-2.5 F1500"))
+    print(obj.is_extruder_move(b"G1 E-2.5"))
+    print(obj.is_extruder_move(b'G1 E-3.00000 F4800.00000'))
+
+    print("\n*** Read gcode line")
     print(obj.read_gcode_line(b"G1 E5 F1500  ; juu"))
     print(obj.read_gcode_line(b"; juu"))
     print(obj.read_gcode_line(b"; juu ; joo"))
+    print(obj.read_gcode_line(b"G1 E-3.00000 F4800.00000"))
+
+    print("\n*** Z move")
     print(obj.is_z_move(b"G1 Z5.500 F1500"))
+    print(obj.is_z_move(b"G1 Z5.500"))
+
+    print("\n*** Tool change")
     print(obj.is_tool_change(b"T0"))
     print(obj.is_tool_change(b"T1"))
+
+    print("\n*** Extrusion move")
     print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E-2.5000"))
-    print(obj.is_extrusion_speed_move(b"G1 X80.349 Y81.849 E-2.5000 F3000"))
-    print(obj.read_gcode_line(b"G1 E-3.00000 F4800.00000"))
-    print(obj.is_extruder_move(b'G1 E-3.00000 F4800.00000'))
-    ret = obj.gen_direction_move(E, 40, 3000)
+    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E0"))
+    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E5 F2000"))
+
+    print("\n*** Head move")
+    print(obj.is_head_move(b"G1 X65.82 Y76.532 Z5.7 E0 F1500"))
+    print(obj.is_head_move(b"G1 X65.82 Y76.532 F1500"))
+    print(obj.is_head_move(b"G1 Y76.532 F1500"))
+    print(obj.is_head_move(b"G1 X65.82 F1500"))
+
+    print("\n*** Direction move")
+    ret = obj.gen_direction_move(E, 40, 3000, 0.1)
     for r in ret:
         print(r)
     import extruder
     e = extruder.Extruder(0)
     e.coasting = 0.2
-    ret = obj.gen_direction_move(W, 40, 3000, e, feed_rate=0.05)
+    ret = obj.gen_direction_move(W, 40, 3000, 0.2, e)
     for r in ret:
         print(r)
-    ret = obj.gen_direction_move(S, 40, 3000, e, feed_rate=0.05, last_line=True)
+    ret = obj.gen_direction_move(S, 40, 3000, 0.1, e, last_line=True)
     for r in ret:
         print(r)
 
+    print("\n*** Get coordinates")
     print(obj._get_coordinates(N, 10))
     print(obj._get_coordinates(NE, 10))
     print(obj._get_coordinates(E, 10))
@@ -576,7 +621,7 @@ if __name__ == "__main__":
 
     print(obj._get_coordinates(346, 10))
 
-    print("------------------------")
+    print("\n*** Get coordinates by offsets")
     print(obj.get_coordinates_by_offsets(0, 10, 10, 1, 15))
     print(obj.get_coordinates_by_offsets(1, 10, 10, 1, 15))
     print(obj.get_coordinates_by_offsets(0, 10, 10, -3, 15))

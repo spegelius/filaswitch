@@ -62,6 +62,9 @@ class GCodeFile:
         # min z height
         self.min_layer_h = None
 
+        # Slicer version
+        self.version = None
+
     def parse_header(self):
         """
         Parse header of gcode file, if any.
@@ -132,7 +135,7 @@ class GCodeFile:
                     self.log.debug("Remove first tool change: {}".format(gcode.last_match))
                     self.layers[0].delete_line(index)
                 break
-            elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+            elif gcode.is_extrusion_move(cmd):
                 # if print move before tool change, bail out. Tool change cannot be removed
                 break
 
@@ -216,12 +219,16 @@ class GCodeFile:
         y = []
 
         for layer in self.layers:
+            index = 0
             for cmd, _ in layer.lines:
-                if not cmd:
+                if not cmd or (isinstance(layer, FirstLayer) and index < layer.start_gcode_end):
                     continue
-                if gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
-                    x.append(gcode.last_match[0])
-                    y.append(gcode.last_match[1])
+                if gcode.is_extrusion_move(cmd):
+                    if gcode.last_match[0] is not None:
+                        x.append(gcode.last_match[0])
+                    if gcode.last_match[1] is not None:
+                        y.append(gcode.last_match[1])
+                index += 1
 
         x_max = max(x)
         y_max = max(y)
@@ -238,7 +245,6 @@ class GCodeFile:
         :return:
         """
         e_pos = 0
-        z_hop = 0
         is_tool_change = False
 
         # last z-position
@@ -281,7 +287,7 @@ class GCodeFile:
                     # when z height changes, check that tower height isn't too low versus layer
                     if layer.num != 1 and last_z < layer.z < self.last_switch_height:
                         added = False
-                        for line in self.switch_tower.check_infill(layer, e_pos, self.active_e, z_hop):
+                        for line in self.switch_tower.check_infill(layer, e_pos, self.active_e):
                             if line:
                                 added = True
                                 index += layer.insert_line(index, line[0], line[1])
@@ -296,7 +302,7 @@ class GCodeFile:
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
                         # update purge tower with sparse infill
                         added = False
-                        for line in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e, z_hop):
+                        for line in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e):
                             if line:
                                 added = True
                                 index += layer.insert_line(index, line[0], line[1])
@@ -313,11 +319,7 @@ class GCodeFile:
                         # need command
                         index += 1
                         continue
-                    
                     if gcode.is_z_move(cmd):
-                        # store current z position and z-hop
-                        current_z, z_speed = gcode.last_match
-                        z_hop = current_z - layer.z
                         z_move_needed = False
                     elif is_tool_change and layer.action == ACT_SWITCH and gcode.is_tool_change(cmd) is not None:
 
@@ -337,7 +339,7 @@ class GCodeFile:
                                 e_pos = -self.active_e.retract
 
                             new_e = self.extruders[new_tool]
-                            for line in self.switch_tower.get_tower_lines(layer, e_pos, self.active_e, new_e, z_hop):
+                            for line in self.switch_tower.get_tower_lines(layer, e_pos, self.active_e, new_e):
                                 if line:
                                     index += layer.insert_line(index, line[0], line[1])
                             prime_needed = True
@@ -361,7 +363,7 @@ class GCodeFile:
                         else:
                             # store extruder position
                             e_pos = update_retract_position(e_pos, gcode.last_match[0])
-                    elif gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                    elif gcode.is_extrusion_move(cmd):
                         # add prime if needed
                         if prime_needed:
                             if not prime_ok:
@@ -380,7 +382,7 @@ class GCodeFile:
                                 e_pos = 0
 
                         # store extruder position
-                        e_pos = update_retract_position(e_pos, gcode.last_match[2])
+                        e_pos = update_retract_position(e_pos, gcode.last_match[3])
 
                         # add z move if needed
                         if z_move_needed:
@@ -393,6 +395,8 @@ class GCodeFile:
                         if prime_needed:
                             prime_ok = True
                         last_pos = gcode.last_match
+                        if last_pos[2]:
+                            z_move_needed = False
 
                 except IndexError:
                     break
@@ -418,7 +422,7 @@ class GCodeFile:
             try:
                 cmd, comment = lines[index]
                 if cmd:
-                    if gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                    if gcode.is_head_move(cmd) or gcode.is_extrusion_move(cmd):
                         last_pos_index = index
                 if comment == b" pre-tower retract":
                     if last_pos_index != -1:

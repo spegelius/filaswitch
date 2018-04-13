@@ -154,16 +154,13 @@ class Layer:
                 if cmd:
                     if is_outer:
                         position = None
-                        if gcode.is_extrusion_speed_move(cmd):
-                            if gcode.last_match[2] > 0:
+                        if gcode.is_extrusion_move(cmd):
+                            if gcode.last_match[3] > 0:
                                 speeds.append(gcode.last_match[3])
                             position = gcode.last_match[0], gcode.last_match[1]
-                        elif gcode.is_extrusion_move(cmd):
-                            position = gcode.last_match[0], gcode.last_match[1]
-
                         if prev_position and position:
                             length = gcode.calculate_path_length(prev_position, position)
-                            _e_pos = gcode.last_match[2]
+                            _e_pos = gcode.last_match[3]
                             if _e_pos > 0 and length > 0.05:
                                 feed_rate = gcode.calculate_feed_rate(length, _e_pos)
                                 feed_rates.append(feed_rate)

@@ -36,7 +36,6 @@ class Simplify3dGCodeFile(GCodeFile):
         self.extruder_widths = []
         self.relative_e = False
         self.retract_while_wiping = False
-        self.version = None
 
         self.temperature_names = []
         self.temperature_numbers = []
@@ -446,18 +445,14 @@ class Simplify3dGCodeFile(GCodeFile):
             for cmd, comment, index in layer.read_lines():
                 if not cmd:
                     continue
-                if gcode.is_extrusion_speed_move(cmd):
+                if gcode.is_extrusion_move(cmd):
                     # detect retract/wipe
-                    if gcode.last_match[2] < 0:
+                    if gcode.last_match[3] < 0:
                         wipe_on = True
-                        wipe_speed = gcode.last_match[3]
-                        wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
-                        wipe_layer = layer
-                elif gcode.is_extrusion_move(cmd):
-                    # detect retract/wipe
-                    if gcode.last_match[2] < 0:
-                        wipe_on = True
-                        wipe_speed = last_move_speed or self.settings.default_speed
+                        if gcode.last_match[4] is not None:
+                            wipe_speed = gcode.last_match[4]
+                        else:
+                            wipe_speed = last_move_speed or self.settings.default_speed
                         wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
                         wipe_layer = layer
                 elif gcode.is_head_move(cmd) and wipe_on:

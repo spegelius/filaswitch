@@ -43,21 +43,17 @@ def adjust(lines, x, y):
         elif not skip and gcode.is_head_move(cmd):
             new_x = gcode.last_match[0] + x
             new_y = gcode.last_match[1] + y
-            speed = gcode.last_match[2]
+            speed = gcode.last_match[3]
             new_cmd = gcode.gen_head_move(new_x, new_y, speed)
             new_lines.append((new_cmd, comment))
         elif not skip and gcode.is_extrusion_move(cmd):
             new_x = gcode.last_match[0] + x
             new_y = gcode.last_match[1] + y
-            e_length = gcode.last_match[2]
-            new_cmd = gcode.gen_extrusion_move(new_x, new_y, e_length)
-            new_lines.append((new_cmd, comment))
-        elif not skip and gcode.is_extrusion_speed_move(cmd):
-            new_x = gcode.last_match[0] + x
-            new_y = gcode.last_match[1] + y
-            e_length = gcode.last_match[2]
-            speed = gcode.last_match[3]
-            new_cmd = gcode.gen_extrusion_speed_move(new_x, new_y, speed, e_length)
+            e_length = gcode.last_match[3]
+            if gcode.last_match[4] is not None:
+                new_cmd = gcode.gen_extrusion_speed_move(new_x, new_y, gcode.last_match[4], e_length)
+            else:
+                new_cmd = gcode.gen_extrusion_move(new_x, new_y, e_length)
             new_lines.append((new_cmd, comment))
         else:
             new_lines.append((cmd, comment))
