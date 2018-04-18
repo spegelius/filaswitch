@@ -22,12 +22,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
     def __init__(self, logger, settings: Settings):
         super().__init__(logger, settings)
 
-        self.extruder_use_wipe = []
-        self.extruder_wipe = []
-        self.relative_e = False
-        self.retract_while_wiping = False
-        self.version = None
-
     def process(self, gcode_file):
         self.open_file(gcode_file)
         self.parse_header()
