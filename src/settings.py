@@ -208,6 +208,8 @@ class Settings:
 
     @extrusion_width.setter
     def extrusion_width(self, value: float):
+        if value <= 0:
+            raise ValueError("Extrusion width cannot be zero")
         self._extrusion_width = value
 
     @property

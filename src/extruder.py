@@ -10,8 +10,8 @@ class Extruder:
     def __init__(self, tool, name=None):
         self.tool = tool
         self.name = name
-        self.nozzle = 0.0
-        self.extrusion_width = 0.0
+        self.nozzle = None
+        self.extrusion_width = None
         self.retract = 0.0
         self.retract_speed = 0.0
         self.z_hop = 0.0
