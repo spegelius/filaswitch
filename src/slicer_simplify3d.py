@@ -249,12 +249,12 @@ class Simplify3dGCodeFile(GCodeFile):
             elif b"skirtOutlines" in comment:
                 brim_lines = int(comment.split(b",")[-1])
 
-            #elif b"toolChangeRetractionDistance" in comment:
-            #    if comment.split(b",")[1] != b"0":
-            #        self.log.warning("'toolChangeRetractionDistance' is set to 0. This might cause quality problems. Check 'Other'-tab in S3D.")
-            #elif b"toolChangeExtraRestartDistance" in comment:
-            #    if comment.split(b",")[1] != b"0":
-            #        self.log.warning("'toolChangeExtraRestartDistance' is not set to 0. This might cause quality problems. Check 'Other'-tab in S3D.")
+            elif b"toolChangeRetractionDistance" in comment:
+                if comment.split(b",")[1] != b"0":
+                    self.log.warning("'toolChangeRetractionDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D.")
+            elif b"toolChangeExtraRestartDistance" in comment:
+                if comment.split(b",")[1] != b"0":
+                    self.log.warning("'toolChangeExtraRestartDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D.")
 
         if not self.relative_e:
             raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
