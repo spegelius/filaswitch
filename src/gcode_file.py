@@ -113,8 +113,9 @@ class GCodeFile:
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
-            for cmd, comment in self.preprime.get_prime_lines():
-                self.pr_index += self.layers[0].insert_line(self.pr_index, cmd, comment)
+            for line in self.preprime.get_prime_lines():
+                if line:
+                    self.pr_index += self.layers[0].insert_line(self.pr_index, line[0], line[1])
             self.active_e = self.preprime.last_extruder
             self.layers[0].start_gcode_end = self.pr_index
         else:
@@ -280,9 +281,10 @@ class GCodeFile:
                     # when z height changes, check that tower height isn't too low versus layer
                     if layer.num != 1 and last_z < layer.z < self.last_switch_height:
                         added = False
-                        for cmd, comment in self.switch_tower.check_infill(layer, e_pos, self.active_e, z_hop):
-                            added = True
-                            index += layer.insert_line(index, cmd, comment)
+                        for line in self.switch_tower.check_infill(layer, e_pos, self.active_e, z_hop):
+                            if line:
+                                added = True
+                                index += layer.insert_line(index, line[0], line[1])
                         if added:
                             e_pos = -self.active_e.retract
                         prime_needed = True
@@ -294,9 +296,10 @@ class GCodeFile:
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
                         # update purge tower with sparse infill
                         added = False
-                        for cmd, comment in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e, z_hop):
-                            added = True
-                            index += layer.insert_line(index, cmd, comment)
+                        for line in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e, z_hop):
+                            if line:
+                                added = True
+                                index += layer.insert_line(index, line[0], line[1])
                         if added:
                             e_pos = -self.active_e.retract
                         prime_needed = True
@@ -334,8 +337,9 @@ class GCodeFile:
                                 e_pos = -self.active_e.retract
 
                             new_e = self.extruders[new_tool]
-                            for cmd, comment in self.switch_tower.get_tower_lines(layer, e_pos, self.active_e, new_e, z_hop):
-                                index += layer.insert_line(index, cmd, comment)
+                            for line in self.switch_tower.get_tower_lines(layer, e_pos, self.active_e, new_e, z_hop):
+                                if line:
+                                    index += layer.insert_line(index, line[0], line[1])
                             prime_needed = True
                             prime_ok = False
                             self.active_e = new_e

@@ -755,14 +755,10 @@ class SwitchTower:
         initial_horizontal_dir = self.slots[self.slot]['horizontal_dir']
 
         # handle retraction
-        retraction = self._get_retraction(old_e)
-        if retraction:
-            yield retraction
+        yield self._get_retraction(old_e)
 
         # handle z-hop
-        hop = self._get_z_hop(layer, old_e)
-        if hop:
-            yield hop
+        yield self._get_z_hop(layer, old_e)
 
         y_pos = (self.wall_height + 0.4) * self.slot
         if self.slots[self.slot]['horizontal_dir'] == self.E:
@@ -781,9 +777,7 @@ class SwitchTower:
         if self.settings.linear_advance != 0:
             yield gcode.gen_lin_advance(0), b" turn off linear advance"
 
-        prime = self._get_prime(old_e)
-        if prime:
-            yield prime
+        yield self._get_prime(old_e)
 
         new_temp = new_e.get_temperature(layer.num)
         old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer.num))
@@ -848,9 +842,7 @@ class SwitchTower:
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
         yield gcode.gen_extruder_reset(), b" reset extruder position"
-        hop = self._get_z_hop(layer, old_e)
-        if hop:
-            yield hop
+        yield self._get_z_hop(layer, old_e)
         yield None, b" TOWER END"
 
         # flip the directions
@@ -879,7 +871,7 @@ class SwitchTower:
 
         self.get_slot(layer)
 
-        # no need to add infll if tower is already higher than layer
+        # no need to add infill if tower is already higher than layer
         if layer.z <= self.slots[self.slot]['last_z']:
             return []
 
@@ -887,14 +879,10 @@ class SwitchTower:
         yield None, b" TOWER INFILL START"
 
         # handle retraction
-        retraction = self._get_retraction(extruder)
-        if retraction:
-            yield retraction
+        yield self._get_retraction(extruder)
 
         # handle z-hop
-        hop = self._get_z_hop(layer, extruder)
-        if hop:
-            yield hop
+        yield self._get_z_hop(layer, extruder)
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = tower_z
@@ -919,9 +907,7 @@ class SwitchTower:
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
-        prime = self._get_prime(extruder)
-        if prime:
-            yield prime
+        yield self._get_prime(extruder)
 
         # wall gcode
         for line in self._get_wall_gcode(extruder, layer.height, self.settings.default_speed,
@@ -948,9 +934,7 @@ class SwitchTower:
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
-        hop = self._get_z_hop(layer, extruder)
-        if hop:
-            yield hop
+        yield self._get_z_hop(layer, extruder)
         yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
