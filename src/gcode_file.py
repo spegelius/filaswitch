@@ -418,7 +418,7 @@ class GCodeFile:
             try:
                 cmd, comment = lines[index]
                 if cmd:
-                    if gcode.is_head_move(cmd) or gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
+                    if gcode.is_extrusion_move(cmd) or gcode.is_extrusion_speed_move(cmd):
                         last_pos_index = index
                 if comment == b" pre-tower retract":
                     if last_pos_index != -1:
