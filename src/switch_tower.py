@@ -380,10 +380,14 @@ class SwitchTower:
 
         sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
-
+        motor_current = self.settings.get_hw_config_int_value("motor.current.load")
+        
         horizontal_dir = self.slots[self.slot]['horizontal_dir']
         vertical_dir = self.slots[self.slot]['vertical_dir']
-
+        
+        if motor_current:
+            yield gcode.gen_motor_current('E',motor_current), b" adjust current"
+            
         # jitter
         if self.pre_purge_jitter and self.slots[self.slot]['jitter'][vertical_dir]:
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
@@ -516,7 +520,6 @@ class SwitchTower:
             else:
                 for feed_len, feed_speed in values:
                     yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-        
         # prime trail
         prime_e_length = self.settings.get_hw_config_float_value("prime.trail.extrusion.length")
         prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
@@ -848,7 +851,12 @@ class SwitchTower:
         yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield self._get_z_hop(layer, old_e)
         yield None, b" TOWER END"
-
+        
+        #readjust motor current
+        motor_current = self.settings.get_hw_config_int_value("motor.current.run")
+        if motor_current:
+            yield gcode.gen_motor_current('E',motor_current), b" adjust current"
+            
         # flip the directions
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
