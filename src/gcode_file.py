@@ -223,6 +223,8 @@ class GCodeFile:
             for cmd, _ in layer.lines:
                 if not cmd or (isinstance(layer, FirstLayer) and index < layer.start_gcode_end):
                     continue
+                if layer.z > self.last_switch_height:
+                    break
                 if gcode.is_extrusion_move(cmd):
                     if gcode.last_match[0] is not None:
                         x.append(gcode.last_match[0])
