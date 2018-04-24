@@ -4,6 +4,14 @@
 ## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
 tool.temperature.use_id:  True
 
+## Extruder motor current values. Adjusts motor current using M907. Values are 
+## for load/unload and for normal operation.
+## load = motor current for load/unload
+## run = motor current for normal operation
+## These can be set to 0 if not applicable
+motor.current.load: 0
+motor.current.run: 0
+
 ## Prepurge means the fast purge movements that purge old material
 ## before tool change
 ## length = length of one sweep

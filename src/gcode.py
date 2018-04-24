@@ -351,6 +351,15 @@ class GCode:
         :return: byte string
         """
         return ("T%d" % tool).encode()
+        
+    def gen_motor_current(self, axis, current):
+    	"""
+    	Send M907 to adjust motor current
+    	:param axis: the axis to adjust (usually E)
+    	:param current: motor current
+    	:return: byte string
+    	"""
+    	return ("M907 %s%d" % (axis, current)).encode()
 
     def gen_absolute_positioning(self):
         """
