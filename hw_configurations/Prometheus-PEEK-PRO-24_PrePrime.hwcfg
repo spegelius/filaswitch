@@ -17,8 +17,8 @@ motor.current.run: 0
 ## load = motor current for load/unload
 ## run = motor current for normal operation
 ## These can be set to 0 if not applicable
-motor.current.load: 750
-motor.current.run: 550
+motor.current.load: 0
+motor.current.run: 0
 
 ## Prepurge means the fast purge movements that purge old material
 ## before tool change
