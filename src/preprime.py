@@ -107,7 +107,7 @@ class PrePrime:
                 feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                 feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
                 yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, 0.2, extruder=extruder,
-                                               e_length=feed_len), b" prime move"
+                                               e_length=feed_len, e_speed=True), b" prime move"
                 self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                 i += 1
             except TypeError:

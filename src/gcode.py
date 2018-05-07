@@ -292,6 +292,26 @@ class GCode:
             return ("G1 X%.3f Y0 E%.4f F%d" % (x, e_length, speed)).encode()
         return ("G1 X%.3f Y%.3f E%.4f F%d" % (x, y, e_length, speed)).encode()
 
+    def gen_extrusion_e_speed_move(self, x, y, speed, move_length, e_length):
+        """
+        Generate g-code line for extrusion move with extruder speed. Relative distances
+        :param x: x coordinate
+        :param y: y coordinate
+        :param speed: extruder speed
+        :param move_length: length of move
+        :param e_length: extrusion length
+        :return: byte string
+        """
+        # handle zeroes... cannot omit 0-len axes
+
+        e_time = e_length / (speed / 60)
+        move_speed = move_length / e_time * 60
+        # limit max speed
+        if move_speed > speed:
+            move_speed = speed
+        return self.gen_extrusion_speed_move(x, y, move_speed, e_length)
+
+
     def gen_extruder_move(self, e_length, speed):
         """
         Generate g-code line for extruder move with given length and speed.
@@ -353,13 +373,13 @@ class GCode:
         return ("T%d" % tool).encode()
         
     def gen_motor_current(self, axis, current):
-    	"""
-    	Send M907 to adjust motor current
-    	:param axis: the axis to adjust (usually E)
-    	:param current: motor current
-    	:return: byte string
-    	"""
-    	return ("M907 %s%d" % (axis, current)).encode()
+        """
+        Send M907 to adjust motor current
+        :param axis: the axis to adjust (usually E)
+        :param current: motor current
+        :return: byte string
+        """
+        return ("M907 %s%d" % (axis, current)).encode()
 
     def gen_absolute_positioning(self):
         """
@@ -414,7 +434,8 @@ class GCode:
         return x, y
 
     def gen_direction_move(self, direction, length, speed, layer_h,
-                           extruder=None, feed_multi=1.0, e_length=None, last_line=False):
+                           extruder=None, feed_multi=1.0, e_length=None, last_line=False,
+                           e_speed=False):
         """
         Generate g-code for head move to given direction. Relative distances
         :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
@@ -425,6 +446,7 @@ class GCode:
         :param feed_multi: feed rate multiplier
         :param e_length: extrusion length override
         :param last_line: last line before move. Used only with extrusion moves
+        :param e_speed: speed value is extruder speed
         :return:
         """
         if extruder and extruder.coasting and last_line:
@@ -432,7 +454,10 @@ class GCode:
             x, y = self._get_coordinates(direction, _length)
             c_x, c_y = self._get_coordinates(direction, extruder.coasting)
             e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
-            yield self.gen_extrusion_speed_move(x, y, speed, e_length)
+            if e_speed:
+                yield self.gen_extrusion_e_speed_move(x, y, speed, e_length)
+            else:
+                yield self.gen_extrusion_speed_move(x, y, speed, e_length)
             yield self.gen_head_move(c_x, c_y, speed)
         else:
             _length = abs(length)
@@ -442,7 +467,10 @@ class GCode:
             else:
                 if not e_length:
                     e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
-                yield self.gen_extrusion_speed_move(x, y, speed, e_length)
+                if e_speed:
+                    yield self.gen_extrusion_e_speed_move(x, y, speed, _length, e_length)
+                else:
+                    yield self.gen_extrusion_speed_move(x, y, speed, e_length)
 
     def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
         """

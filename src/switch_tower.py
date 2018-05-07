@@ -484,7 +484,7 @@ class SwitchTower:
                     feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
                     feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
                     yield gcode.gen_direction_move(horizontal_dir, self.width, feed_speed, layer.height,
-                                                   extruder=extruder, e_length=feed_len), b" prime move"
+                                                   extruder=extruder, e_length=feed_len, e_speed=True), b" prime move"
                     horizontal_dir = gcode.opposite_dir(horizontal_dir)
                     i += 1
                 except TypeError:
