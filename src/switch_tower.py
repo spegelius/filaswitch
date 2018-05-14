@@ -368,10 +368,11 @@ class SwitchTower:
             purge_speeds.append(speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, new_temp, layer):
+    def get_pre_switch_gcode(self, extruder, new_e, new_temp, layer):
         """
         Generates pre tool switch g-code
         :param extruder: active extruder
+        :param new_e: new extruder
         :param new_temp: new temperature value
         :param layer: current layer
         :return:
@@ -412,6 +413,7 @@ class SwitchTower:
         if new_temp:
             if self.settings.get_hw_config_bool_value("tool.temperature.use_id"):
                 yield (gcode.gen_temperature_nowait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp")
+                yield (gcode.gen_temperature_nowait_tool(new_temp, new_e.temperature_nr), b" change nozzle temp")
             else:
                 yield (gcode.gen_temperature_nowait(new_temp), b" change nozzle temp")
 
@@ -793,7 +795,7 @@ class SwitchTower:
             new_temp = None
 
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, new_temp, layer):
+        for line in self.get_pre_switch_gcode(old_e, new_e, new_temp, layer):
             yield line
 
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
