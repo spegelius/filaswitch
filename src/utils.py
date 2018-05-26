@@ -85,6 +85,17 @@ def extrusion_feed_rate(extrusion_w, layer_h, filament_d):
     return e_vol/f_vol
 
 
+def http_or_https(url: str):
+    """
+    Check url protocol; http or https
+    :param url: url
+    :return: http or https
+    """
+    if url.lower().startswith("https:"):
+        return "https"
+    return "http"
+
+
 if __name__ == "__main__":
     save_status_file(".teststatus", {"data1": "dtaa"})
     print(load_status(".teststatus"))
