@@ -49,3 +49,6 @@ class Logger:
         self.log.exception(msg, *args, exc_info=exc_info, **kwargs)
         if self.gui:
             self.gui.update_status("ERROR: %s" % msg)
+
+    def enable_debug(self):
+        self.log.setLevel(logging.DEBUG)
