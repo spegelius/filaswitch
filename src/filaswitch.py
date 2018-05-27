@@ -16,6 +16,8 @@ import tkinter.filedialog as fdialog
 from tkinter.messagebox import showerror
 from tkinter.ttk import *
 
+from octoprint import OctoPrint
+
 #from slicer_cura import CuraPrintFile
 from slicer_kisslicer import KISSlicerGCodeFile
 from slicer_simplify3d import Simplify3dGCodeFile
@@ -71,11 +73,16 @@ class TopFrame(Frame):
         self.grid(row=0, column=0, columnspan=5)
         self.create_widgets()
 
+        self.result_file = None
+        self.last_upload = None
+
     def create_widgets(self):
 
         # labels
         self.hwlabel = Label(self, text="1. Select HW config").grid(row=0, column=0, sticky=W, padx=5, pady=3)
-        self.gc_label = Label(self, text="2. Select g-code to process").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.gc_label = Label(self, text="2. Select g-code to process").grid(row=1, column=0, sticky=W, padx=5, pady=3)
+        self.octoupload_label = Label(self, text="3. Upload to OctoPrint").grid(row=2, column=0, sticky=W, padx=5, pady=3)
+        self.octoprint_label = Label(self, text="4. Start OctoPrint print").grid(row=3, column=0, sticky=W, padx=5, pady=3)
 
         hw_configs = settings.get_hw_config_names()
 
@@ -93,20 +100,62 @@ class TopFrame(Frame):
         self.f_button = Button(self)
         self.f_button["text"] = "Browse..."
         self.f_button["command"] = self.load_file
-        self.f_button.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+        self.f_button.grid(row=1, column=1, sticky=W, padx=5, pady=3)
+
+        # octoprint upload
+        self.ou_button = Button(self)
+        self.ou_button["text"] = "OctoPrint upload"
+        self.ou_button["command"] = self.octoprint_upload
+        self.ou_button.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+        self.ou_button.config(state=DISABLED)
+
+        # octoprint start print
+        self.os_button = Button(self)
+        self.os_button["text"] = "OctoPrint start print"
+        self.os_button["command"] = self.octoprint_start
+        self.os_button.grid(row=3, column=1, sticky=W, padx=5, pady=3)
+        self.os_button.config(state=DISABLED)
 
         # quit
         style = Style()
         style.configure("red_fg.TButton", foreground="red")
         self.quit = Button(self, text="QUIT", command=self.quit, style="red_fg.TButton")
-        self.quit.grid(row=3, column=1, sticky=W, padx=5, pady=3)
+        self.quit.grid(row=4, column=1, sticky=W, padx=5, pady=3)
+
+    def octoprint_upload(self):
+        if self.result_file:
+            octoprint = OctoPrint(self.gui.octoprint_frame.url_var.get(), self.gui.octoprint_frame.api_key_var.get(), self.log)
+            try:
+                self.log.info("Uploading {} to OctoPrint folder {}, please wait...".format(self.result_file,
+                                                                                           self.gui.octoprint_frame.upload_folder_var.get()))
+                self.last_upload = octoprint.upload_file(self.result_file, self.gui.octoprint_frame.upload_folder_var.get())
+                self.log.info("Upload done")
+                self.os_button.config(state=NORMAL)
+            except Exception as e:
+                self.last_upload = None
+                self.log.error(e)
+        else:
+            self.log.warning("No processed file, cannot upload")
+
+    def octoprint_start(self):
+        if self.last_upload:
+            octoprint = OctoPrint(self.gui.octoprint_frame.url_var.get(), self.gui.octoprint_frame.api_key_var.get(),
+                                  self.log)
+            octoprint.start_print(self.last_upload)
+        else:
+            self.log.warning("No file uploaded to Octoprint, cannot start print")
 
     def update_status(self):
+        """
+        Updates status-data with values from GUI elements. usually executed before shutting down
+        :return:
+        """
         status["last_hwconfig"] = self.hw_var.get()
         status["last_position"] = self.gui.adv_frame.position_var.get()
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
         status["force_raft"] = "true" if self.gui.adv_frame.raft_force_var.get() else "false"
         status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
+        status["debug"] = "true" if self.gui.adv_frame.debug_var.get() else "false"
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
             status["brim_size"] = BRIM_DEFAULT
@@ -115,11 +164,19 @@ class TopFrame(Frame):
             status["brim_size"] = brim_var
             status["brim_auto"] = "false"
 
+        status["octoprint_url"] = self.gui.octoprint_frame.url_var.get()
+        status["octoprint_api_key"] = self.gui.octoprint_frame.api_key_var.get()
+        status["octoprint_upload_folder"] = self.gui.octoprint_frame.upload_folder_var.get()
+
     def quit(self):
         self.update_status()
         self.gui.quit()
 
     def load_file(self):
+        """
+        Loads and processes a gcode file
+        :return:
+        """
         self.gui.info.update_status("----------------------")
         last_dir = status.get("last_dir")
         if last_dir and os.path.exists(status["last_dir"]):
@@ -130,6 +187,8 @@ class TopFrame(Frame):
 
         if gcode_file:
             try:
+                self.ou_button.config(state=DISABLED)
+                self.os_button.config(state=DISABLED)
                 settings.hw_config = self.hw_var.get()
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
@@ -145,12 +204,16 @@ class TopFrame(Frame):
 
                 print_type = detect_file_type(gcode_file, self.log)
                 pf = print_type(self.log, settings)
-                result_file = pf.process(gcode_file)
+                self.result_file = pf.process(gcode_file)
                 if self.gui.info:
-                    self.log.info("New file saved: %s" % result_file)
+                    self.log.info("New file saved: %s" % self.result_file)
                 # save last used dir for later use
                 file_dir = os.path.dirname(gcode_file)
                 status["last_dir"] = file_dir
+
+                # enabled OctoPrint upload if OctoPrint settings aren't empty
+                if self.gui.octoprint_frame.url_var.get() and self.gui.octoprint_frame.api_key_var.get():
+                    self.ou_button.config(state=NORMAL)
 
             except Exception as e:
                 self.log.exception("Gcode processing failed: %s" % e)
@@ -159,8 +222,10 @@ class TopFrame(Frame):
             self.log.info("Aborted")
 
 
-class AdvancedFrame(Frame):
-
+class OctoPrintFrame(Frame):
+    """
+    OctoPrint GUI frame
+    """
     def __init__(self, logger, master, gui):
         super().__init__(master)
         self.log = logger
@@ -169,11 +234,66 @@ class AdvancedFrame(Frame):
         self.create_widgets()
 
     def create_widgets(self):
+        """
+        Creates OctoPrint GUI elements
+        :return:
+        """
+        self.url_label = Label(self, text="OctoPrint url").grid(row=0, column=0, sticky=W, padx=5, pady=3)
+        self.api_key_label = Label(self, text="Octoprint API key").grid(row=1, column=0, sticky=W, padx=5, pady=3)
+        self.upload_folder_label = Label(self, text="Octoprint upload folder").grid(row=2, column=0, sticky=W, padx=5, pady=3)
 
+        # url
+        self.url_var = StringVar(self)
+        if self.gui.octoprint_url:
+            self.url_var.set(self.gui.octoprint_url)
+        else:
+            self.url_var.set("")
+
+        self.url_input = Entry(self, width=60, textvariable=self.url_var)
+        self.url_input.grid(row=0, column=1, sticky=W, padx=5, pady=3)
+
+        # api key
+        self.api_key_var = StringVar(self)
+        if self.gui.octoprint_api_key:
+            self.api_key_var.set(self.gui.octoprint_api_key)
+        else:
+            self.api_key_var.set("")
+
+        self.api_key_input = Entry(self,  width=40, textvariable=self.api_key_var)
+        self.api_key_input.grid(row=1, column=1, sticky=W, padx=5, pady=3)
+
+        # upload folder
+        self.upload_folder_var = StringVar(self)
+        if self.gui.octoprint_upload_folder:
+            self.upload_folder_var.set(self.gui.octoprint_upload_folder)
+        else:
+            self.upload_folder_var.set("")
+
+        self.upload_folder_input = Entry(self,  width=40, textvariable=self.upload_folder_var)
+        self.upload_folder_input.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+
+
+class AdvancedFrame(Frame):
+    """
+    Advanced options frame
+    """
+    def __init__(self, logger, master, gui):
+        super().__init__(master)
+        self.log = logger
+        self.gui = gui
+        self.grid(row=0, column=0, columnspan=5)
+        self.create_widgets()
+
+    def create_widgets(self):
+        """
+        Creates Advanced options GUI elements
+        :return:
+        """
         self.position_label = Label(self, text="Purge tower position").grid(row=0, column=0, sticky=W, padx=5, pady=3)
         self.size_label = Label(self, text="Purge lines (default: 6)").grid(row=1, column=0, sticky=W, padx=5, pady=3)
         self.raft_force_label = Label(self, text="Force raft").grid(row=2, column=0, sticky=W, padx=5, pady=3)
         self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=3, column=0, sticky=W, padx=5, pady=3)
+        self.debug_label = Label(self, text="Enable debug prints").grid(row=4, column=0, sticky=W, padx=5, pady=3)
         self.brim_label = Label(self, text="Tower brim loops").grid(row=0, column=2, sticky=W, padx=5, pady=3)
 
         # position
@@ -200,6 +320,13 @@ class AdvancedFrame(Frame):
         self.lines_box = OptionMenu(self, self.lines_var, self.lines_var.get(), *LINES)
         self.lines_box.grid(row=1, column=1, sticky=W, padx=5, pady=3)
 
+        # raft force
+        self.raft_force_var = BooleanVar(self)
+        self.raft_force_var.set(self.gui.force_raft)
+
+        self.raft_force_box = Checkbutton(self, variable=self.raft_force_var)
+        self.raft_force_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+
         # raft extrusion multiplier
         raft_multi_values = [80 + val * 5 for val in range(9)]
         self.raft_multi_var = StringVar(self)
@@ -214,12 +341,12 @@ class AdvancedFrame(Frame):
         self.raft_multi_box = OptionMenu(self, self.raft_multi_var, self.raft_multi_var.get(), *raft_multi_values)
         self.raft_multi_box.grid(row=3, column=1, sticky=W, padx=5, pady=3)
 
-        # raft force
-        self.raft_force_var = BooleanVar(self)
-        self.raft_force_var.set(self.gui.force_raft)
+        # debug
+        self.debug_var = BooleanVar(self)
+        self.debug_var.set(self.gui.debug)
 
-        self.raft_force_box = Checkbutton(self, variable=self.raft_force_var)
-        self.raft_force_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
+        self.debug_box = Checkbutton(self, variable=self.debug_var, command=self.log.enable_debug)
+        self.debug_box.grid(row=4, column=1, sticky=W, padx=5, pady=3)
 
         # brim size
         self.brim_size_var = StringVar(self)
@@ -237,15 +364,21 @@ class AdvancedFrame(Frame):
 
 
 class BottomFrame(Frame):
-
+    """
+    Bottom GUI elements frame
+    """
     def __init__(self, master, gui):
         super().__init__(master)
         self.gui = gui
-        self.grid(row=7)
+        self.grid(row=9)
         self.line_count = 0
         self.create_widgets()
 
     def create_widgets(self):
+        """
+        Creates bottom GUI elements
+        :return:
+        """
         self.scrollbar = Scrollbar(self)
         self.scrollbar.grid(row=3,column=3)
 
@@ -256,6 +389,11 @@ class BottomFrame(Frame):
         self.update_status("Idling...")
 
     def update_status(self, text):
+        """
+        Update status text element
+        :param text: text to add
+        :return:
+        """
         self.status.configure(state=NORMAL)
         self.status.insert(END, text + os.linesep)
         self.status.configure(state=DISABLED)
@@ -265,11 +403,16 @@ class BottomFrame(Frame):
 
 
 class GUI:
-
+    """
+    Main GUI class
+    """
     def __init__(self):
 
-        self.log = Logger(os.path.join(root_dir, "logs"))
+        self.debug = status.get("debug") == "true"
 
+        self.log = Logger(os.path.join(root_dir, "logs"), debug=self.debug)
+
+        # read values from config
         self.last_hwconfig = status.get("last_hwconfig")
         self.last_position = status.get("last_position")
         try:
@@ -288,12 +431,17 @@ class GUI:
         self.brim_auto = status.get("brim_auto") == "true"
         self.force_raft = status.get("force_raft") == "true"
 
+        # OctoPrint values
+        self.octoprint_url = status.get("octoprint_url")
+        self.octoprint_api_key = status.get("octoprint_api_key")
+        self.octoprint_upload_folder = status.get("octoprint_upload_folder")
+
     def show_gui(self):
 
         self.top = Tk()
         self.top.title('FilaSwitch v%s' % version)
         # top.geometry('500x500')
-        self.top.rowconfigure(7, weight=1)
+        self.top.rowconfigure(9, weight=1)
         self.top.columnconfigure(5, weight=1)
 
         self.nb = Notebook(self.top)
@@ -304,9 +452,11 @@ class GUI:
         self.topframe = TopFrame(self.log, self.nb, self)
 
         self.adv_frame = AdvancedFrame(self.log, self.nb, self)
+        self.octoprint_frame = OctoPrintFrame(self.log, self.nb, self)
 
         self.nb.add(self.topframe, text="Main")
         self.nb.add(self.adv_frame, text="Advanced")
+        self.nb.add(self.octoprint_frame, text="OctoPrint")
         self.nb.grid(row=0, column=0, columnspan=5, rowspan=5, sticky='NESW')
         self.top.protocol("WM_DELETE_WINDOW", self.quit)
         self.top.mainloop()
@@ -338,8 +488,12 @@ def main():
         parser.add_argument("--force_raft", help="Set to True to force a tower raft", type=bool, default=False)
         parser.add_argument("--tower_force", help="start position of tower", type=str, default="0,0")
         parser.add_argument("--brim_count", help="Number of brim loops", type=int, default=0)
-        args = parser.parse_args()
+        parser.add_argument("--opurl", help="OctoPrint url for gcode upload", type=str)
+        parser.add_argument("--opkey", help="OctoPrint API key for gcode upload", type=str)
+        parser.add_argument("--opfolder", help="OctoPrint upload folder", type=str, default="")
+        parser.add_argument("--opprint", help="OctoPrint start print after successful upload", action="store_true")
 
+        args = parser.parse_args()
 
         settings.hw_config = args.hw_config
         settings.purge_lines = args.lines
@@ -355,6 +509,18 @@ def main():
         pf = print_type(log, settings)
         result_file = pf.process(args.file)
         log.info("New file saved: %s" % result_file)
+
+        if args.opurl:
+            if args.opkey:
+                octoprint = OctoPrint(args.opurl, args.opkey, log)
+                log.info("Uploading {} to OctoPrint folder {}, please wait...".format(result_file, args.opfolder))
+                up_file = octoprint.upload_file(result_file, args.opfolder)
+                log.info("Upload done")
+                if args.opprint:
+                    log.info("Starting print")
+                    octoprint.start_print(up_file)
+            else:
+                log.warning("No API key given even though OctoPrint url was given. Cannot upload")
 
 
 if __name__ == "__main__":
