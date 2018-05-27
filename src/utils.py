@@ -27,7 +27,7 @@ def load_status(status_file):
                     continue
                 line = line.strip("\n")
                 if line:
-                    values = line.split(":")
+                    values = line.split(":", 1)
                     status[values[0]] = values[1].strip()
     except FileNotFoundError:
         return {}
