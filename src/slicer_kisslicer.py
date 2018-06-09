@@ -87,6 +87,7 @@ class KISSlicerGCodeFile(GCodeFile):
                     for t in range(int(comment.split(b' = ')[1])):
                         if t not in self.extruders:
                             self.extruders[t] = Extruder(t)
+                            self.extruders[t].temperature_nr = t
 
                 elif b"; nozzle_dia" in comment:
                     # ; nozzle_dia_1 = 0.4
@@ -163,6 +164,7 @@ class KISSlicerGCodeFile(GCodeFile):
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
             self.extruders[t].extrusion_width = self.settings.extrusion_width
+            print(self.extruders[t].temperature_nr)
 
         if self.settings.machine_type == 0:
             # fix KISS xy offsets
