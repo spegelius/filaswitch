@@ -46,6 +46,9 @@ prerun.prime.xstart: 5.0
 prerun.prime.ystart: 1
 prerun.prime.purge.count: 7
 
+## Use this to fine tune filament position after preprime. Neagtive values retract
+prerun.finetune.length: 5
+
 ## Rapid retract means pulling the filament out of the nozzle.
 ## Various stages can be defined.
 ## - initial retract happens right after prepurge is done

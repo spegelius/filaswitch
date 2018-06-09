@@ -80,7 +80,7 @@ class PrePrime:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
-                
+
         #cooling retracts, also serves as wipe
 
         i = 0
@@ -96,6 +96,12 @@ class PrePrime:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning("No cooling steps. That's OK.")
                 break
+
+        # account for retract mismatch in preprime, caused by slower initial purge
+        finetune = self.settings.get_hw_config_value("prerun.finetune.length")
+        if finetune:
+            yield gcode.gen_extruder_move(float(finetune), 500), b" preprime finetune"
+
         self.horizontal_dir = E
 
     def get_feed_gcode(self, extruder):
