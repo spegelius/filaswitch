@@ -213,9 +213,10 @@ class SwitchTower:
                     self.rotate_tower(180)
                     return position
 
-        if self.settings.tower_position == AUTO:
-            raise ValueError("Not enough space for the tower inside the bed!")
-        raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
+        if not self.settings.tower_force[0]:
+            if self.settings.tower_position == AUTO:
+                raise ValueError("Not enough space for the tower inside the bed!")
+            raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
 
     def _delta_position(self, x_max, x_min, y_max, y_min):
         """
@@ -315,10 +316,11 @@ class SwitchTower:
                 #     self.start_pos_x = x_min - self.tower_offset
                 #     self.rotate_tower(90)
                 #     return position
-
-        if self.settings.tower_position == AUTO:
-            raise ValueError("Not enough space for the tower inside the bed!")
-        raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
+                
+        if not self.settings.tower_force[0]:
+            if self.settings.tower_position == AUTO:
+                raise ValueError("Not enough space for the tower inside the bed!")
+            raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
 
     def find_tower_position(self, x_max, x_min, y_max, y_min):
         """
@@ -340,6 +342,11 @@ class SwitchTower:
             position = self._cartesian_position(x_max, x_min, y_max, y_min)
         else:
             position = self._delta_position(x_max, x_min, y_max, y_min)
+            
+        if self.settings.tower_force[0]:
+            self.start_pos_x = self.settings.tower_force[0]
+            self.start_pos_y = self.settings.tower_force[1]
+            position = "FORCED"
 
         self.log.info("Tower start coordinate: X%.3f, Y%.3f, position %s" %(self.start_pos_x, self.start_pos_y, position))
 

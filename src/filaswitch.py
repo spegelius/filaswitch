@@ -336,6 +336,8 @@ def main():
         parser.add_argument("--position", help="Purge tower position. Default Auto. Auto will try to find a position with enough free space for the tower",
                             choices=TOWER_POSITIONS, default=AUTO)
         parser.add_argument("--force_raft", help="Set to True to force a tower raft", type=bool, default=False)
+        parser.add_argument("--tower_force", help="start position of tower", type=str, default="0,0")
+        parser.add_argument("--brim_count", help="Number of brim loops", type=int, default=0)
         args = parser.parse_args()
 
 
@@ -343,6 +345,10 @@ def main():
         settings.purge_lines = args.lines
         settings.tower_position = args.position
         settings.force_raft = args.force_raft
+        settings.tower_force = args.tower_force
+
+        if args.brim_count:
+            settings.brim = args.brim_count
 
         log = Logger(os.path.join(root_dir, "logs"), gui=False, debug=args.debug)
         print_type = detect_file_type(args.file, log)
