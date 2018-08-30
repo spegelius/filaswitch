@@ -47,6 +47,7 @@ class Settings:
         self._brim = BRIM_DEFAULT
         self._brim_auto = False
         self._force_raft = None
+        self._tower_force = []
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -75,6 +76,14 @@ class Settings:
     def tower_position(self, value):
         self._tower_position = value
 
+    @property
+    def tower_force(self):
+        return self._tower_force
+
+    @tower_force.setter
+    def tower_force(self,value: str):
+        self._tower_force = [int(x) for x in value.split(',')]
+      
     @property
     def raft_multi(self):
         return self._raft_multi
