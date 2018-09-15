@@ -343,7 +343,7 @@ class SwitchTower:
         else:
             position = self._delta_position(x_max, x_min, y_max, y_min)
             
-        if self.settings.tower_force[0]:
+        if self.settings.tower_force and self.settings.tower_force[0]:
             self.start_pos_x = self.settings.tower_force[0]
             self.start_pos_y = self.settings.tower_force[1]
             position = "FORCED"
