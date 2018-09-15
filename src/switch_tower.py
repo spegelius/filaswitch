@@ -730,14 +730,15 @@ class SwitchTower:
 
     def get_slot(self, layer):
         """
-        Get next viable slot, based on lowest z
+        Get next viable slot, based on lowest z. Start from back
         :param layer: current layer
         :return: none
         """
 
         slot = 0
         min_z = 1000000000000
-        for s in range(layer.tower_slots):
+        for s in range(layer.tower_slots - 1, -1, -1):
+            print(s)
             if self.slots[s]['last_z'] < min_z:
                 slot = s
                 min_z = self.slots[s]['last_z']
