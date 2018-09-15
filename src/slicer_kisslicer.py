@@ -156,6 +156,11 @@ class KISSlicerGCodeFile(GCodeFile):
                     if comment.split(b' = ')[1] != b"1":
                         raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
 
+                elif b"; force_joint_layers =" in comment:
+                    # ; force_joint_layers = 0
+                    if comment.split(b' = ')[1] != b"1":
+                        self.log.warning("KISS joint layer division is not enabled. This might cause unexpected behaviour with tower size")
+
         if not self.version:
             self.log.warning("Could not detect KISSlicer version. Use at your own risk!")
         else:
