@@ -286,19 +286,6 @@ class GCodeFile:
             while True:
                 try:
                     # TODO: refactor this whole thing...
-                    # when z height changes, check that tower height isn't too low versus layer
-                    if layer.num != 1 and last_z < layer.z < self.last_switch_height:
-                        added = False
-                        for line in self.switch_tower.check_infill(layer, e_pos, self.active_e):
-                            if line:
-                                added = True
-                                index += layer.insert_line(index, line[0], line[1])
-                        if added:
-                            e_pos = -self.active_e.retract
-                        prime_needed = True
-                        prime_ok = False
-
-                    last_z = layer.z
 
                     # add infill the the beginning of the layer if not a tool change layer
                     if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:

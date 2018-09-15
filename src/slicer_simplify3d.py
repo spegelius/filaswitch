@@ -286,8 +286,8 @@ class Simplify3dGCodeFile(GCodeFile):
                 ret = self.check_layer_change(comment, None)
                 if ret:
                     if current_layer.num == 1 and ret[0] == 1:
-                        current_layer.z = round(ret[1], 3)
-                        current_layer.height = round(ret[1], 3)
+                        current_layer.z = round(ret[1], 5)
+                        current_layer.height = round(ret[1], 5)
                     else:
                         if prev_layer:
                             prev_z = prev_layer.z
@@ -295,7 +295,7 @@ class Simplify3dGCodeFile(GCodeFile):
                             prev_z = 0
 
                         # calculate and check layer height.
-                        height = round((current_layer.z - prev_z), 3)
+                        height = round((current_layer.z - prev_z), 5)
                         if height and height > 0:
                             prev_height = height
                         else:
@@ -303,7 +303,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
                         self.layers.append(current_layer)
                         prev_layer = current_layer
-                        current_layer = Layer(round(ret[0], 3), round(ret[1], 3), height)
+                        current_layer = Layer(round(ret[0], 5), round(ret[1], 5), height)
 
                         if current_layer.height < min_layer_height:
                             min_layer_height = current_layer.height
@@ -392,9 +392,6 @@ class Simplify3dGCodeFile(GCodeFile):
         # tag layers for actions: tool change, infill, etc
         zs.reverse()
         for z in zs:
-
-            if layer_data[z]['slots'] == 0:
-                continue
 
             slots_filled = 0
             # first check tool change layers

@@ -784,7 +784,7 @@ class SwitchTower:
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
-        self.slots[self.slot]['last_z'] = tower_z
+        self.slots[self.slot]['last_z'] = round(tower_z, 5)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
@@ -904,7 +904,7 @@ class SwitchTower:
         yield self._get_z_hop(layer, extruder)
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
-        self.slots[self.slot]['last_z'] = tower_z
+        self.slots[self.slot]['last_z'] = round(tower_z, 5)
 
         # infill
         infill_x = self.wall_width/6
@@ -959,26 +959,6 @@ class SwitchTower:
 
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
-
-    def check_infill(self, layer, e_pos, extruder):
-        """
-        Checks if tower z is too low versus layer and adds infill if needed
-        :param layer: current layer
-        :param e_pos: extruder position
-        :param extruder: active extruder
-        :return: list of cmd, comment tuples
-        """
-        # TODO: rethink whole line thing. Maybe Writer object?
-
-        while True:
-            count = 0
-            for s in range(layer.tower_slots):
-                if self.slots[s]['last_z'] < layer.z - layer.height:
-                    for l in self.get_infill_lines(layer, e_pos, extruder):
-                        yield l
-                    count += 1
-            if not count:
-                break
 
 
 if __name__ == "__main__":

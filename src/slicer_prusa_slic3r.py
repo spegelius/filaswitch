@@ -288,7 +288,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         else:
                             prev_z = 0
 
-                        height = current_layer.z - prev_z
+                        height = round(current_layer.z - prev_z, 5)
                         if height:
                             prev_height = height
                         else:
@@ -374,9 +374,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
         # tag layers for actions: tool change, infill, etc
         zs.reverse()
         for z in zs:
-
-            if layer_data[z]['slots'] == 0:
-                continue
 
             slots_filled = 0
             # first check tool change layers

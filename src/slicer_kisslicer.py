@@ -292,9 +292,6 @@ class KISSlicerGCodeFile(GCodeFile):
         zs.reverse()
         for z in zs:
 
-            if layer_data[z]['slots'] == 0:
-                continue
-
             slots_filled = 0
             # first check tool change layers
             for l in layer_data[z]['layers']:
