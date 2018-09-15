@@ -57,7 +57,7 @@ class KISSlicerGCodeFile(GCodeFile):
                         m = self.VERSION_RE.match(comment)
                         self.version = (int(m.groups()[0]), int(m.groups()[1]))
                     except Exception as e:
-                        print(e)
+                        self.log.exception(e)
                 elif b" bed_size_x_mm =" in comment:
                     #; bed_size_x_mm = 145
                     self.settings.stroke_x = float(comment.split(b' = ')[1])
@@ -169,12 +169,11 @@ class KISSlicerGCodeFile(GCodeFile):
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
             self.extruders[t].extrusion_width = self.settings.extrusion_width
-            print(self.extruders[t].temperature_nr)
 
         if self.settings.machine_type == 0:
             # fix KISS xy offsets
             self.settings.origin_offset_x = self.settings.origin_offset_x - self.settings.stroke_x/2
-            self.settingsorigin_offset_y = self.settings.origin_offset_y - self.settings.stroke_y/2
+            self.settings.origin_offset_y = self.settings.origin_offset_y - self.settings.stroke_y/2
 
     def parse_print_settings(self):
         """ KISS specific settings """
