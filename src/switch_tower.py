@@ -213,7 +213,7 @@ class SwitchTower:
                     self.rotate_tower(180)
                     return position
 
-        if not self.settings.tower_force[0]:
+        if not self.settings.tower_force or not self.settings.tower_force[0]:
             if self.settings.tower_position == AUTO:
                 raise ValueError("Not enough space for the tower inside the bed!")
             raise ValueError("Not enough room for tower using selected position %s" % self.settings.tower_position)
