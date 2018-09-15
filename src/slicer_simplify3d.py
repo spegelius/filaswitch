@@ -49,7 +49,6 @@ class Simplify3dGCodeFile(GCodeFile):
         self.parse_header()
         self.get_extruders()
         self.parse_print_settings()
-        self.fix_layer_ordering()
         self.filter_layers()
         self.fix_retract_during_wipe()
         self.parse_perimeter_rates()
@@ -467,55 +466,6 @@ class Simplify3dGCodeFile(GCodeFile):
                 elif gcode.is_tool_change(cmd) is not None:
                     # tool change, set active extruder
                     extruder = self.extruders[gcode.last_match]
-
-    def fix_layer_ordering(self):
-        """
-        S3D ver 4.0.1 has a bug that prints dc layers in wrong order. This functions tries to fix the layer ordering.
-        :return:
-        """
-
-        if self.version == (4,0,1):
-            # fix multicolor layer fuckups
-
-            # debug
-            # for l in self.layers:
-            #     print(l.num, l.z, l.height)
-
-            ok_layers = []
-            f_ed_layers = []
-            prev_z = self.layer_height + 0.005  # account for floating point accuracy errors
-            for l in self.layers:
-                diff = l.z - (prev_z + 0.005)
-                if diff <= self.layer_height:
-                    ok_layers.append(l)
-                    prev_z = l.z
-                else:
-                    f_ed_layers.append(l)
-
-            num = 1
-            index = 0
-            while True:
-                try:
-                    l = ok_layers[index]
-                except IndexError:
-                    break
-                if f_ed_layers and f_ed_layers[0].z < l.z:
-                    fl = f_ed_layers.pop(0)
-                    fl.height = self.layer_height
-                    fl.num = num
-                    ok_layers.insert(index, fl)
-                    index += 1
-                    num += 1
-                l.num = num
-                l.height = self.layer_height
-                index += 1
-                num += 1
-
-            self.layers = ok_layers
-
-            # debug
-            # for l in self.layers:
-            #     print(l.num, l.z, l.height)
 
     def parse_perimeter_rates(self):
         """
