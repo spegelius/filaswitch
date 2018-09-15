@@ -50,5 +50,8 @@ class Logger:
         if self.gui:
             self.gui.update_status("ERROR: %s" % msg)
 
-    def enable_debug(self):
-        self.log.setLevel(logging.DEBUG)
+    def enable_debug(self, state):
+        if state:
+            self.log.setLevel(logging.DEBUG)
+        else:
+            self.log.setLevel(logging.INFO)

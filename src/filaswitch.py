@@ -345,7 +345,7 @@ class AdvancedFrame(Frame):
         self.debug_var = BooleanVar(self)
         self.debug_var.set(self.gui.debug)
 
-        self.debug_box = Checkbutton(self, variable=self.debug_var, command=self.log.enable_debug)
+        self.debug_box = Checkbutton(self, variable=self.debug_var, command=self.set_debug)
         self.debug_box.grid(row=4, column=1, sticky=W, padx=5, pady=3)
 
         # brim size
@@ -361,6 +361,9 @@ class AdvancedFrame(Frame):
 
         self.brim_size_box = OptionMenu(self, self.brim_size_var, self.brim_size_var.get(), *brim_opts)
         self.brim_size_box.grid(row=0, column=3, sticky=W, padx=5, pady=3)
+
+    def set_debug(self):
+        self.log.enable_debug(self.debug_var.get())
 
 
 class BottomFrame(Frame):
