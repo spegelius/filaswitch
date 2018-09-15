@@ -17,7 +17,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
     slicer_type = SLICER_PRUSA_SLIC3R
 
     LAYER_START_RE = re.compile(b"BEFORE_LAYER_CHANGE (\d+) (\d+\.*\d*)")
-    VERSION_RE = re.compile(b".*(\d+)\.(\d+)\.(\d+)-prusa3d-.*")
+    VERSION_RE = re.compile(b".*(\d+)\.(\d+)\.(\d+).*")
 
     def __init__(self, logger, settings: Settings):
         super().__init__(logger, settings)
