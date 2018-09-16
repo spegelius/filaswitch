@@ -42,7 +42,6 @@ class KISSlicerGCodeFile(GCodeFile):
         :return: none
         """
 
-        z_offset = 0
         current_tool = None
 
         ext_re = re.compile(b".*Material Settings for Extruder (\d+)")
@@ -72,7 +71,7 @@ class KISSlicerGCodeFile(GCodeFile):
                     self.settings.origin_offset_y = float(comment.split(b' = ')[1])
                 elif b" bed_offset_z_mm =" in comment:
                     #; bed_offset_z_mm = 0
-                    z_offset = float(comment.split(b' = ')[1])
+                    self.settings.z_offset = float(comment.split(b' = ')[1])
                 elif b" round_bed =" in comment:
                     # ; round_bed = 0
                     self.settings.machine_type = int(comment.split(b' = ')[1])
@@ -167,13 +166,18 @@ class KISSlicerGCodeFile(GCodeFile):
             self.log.info("KISSlicer version %d.%d" % self.version)
 
         for t in self.extruders:
-            self.extruders[t].z_offset = z_offset
+            self.extruders[t].z_offset = self.settings.z_offset
             self.extruders[t].extrusion_width = self.settings.extrusion_width
 
         if self.settings.machine_type == 0:
             # fix KISS xy offsets
             self.settings.origin_offset_x = self.settings.origin_offset_x - self.settings.stroke_x/2
             self.settings.origin_offset_y = self.settings.origin_offset_y - self.settings.stroke_y/2
+
+        # correct the layer height to value that doesn't have the z-offset
+        if self.settings.z_offset != 0:
+            for l in self.layers:
+                l.z -= self.settings.z_offset
 
     def parse_print_settings(self):
         """ KISS specific settings """

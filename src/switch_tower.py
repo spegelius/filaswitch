@@ -375,7 +375,7 @@ class SwitchTower:
             purge_speeds.append(speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, new_e, new_temp, layer):
+    def get_pre_switch_gcode(self, extruder, new_e, new_temp, layer: Layer):
         """
         Generates pre tool switch g-code
         :param extruder: active extruder
@@ -471,7 +471,7 @@ class SwitchTower:
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
-    def get_post_switch_gcode(self, extruder, new_temp, layer):
+    def get_post_switch_gcode(self, extruder, new_temp, layer: Layer):
         """
         Generate gcode for actions after tool change
         :param extruder: extruder
@@ -544,7 +544,7 @@ class SwitchTower:
         # no need to show the warnings again
         self.warnings_shown = True
 
-    def get_brim_raft_lines(self, first_layer, extruder, raft=True):
+    def get_brim_raft_lines(self, first_layer: Layer, extruder, raft=True):
         """
         G-code lines for the brim and raft
         :param first layer: first layer
@@ -560,8 +560,6 @@ class SwitchTower:
         if extruder.z_hop:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
-        else:
-            yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset + 5, self.settings.travel_z_speed), b" move z close"
 
         yield gcode.gen_head_move(self.raft_pos_x, self.raft_pos_y, self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed), b" move z close"
@@ -633,7 +631,7 @@ class SwitchTower:
             for i in range(self.max_slots):
                 self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
 
-    def _get_z_hop(self, layer, extruder):
+    def _get_z_hop(self, layer: Layer, extruder):
         """
         Get g-code for z-hop
         :param layer: current layer
@@ -642,16 +640,21 @@ class SwitchTower:
         """
         max_z = 0
         for s in self.slots:
-            if self.slots[s]['last_z'] > max_z:
+            if s > self.slot:
+                continue
+            elif self.slots[s]['last_z'] > max_z:
                 max_z = self.slots[s]['last_z']
 
-        if layer.z > max_z:
-            new_z_hop = layer.z
+        current_z = round(layer.z + self.settings.z_offset, 5)
+        if current_z >= max_z:
+            new_z_hop = current_z
         else:
             new_z_hop = max_z
         if extruder.z_hop:
             new_z_hop += extruder.z_hop
-        return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
+        if new_z_hop > current_z:
+            #print(new_z_hop, current_z)
+            return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
 
     def _get_retraction(self, extruder):
         """
@@ -774,7 +777,9 @@ class SwitchTower:
         yield self._get_retraction(old_e)
 
         # handle z-hop
-        yield self._get_z_hop(layer, old_e)
+        z_hop = self._get_z_hop(layer, old_e)
+        if z_hop:
+            yield z_hop
 
         y_pos = (self.wall_height + 0.4) * self.slot
         if self.slots[self.slot]['horizontal_dir'] == self.E:
@@ -785,8 +790,11 @@ class SwitchTower:
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
+
         self.slots[self.slot]['last_z'] = round(tower_z, 5)
-        yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        if z_hop:
+            yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # turn linear advance off, if set
@@ -870,7 +878,7 @@ class SwitchTower:
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
 
-    def get_infill_lines(self, layer, e_pos, extruder):
+    def get_infill_lines(self, layer: Layer, e_pos, extruder):
         """
         G-code for switch tower infill
         :param layer: current layer
@@ -902,7 +910,9 @@ class SwitchTower:
         yield self._get_retraction(extruder)
 
         # handle z-hop
-        yield self._get_z_hop(layer, extruder)
+        z_hop = self._get_z_hop(layer, extruder)
+        if z_hop:
+            yield z_hop
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
         self.slots[self.slot]['last_z'] = round(tower_z, 5)
