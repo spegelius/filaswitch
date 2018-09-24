@@ -249,9 +249,6 @@ class GCodeFile:
         e_pos = 0
         is_tool_change = False
 
-        # last z-position
-        last_z = 0
-
         # flag to indicate if z-move is needed after tower g-code
         z_move_needed = False
         # flag to indicate if prime is needed after purge tower g-code
@@ -286,20 +283,6 @@ class GCodeFile:
             while True:
                 try:
                     # TODO: refactor this whole thing...
-
-                    # add infill the the beginning of the layer if not a tool change layer
-                    if layer.action == ACT_INFILL and index == 0 and layer.num != 1 and layer.z < self.last_switch_height:
-                        # update purge tower with sparse infill
-                        added = False
-                        for line in self.switch_tower.get_infill_lines(layer, e_pos, self.active_e):
-                            if line:
-                                added = True
-                                index += layer.insert_line(index, line[0], line[1])
-                        if added:
-                            e_pos = -self.active_e.retract
-                        prime_needed = True
-                        prime_ok = False
-
                     cmd, comment = layer.lines[index]
 
                     if comment and comment.strip() == b"TOOL CHANGE":
@@ -388,6 +371,17 @@ class GCodeFile:
                             z_move_needed = False
 
                 except IndexError:
+                    # if last layer for z, check infill
+                    if layer.num != 1 and layer.last_z_layer and layer.z < self.last_switch_height:
+                        added = False
+                        for line in self.switch_tower.check_infill(layer, e_pos, self.active_e):
+                            if line:
+                                added = True
+                                index += layer.insert_line(index, line[0], line[1])
+                        if added:
+                            e_pos = -self.active_e.retract
+                        prime_needed = True
+                        prime_ok = False
                     break
                 index += 1
 
@@ -435,10 +429,64 @@ class GCodeFile:
 
     def filter_layers(self):
         """
-        Implement this in slicer specific implementation
+        Filter layers so that only layers relevant purge tower processing
+        are returned. Also layers are tagged for action (tool witch, infill, pass)
+        Layers that are left out:
+        - empty (no command lines)
+        - non-tool
         :return: none
         """
-        raise NotImplemented
+
+        layer_data = {}
+
+        # step 1: parse z heights and populate dictionary with layers per z height
+        for layer in self.layers:
+            if layer.z not in layer_data:
+                layer_data[layer.z] = {'layers': []}
+
+            layer_data[layer.z]['layers'].append(layer)
+
+        # z-list sorted
+        zs = sorted(layer_data.keys())
+
+        # get needed slot counts per layer by going through reversed z-position list.
+        slots = 0
+        zs.reverse()
+        for z in zs:
+            lrs = 0
+            for l in layer_data[z]['layers']:
+                # each layer counts whether there's tool changes or not
+                lrs += l.has_tool_changes()
+            if lrs > slots:
+                slots = lrs
+            layer_data[z]['slots'] = slots
+
+        self.max_slots = slots
+        # print(self.max_slots)
+
+        # find tool change layers
+        zs.reverse()
+        for z in zs:
+
+            current_slot = layer_data[z]['slots'] - 1
+
+            # check tool change layers
+            for l in layer_data[z]['layers']:
+                l.slots = layer_data[z]['slots']
+                if l.has_tool_changes():
+                    l.action = ACT_SWITCH
+                    l.tower_slot = current_slot
+                    current_slot -= 1
+
+            # mark last layer for curret z
+            layer_data[z]['layers'][-1].last_z_layer = True
+
+        # step 3: pack groups to list
+        layers = []
+        for z in zs:
+            for l in layer_data[z]['layers']:
+                layers.append(l)
+        self.filtered_layers = sorted(layers, key=lambda x: x.num)
 
     def process(self, gcode_file):
         """ Runs processing """

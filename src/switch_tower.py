@@ -1,6 +1,7 @@
 import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
+from layer import Layer, ACT_SWITCH, ACT_INFILL
 from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM
 
 import utils
@@ -95,6 +96,9 @@ class SwitchTower:
         self.warnings_shown = False
 
         self.e_pos = 0
+
+        # infill slot count
+        self.infill_slots = 0
 
         # infill speeds
         self.infill_speeds = [self.settings.default_speed,
@@ -684,21 +688,27 @@ class SwitchTower:
             self.e_pos = 0
             return extruder.get_prime_gcode(change=prime, comment=b" tower prime")
 
-    def _get_wall_position_gcode(self, x_direction, y_direction):
+    def _get_wall_position_gcode(self, x_direction, y_direction, infill=False):
         """
         Retun g-code line for positioning head for wall print
         :param x_direction: current x direction
         :param y_direction: current y direction
         :return: g-code line
         """
-        y_pos = (self.wall_height + 0.4) * self.slot
+        if infill:
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+            y_pos = 0
+        else:
+            h = self.wall_height
+            y_pos = (self.wall_height + 0.4) * self.slot
+
         if x_direction == self.E:
             x_offset = -1.2
         else:
             x_offset = self.wall_width - 1.2
 
         if y_direction == self.N:
-            y_offset = self.wall_height - 0.5 + y_pos
+            y_offset = h - 0.5 + y_pos
         else:
             y_offset = -0.5 + y_pos
 
@@ -706,7 +716,7 @@ class SwitchTower:
         #self.log.debug(self.start_pos_x, self.start_pos_y, x, y)
         return gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
-    def _get_wall_gcode(self, extruder, layer, last_speed, x_direction, y_direction):
+    def _get_wall_gcode(self, extruder, layer: Layer, last_speed, x_direction, y_direction, infill=False):
         """
         Return g-code for printing the purge tower walls
         :param extruder: extruder object
@@ -716,14 +726,20 @@ class SwitchTower:
         :param y_direction: current y direction
         :return: list of g-code lines
         """
-        last_y = self.wall_height - 0.3
         wall_speed = self.settings.default_speed
 
         x_dir = x_direction
         y_dir = gcode.opposite_dir(y_direction)
 
+        if infill:
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+        else:
+            h = self.wall_height
+
+        last_y = h - 0.3
+
         yield gcode.gen_direction_move(x_dir, self.wall_width, wall_speed, layer, extruder=extruder), b" wall"
-        yield gcode.gen_direction_move(y_dir, self.wall_height, wall_speed, layer, extruder=extruder), b" wall"
+        yield gcode.gen_direction_move(y_dir, h, wall_speed, layer, extruder=extruder), b" wall"
 
         x_dir = gcode.opposite_dir(x_dir)
         y_dir = gcode.opposite_dir(y_dir)
@@ -731,23 +747,27 @@ class SwitchTower:
         yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, layer, extruder=extruder), b" wall"
         yield gcode.gen_direction_move(y_dir, last_y, last_speed, layer, extruder=extruder, last_line=True), b" wall"
 
-    def get_slot(self, layer):
+    def get_slot(self, layer: Layer):
         """
         Get next viable slot, based on lowest z. Start from back
         :param layer: current layer
         :return: none
         """
 
-        slot = 0
-        min_z = 1000000000000
-        for s in range(layer.tower_slots - 1, -1, -1):
-            print(s)
-            if self.slots[s]['last_z'] < min_z:
-                slot = s
-                min_z = self.slots[s]['last_z']
-        self.slot = slot
+        if layer.action == ACT_SWITCH:
+            slot = 0
+            min_z = 1000000000000
 
-    def get_tower_lines(self, layer, e_pos, old_e, new_e):
+            for s in range(layer.slots - 1, -1, -1):
+                if self.slots[s]['last_z'] < min_z:
+                    slot = s
+                    min_z = self.slots[s]['last_z']
+            self.slot = slot
+        else:
+            # fill infill slots from the first slot
+            self.slot = 0
+
+    def get_tower_lines(self, layer: Layer, e_pos, old_e, new_e):
         """
         G-code for switch tower
         :param layer: current layer
@@ -899,10 +919,6 @@ class SwitchTower:
 
         self.get_slot(layer)
 
-        # no need to add infill if tower is already higher than layer
-        if layer.z <= self.slots[self.slot]['last_z']:
-            return []
-
         self.log.debug("Adding purge tower infill")
         yield None, b" TOWER INFILL START"
 
@@ -915,11 +931,12 @@ class SwitchTower:
             yield z_hop
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
-        self.slots[self.slot]['last_z'] = round(tower_z, 5)
+        for s in range(self.infill_slots):
+            self.slots[s]['last_z'] = round(tower_z, 5)
 
-        # infill
+        # infill settings
         infill_x = self.wall_width/6
-        infill_y = self.wall_height-0.3
+        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4 - 0.3
         infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
 
@@ -933,15 +950,16 @@ class SwitchTower:
             vertical_dir = self.N
             infill_angle = -infill_angle
 
-        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir)
-        yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
+        if z_hop:
+            yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         yield self._get_prime(extruder)
 
         # wall gcode
         for line in self._get_wall_gcode(extruder, layer.height, self.settings.default_speed,
-                                         horizontal_dir, vertical_dir):
+                                         horizontal_dir, vertical_dir, infill=True):
             yield line
 
         direction = infill_angle
@@ -970,6 +988,26 @@ class SwitchTower:
 
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
+
+    def check_infill(self, layer, e_pos, extruder):
+        """
+        Checks if tower z is too low versus layer and adds infill if needed
+        :param layer: current layer
+        :param e_pos: extruder position
+        :param extruder: active extruder
+        :return: list of cmd, comment tuples
+        """
+        # TODO: rethink whole line thing. Maybe Writer object?
+
+        count = 0
+        for s in range(layer.slots):
+            z = round(layer.z + self.settings.z_offset, 5)
+            if self.slots[s]['last_z'] < z:
+                count += 1
+        if count:
+            self.infill_slots = count
+            for l in self.get_infill_lines(layer, e_pos, extruder):
+                yield l
 
 
 if __name__ == "__main__":
