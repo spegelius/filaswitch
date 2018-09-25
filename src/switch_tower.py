@@ -803,8 +803,17 @@ class SwitchTower:
         # pre-switch purge
         for line in self.get_pre_switch_gcode(old_e, new_e, new_temp, layer):
             yield line
-
+        
+        if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
+        	yield b"G4 S0", b" wait"
+        	
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
+        
+        if self.settings.get_hw_config_bool_value("tool.reset_feed"):
+        	yield b"M220 S100", b" reset feedrate"
+        	
+        if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
+        	yield b"G4 S0", b" wait"
 
         # feed new filament
         if new_temp and abs(new_temp - old_temp) > 15:
