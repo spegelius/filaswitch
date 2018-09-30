@@ -920,6 +920,7 @@ class SwitchTower:
             yield line
 
         yield new_e.get_retract_gcode()
+        self.e_pos = -new_e.retract
         if new_e.wipe:
             wipe_dir = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
             yield gcode.gen_direction_move(wipe_dir, new_e.wipe, gap_speed, layer.height), b" wipe"
@@ -1011,6 +1012,7 @@ class SwitchTower:
             flip = not flip
 
         yield extruder.get_retract_gcode()
+        self.e_pos = -extruder.retract
         if extruder.wipe:
             yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000, layer.height), b" wipe"
 
@@ -1033,6 +1035,7 @@ class SwitchTower:
         """
         # TODO: rethink whole line thing. Maybe Writer object?
 
+        self.e_pos = e_pos
         # find slots that need work
         count = 0
         for s in range(layer.slots):
