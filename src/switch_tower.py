@@ -1,7 +1,7 @@
 import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
-from layer import Layer, ACT_SWITCH, ACT_INFILL
+from layer import Layer, ACT_SWITCH
 from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM
 
 import utils
@@ -1036,25 +1036,31 @@ class SwitchTower:
         # TODO: rethink whole line thing. Maybe Writer object?
 
         self.e_pos = e_pos
+
+        if not self.brim_done:
+            for line in self.get_brim_lines(layer, extruder):
+                yield line
+            self.brim_done = True
+
         # find slots that need work
         count = 0
+        zero_count = 0
         for s in range(layer.slots):
             z = round(layer.z + self.settings.z_offset, 5)
             if self.slots[s]['last_z'] < z:
-                count += 1
-        if count:
-            if layer.num == 1:  # first layer
-                if not self.brim_done:
-                    for line in self.get_brim_lines(layer, extruder):
-                        yield line
-                    self.brim_done = True
-                for line in self.get_raft_lines(layer, extruder, count):
+                if self.slots[s]['last_z'] == 0:
+                    zero_count += 1
+                else:
+                    count += 1
+        if zero_count:
+            if not self.raft_done:
+                for line in self.get_raft_lines(layer, extruder, zero_count):
                     yield line
                 self.raft_done = True
-            else:  # other layers
-                self.infill_slots = count
-                for l in self.get_infill_lines(layer, e_pos, extruder):
-                    yield l
+        if count:
+            self.infill_slots = count
+            for l in self.get_infill_lines(layer, e_pos, extruder):
+                yield l
 
 
 if __name__ == "__main__":
