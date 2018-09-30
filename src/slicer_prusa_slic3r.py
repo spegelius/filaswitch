@@ -46,6 +46,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 if cmd and gcode.is_tool_change(cmd) is not None:
                     # fix Prusa slicer first tool change with comment
                     if prev_comment and prev_comment.strip() == b"TOOL CHANGE":
+                        index += 1
                         continue
                     self.layers[0].insert_line(index, None, b"TOOL CHANGE")
                     index += 1
@@ -318,7 +319,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         :param current_layer: current layer data
         :return: None or tuple of layer nr and layer z
         """
-        m = self.LAYER_START_RE.match(line)
+        m = self.LAYER_START_RE.match(line.strip())
         if m:
             return int(m.groups()[0]), float(m.groups()[1])
         return current_layer
