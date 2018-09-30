@@ -65,6 +65,7 @@ class SwitchTower:
 
         self.brim_width = self.settings.brim * self.settings.extrusion_width
 
+        self.brim_done = False
         self.raft_done = False
         self.raft_width = self.width + 2 * self.brim_width - 1
         self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
@@ -119,8 +120,8 @@ class SwitchTower:
             self.slots[i]['horizontal_dir'] = self.E
             self.slots[i]['vertical_dir'] = self.N
             self.slots[i]['flipflop_infill'] = False
-            self.slots[i]['jitter'] = { self.N: False,
-                                        self.S: False }
+            self.slots[i]['jitter'] = {self.N: False,
+                                       self.S: False}
 
     def rotate_tower(self, direction):
         """
@@ -548,15 +549,14 @@ class SwitchTower:
         # no need to show the warnings again
         self.warnings_shown = True
 
-    def get_brim_raft_lines(self, first_layer: Layer, extruder, raft=True):
+    def get_brim_lines(self, first_layer: Layer, extruder):
         """
-        G-code lines for the brim and raft
-        :param first layer: first layer
+        G-code lines for the brim
+        :param first_layer: first layer
         :param extruder: first extruder object
-        :param raft: print raft or not
         :return: list of cmd, comment tuples
         """
-        yield None, b" TOWER RAFT START"
+        yield None, b" TOWER BRIM START"
 
         self.raft_layer_height = first_layer.height
         feed_multi = self.settings.raft_multi/100
@@ -574,9 +574,8 @@ class SwitchTower:
 
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
-        # box
-        width = self.raft_width
         height = self.raft_height
+        width = self.raft_width
         speed = self.settings.first_layer_speed
 
         # first round
@@ -605,22 +604,61 @@ class SwitchTower:
                                            feed_multi=feed_multi), b" raft wall"
             width -= self.settings.extrusion_width
 
-        if raft:
-            yield gcode.gen_direction_move(self.SE+30, 1, self.settings.travel_xy_speed, self.raft_layer_height), None
+        yield extruder.get_retract_gcode()
+        self.e_pos = -extruder.retract
 
-            feed_multi = 1.3 * feed_multi
-            speed = self.settings.first_layer_speed
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
+        yield None, b" TOWER BRIM END"
 
-            raft_lines = int((self.raft_width - 2 * self.brim_width)/2)
-            raft_line_gap = (self.raft_width - 2 * self.brim_width)/raft_lines/2
+    def get_raft_lines(self, first_layer: Layer, extruder, slot_count):
+        """
+        G-code lines for the raft
+        :param first_layer: first layer
+        :param extruder: first extruder object
+        :param slot_count: slots needing raft
+        :return: list of cmd, comment tuples
+        """
 
-            for _ in range(raft_lines):
-                yield gcode.gen_direction_move(self.N, height, speed, self.raft_layer_height, extruder=extruder,
-                                               feed_multi=feed_multi), b" raft1"
-                yield gcode.gen_direction_move(self.E, raft_line_gap, speed, self.raft_layer_height), b" raft2"
-                yield gcode.gen_direction_move(self.S, height, speed, self.raft_layer_height, extruder=extruder,
-                                               feed_multi=feed_multi), b" raft3"
-                yield gcode.gen_direction_move(self.E, raft_line_gap, speed, self.raft_layer_height), b" raft4"
+        if slot_count:
+            height = self.wall_height * slot_count + 0.3
+        else:
+            return
+
+        yield None, b" TOWER RAFT START"
+
+        self.raft_layer_height = first_layer.height
+        feed_multi = self.settings.raft_multi/100
+
+        if extruder.z_hop:
+            z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
+            yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
+
+        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, self.raft_pos_y + self.brim_width - 0.3,
+                                  self.settings.travel_xy_speed), b" move to raft zone"
+        yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset,
+                               self.settings.travel_z_speed), b" move z close"
+
+        prime = self._get_prime(extruder)
+        if prime:
+            yield prime
+
+        yield gcode.gen_relative_positioning(), b" relative positioning"
+
+        feed_multi = 1.3 * feed_multi
+        speed = self.settings.first_layer_speed
+
+        raft_lines = int((self.raft_width - 2 * self.brim_width)/2)
+        raft_line_gap = (self.raft_width - 2 * self.brim_width)/raft_lines/2
+
+        for _ in range(raft_lines):
+            yield gcode.gen_direction_move(self.N, height, speed, self.raft_layer_height, extruder=extruder,
+                                           feed_multi=feed_multi), b" raft1"
+            yield gcode.gen_direction_move(self.E, raft_line_gap, speed, self.raft_layer_height), b" raft2"
+            yield gcode.gen_direction_move(self.S, height, speed, self.raft_layer_height, extruder=extruder,
+                                           feed_multi=feed_multi), b" raft3"
+            yield gcode.gen_direction_move(self.E, raft_line_gap, speed, self.raft_layer_height), b" raft4"
 
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract
@@ -631,9 +669,8 @@ class SwitchTower:
         yield None, b" TOWER RAFT END"
 
         # update slot z values
-        if raft:
-            for i in range(self.max_slots):
-                self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
+        for i in range(slot_count):
+             self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
 
     def _get_z_hop(self, layer: Layer, extruder):
         """
@@ -780,11 +817,15 @@ class SwitchTower:
         # TODO: move this to global state
         self.e_pos = e_pos
 
-        # add raft if not added
-        if not self.raft_done:
-            for line in self.get_brim_raft_lines(layer, old_e, raft=self.settings.force_raft):
+        # add brim if not added
+        if not self.brim_done:
+            for line in self.get_brim_lines(layer, old_e):
                 yield line
-            self.raft_done = True
+            self.brim_done = True
+            if self.settings.force_raft and not self.raft_done:
+                for line in self.get_raft_lines(layer, old_e, self.max_slots):
+                    yield line
+                self.raft_done = True
 
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
@@ -910,13 +951,6 @@ class SwitchTower:
         # TODO: move this to global state
         self.e_pos = e_pos
 
-        # add raft if not added
-        if not self.raft_done:
-            for line in self.get_brim_raft_lines(layer, extruder, raft=True):
-                yield line
-            self.raft_done = True
-            return
-
         self.get_slot(layer)
 
         self.log.debug("Adding purge tower infill")
@@ -999,15 +1033,25 @@ class SwitchTower:
         """
         # TODO: rethink whole line thing. Maybe Writer object?
 
+        # find slots that need work
         count = 0
         for s in range(layer.slots):
             z = round(layer.z + self.settings.z_offset, 5)
             if self.slots[s]['last_z'] < z:
                 count += 1
         if count:
-            self.infill_slots = count
-            for l in self.get_infill_lines(layer, e_pos, extruder):
-                yield l
+            if layer.num == 1:  # first layer
+                if not self.brim_done:
+                    for line in self.get_brim_lines(layer, extruder):
+                        yield line
+                    self.brim_done = True
+                for line in self.get_raft_lines(layer, extruder, count):
+                    yield line
+                self.raft_done = True
+            else:  # other layers
+                self.infill_slots = count
+                for l in self.get_infill_lines(layer, e_pos, extruder):
+                    yield l
 
 
 if __name__ == "__main__":
