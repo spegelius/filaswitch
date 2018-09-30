@@ -37,6 +37,7 @@ class GCode:
     TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
     LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
+    PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D(\d:\d)\s+S(\d.*\d+)")
 
     def __init__(self):
         self.last_match = None
@@ -262,6 +263,18 @@ class GCode:
             self.last_match = int(m.groups()[0])
         return self.last_match
 
+    def is_pressure_advance(self, line):
+        """
+        Match given line against pressure advance regex
+        :param line: g-code line
+        :return: D and S value tuple or None
+        """
+        self.last_match = None
+        m = self.PRESSURE_ADVANCE_RE.match(line)
+        if m:
+            self.last_match = m.groups()[0], float(m.groups()[1])
+        return self.last_match
+
     def gen_lin_advance(self, k_val: int):
         """
         Generate linear advance K-value set gcode
@@ -269,6 +282,15 @@ class GCode:
         :return:
         """
         return ("M900 K%d" % k_val).encode()
+
+    def gen_pressure_advance(self, d_val, s_val):
+        """
+        Generate pressure advance set gcode
+        :param d_val: D value
+        :param s_val: S value
+        :return:
+        """
+        return b"M572 D%s S%.3f" % (d_val, s_val)
 
     def gen_head_move(self, x, y, speed):
         """

@@ -862,6 +862,10 @@ class SwitchTower:
         if self.settings.linear_advance != 0:
             yield gcode.gen_lin_advance(0), b" turn off linear advance"
 
+        # turn pressure advance off, if set
+        if self.settings.pressure_advance:
+            yield gcode.gen_pressure_advance(self.settings.pressure_advance[0], 0), b" turn off pressure advance"
+
         yield self._get_prime(old_e)
 
         new_temp = new_e.get_temperature(layer.num)
@@ -891,9 +895,6 @@ class SwitchTower:
 
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
-        if self.settings.linear_advance != 0:
-            yield gcode.gen_lin_advance(self.settings.linear_advance), b" turn on linear advance"
-
         first_line = True
         for speed in self.generate_purge_speeds(self.settings.outer_perimeter_speed):
             for _ in range(2):
@@ -912,6 +913,14 @@ class SwitchTower:
         yield self._get_wall_position_gcode(self.slots[self.slot]['horizontal_dir'],
                                             self.slots[self.slot]['vertical_dir'])
         yield gcode.gen_relative_positioning(), b" relative positioning"
+
+        # turn linear advance back on, if set
+        if self.settings.linear_advance != 0:
+            yield gcode.gen_lin_advance(self.settings.linear_advance), b" turn on linear advance"
+
+        # turn pressure advance back on, if set
+        if self.settings.pressure_advance:
+            yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
         for line in self._get_wall_gcode(new_e, layer.height, self.settings.outer_perimeter_speed,

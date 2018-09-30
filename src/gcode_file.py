@@ -102,6 +102,8 @@ class GCodeFile:
                         self.tool_switch_heights[gcode.last_match] = layer.z
                     elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
                         self.settings.linear_advance = gcode.last_match
+                    elif gcode.is_pressure_advance(cmd) and gcode.last_match != 0:
+                        self.settings.pressure_advance = gcode.last_match
                     is_tool_change = False
                 else:
                     is_tool_change = False
