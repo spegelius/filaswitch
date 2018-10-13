@@ -889,7 +889,7 @@ class SwitchTower:
                 yield line
 
         # post-switch purge
-        purge_feed_multi = 1.1
+        purge_feed_multi = self.settings.purge_multi/100
         # switch direction depending of prepurge orientation
         purge_length = self.purge_line_length
 
@@ -905,7 +905,8 @@ class SwitchTower:
                                                    self.settings.travel_xy_speed, layer.height), b" shift"
                     first_line = False
                 yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
-                                               purge_length, speed, layer.height, extruder=new_e, feed_multi=purge_feed_multi), b" purge trail"
+                                               purge_length, speed, layer.height, extruder=new_e,
+                                               feed_multi=purge_feed_multi), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
         # move to purge zone wall start position
