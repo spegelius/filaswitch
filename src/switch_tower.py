@@ -105,8 +105,8 @@ class SwitchTower:
         self.infill_speeds = [self.settings.default_speed,
                               self.settings.default_speed,
                               self.settings.default_speed,
-                              self.settings.outer_perimeter_speed,
-                              self.settings.outer_perimeter_speed,
+                              self.settings.default_speed,
+                              self.settings.default_speed,
                               self.settings.outer_perimeter_speed]
 
     def initialize_slots(self):
