@@ -25,6 +25,7 @@ class Settings:
         self._purge_lines = LINE_COUNT_DEFAULT
         self._tower_position = None
         self._raft_multi = 100
+        self._purge_multi = 110
 
         # print settings
         self._default_speed = None
@@ -236,6 +237,14 @@ class Settings:
     @pressure_advance.setter
     def pressure_advance(self, value: tuple):
         self._pressure_advance = value
+
+    @property
+    def purge_multi(self):
+        return self._purge_multi
+
+    @purge_multi.setter
+    def purge_multi(self, value):
+        self._purge_multi = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))

@@ -54,7 +54,7 @@ class SwitchTower:
         # post purge line config
         self.purge_line_length = self.width - 1
 
-        self.purge_line_width = self.settings.extrusion_width * 1.1
+        self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
 
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 

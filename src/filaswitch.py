@@ -127,11 +127,13 @@ class TopFrame(Frame):
 
     def octoprint_upload(self):
         if self.result_file:
-            octoprint = OctoPrint(self.gui.octoprint_frame.url_var.get(), self.gui.octoprint_frame.api_key_var.get(), self.log)
+            octoprint = OctoPrint(self.gui.octoprint_frame.url_var.get(), self.gui.octoprint_frame.api_key_var.get(),
+                                  self.log)
             try:
                 self.log.info("Uploading {} to OctoPrint folder {}, please wait...".format(self.result_file,
                                                                                            self.gui.octoprint_frame.upload_folder_var.get()))
-                self.last_upload = octoprint.upload_file(self.result_file, self.gui.octoprint_frame.upload_folder_var.get())
+                self.last_upload = octoprint.upload_file(self.result_file,
+                                                         self.gui.octoprint_frame.upload_folder_var.get())
                 self.log.info("Upload done")
                 self.os_button.config(state=NORMAL)
             except Exception as e:
@@ -158,6 +160,7 @@ class TopFrame(Frame):
         status["last_line_count"] = self.gui.adv_frame.lines_var.get()
         status["force_raft"] = "true" if self.gui.adv_frame.raft_force_var.get() else "false"
         status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
+        status["purge_multi"] = self.gui.adv_frame.purge_multi_var.get()
         status["debug"] = "true" if self.gui.adv_frame.debug_var.get() else "false"
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
@@ -197,6 +200,7 @@ class TopFrame(Frame):
                 settings.tower_position = self.gui.adv_frame.position_var.get()
                 settings.force_raft = self.gui.adv_frame.raft_force_var.get()
                 settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
+                settings.purge_multi = int(self.gui.adv_frame.purge_multi_var.get())
                 brim_val = self.gui.adv_frame.brim_size_var.get()
                 if brim_val == BRIM_AUTO:
                     settings.brim = BRIM_DEFAULT
@@ -298,6 +302,7 @@ class AdvancedFrame(Frame):
         self.raft_multi_label = Label(self, text="Raft extrusion %").grid(row=3, column=0, sticky=W, padx=5, pady=3)
         self.debug_label = Label(self, text="Enable debug prints").grid(row=4, column=0, sticky=W, padx=5, pady=3)
         self.brim_label = Label(self, text="Tower brim loops").grid(row=0, column=2, sticky=W, padx=5, pady=3)
+        self.purge_multi_label = Label(self, text="Purge extrusion %").grid(row=1, column=2, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -331,7 +336,7 @@ class AdvancedFrame(Frame):
         self.raft_force_box.grid(row=2, column=1, sticky=W, padx=5, pady=3)
 
         # raft extrusion multiplier
-        raft_multi_values = [80 + val * 5 for val in range(9)]
+        raft_multi_values = [80 + val * 5 for val in range(13)]
         self.raft_multi_var = StringVar(self)
         if self.gui.raft_multi:
             if self.gui.raft_multi in raft_multi_values:
@@ -364,6 +369,20 @@ class AdvancedFrame(Frame):
 
         self.brim_size_box = OptionMenu(self, self.brim_size_var, self.brim_size_var.get(), *brim_opts)
         self.brim_size_box.grid(row=0, column=3, sticky=W, padx=5, pady=3)
+
+        # purge extrusion multiplier
+        purge_multi_values = [100 + val * 5 for val in range(11)]
+        self.purge_multi_var = StringVar(self)
+        if self.gui.purge_multi:
+            if self.gui.purge_multi in purge_multi_values:
+                self.purge_multi_var.set(self.gui.purge_multi)
+            else:
+                self.purge_multi_var.set(110)
+        else:
+            self.purge_multi_var.set(110)
+
+        self.purge_multi_box = OptionMenu(self, self.purge_multi_var, self.purge_multi_var.get(), *purge_multi_values)
+        self.purge_multi_box.grid(row=1, column=3, sticky=W, padx=5, pady=3)
 
     def set_debug(self):
         self.log.enable_debug(self.debug_var.get())
@@ -437,6 +456,11 @@ class GUI:
         self.brim_auto = status.get("brim_auto") == "true"
         self.force_raft = status.get("force_raft") == "true"
 
+        try:
+            self.purge_multi = int(status.get("purge_multi"))
+        except (ValueError, TypeError):
+            self.purge_multi = 110
+
         # OctoPrint values
         self.octoprint_url = status.get("octoprint_url")
         self.octoprint_api_key = status.get("octoprint_api_key")
@@ -494,6 +518,8 @@ def main():
         parser.add_argument("--force_raft", help="Set to True to force a tower raft", type=bool, default=False)
         parser.add_argument("--tower_force", help="start position of tower", type=str, default="0,0")
         parser.add_argument("--brim_count", help="Number of brim loops", type=int, default=0)
+        parser.add_argument("--raft_multi", help="Raft extrusion percentage, default 100", type=int, default=100)
+        parser.add_argument("--purge_multi", help="Purge extrusion percentage, default 110", type=int, default=110)
         parser.add_argument("--opurl", help="OctoPrint url for gcode upload", type=str)
         parser.add_argument("--opkey", help="OctoPrint API key for gcode upload", type=str)
         parser.add_argument("--opfolder", help="OctoPrint upload folder", type=str, default="")
@@ -506,6 +532,8 @@ def main():
         settings.tower_position = args.position
         settings.force_raft = args.force_raft
         settings.tower_force = args.tower_force
+        settings.raft_multi = args.raft_multi
+        settings.purge_multi = args.purge_multi
 
         if args.brim_count:
             settings.brim = args.brim_count
