@@ -52,13 +52,13 @@ class SwitchTower:
         self.pre_purge_height = pre_purge_lines * self.pre_purge_sweep_gap + self.pre_purge_jitter
 
         # post purge line config
-        self.purge_line_length = self.width - 1
+        self.purge_length = self.width - 1
 
         self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
 
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
-        self.height = self.pre_purge_height + self.purge_lines * self.purge_line_width * 2 + 0.2
+        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_line_width + 0.2
 
         self.wall_width = self.width + 1.4
         self.wall_height = self.height + 1.0
@@ -730,6 +730,7 @@ class SwitchTower:
         Retun g-code line for positioning head for wall print
         :param x_direction: current x direction
         :param y_direction: current y direction
+        :param infill: infill wall or not
         :return: g-code line
         """
         if infill:
@@ -891,21 +892,20 @@ class SwitchTower:
         # post-switch purge
         purge_feed_multi = self.settings.purge_multi/100
         # switch direction depending of prepurge orientation
-        purge_length = self.purge_line_length
-
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         first_line = True
         for speed in self.generate_purge_speeds(self.settings.outer_perimeter_speed):
             for _ in range(2):
-                yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'],
-                                               self.purge_line_width, gap_speed, layer.height), b" Y shift"
                 if first_line:
                     yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_line_width/2,
                                                    self.settings.travel_xy_speed, layer.height), b" shift"
                     first_line = False
+                else:
+                    yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'],
+                                                   self.purge_line_width, gap_speed, layer.height), b" Y shift"
                 yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
-                                               purge_length, speed, layer.height, extruder=new_e,
+                                               self.purge_length, speed, layer.height, extruder=new_e,
                                                feed_multi=purge_feed_multi), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
