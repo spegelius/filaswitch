@@ -501,7 +501,7 @@ class GCode:
             c_x, c_y = self._get_coordinates(direction, extruder.coasting)
             e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
             if e_speed:
-                yield self.gen_extrusion_e_speed_move(x, y, speed, e_length)
+                yield self.gen_extrusion_e_speed_move(x, y, speed, _length, e_length)
             else:
                 yield self.gen_extrusion_speed_move(x, y, speed, e_length)
             yield self.gen_head_move(c_x, c_y, speed)
