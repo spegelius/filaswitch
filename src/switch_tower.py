@@ -56,12 +56,21 @@ class SwitchTower:
 
         self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
 
+        # actual purge line count is 2x (forth and back) the setting scaled with 0.2/min_z_h
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
         self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_line_width + 0.2
 
         self.wall_width = self.width + 1.4
         self.wall_height = self.height + 1.0
+
+        # calculate total purge length
+        self.purge_e_length = utils.extrusion_feed_rate(self.purge_line_width, min_layer_h, 1.75) *\
+                              self.purge_length * self.purge_lines * 2
+        self.purge_e_length += utils.extrusion_feed_rate(self.settings.extrusion_width, min_layer_h, 1.75) *\
+                               (self.wall_height + self.wall_width) * 2
+        self.log.info("Total purge length with {} purge lines is {}".format(self.settings.purge_lines,
+                                                                            self.purge_e_length))
 
         self.brim_width = self.settings.brim * self.settings.extrusion_width
 
@@ -364,17 +373,18 @@ class SwitchTower:
         # init slots after tower rotation is done
         self.initialize_slots()
 
-    def generate_purge_speeds(self, min_speed):
+    def generate_purge_speeds(self, min_speed, lines):
         """
         Initialize a list for purge speeds
         :param min_speed: minimum speed for last lines
+        :param lines: purge line count
         :return: list of print speeds
         """
         max_speed = 3600
         speed = min_speed
         min_speed_lines = 2
         purge_speeds = []
-        for i in range(self.purge_lines):
+        for i in range(lines):
             if i >= min_speed_lines:
                 speed = max_speed
             purge_speeds.append(speed)
@@ -776,14 +786,14 @@ class SwitchTower:
 
         last_y = h - 0.3
 
-        yield gcode.gen_direction_move(x_dir, self.wall_width, wall_speed, layer, extruder=extruder), b" wall"
-        yield gcode.gen_direction_move(y_dir, h, wall_speed, layer, extruder=extruder), b" wall"
+        yield gcode.gen_direction_move(x_dir, self.wall_width, wall_speed, layer.height, extruder=extruder), b" wall"
+        yield gcode.gen_direction_move(y_dir, h, wall_speed, layer.height, extruder=extruder), b" wall"
 
         x_dir = gcode.opposite_dir(x_dir)
         y_dir = gcode.opposite_dir(y_dir)
 
-        yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, layer, extruder=extruder), b" wall"
-        yield gcode.gen_direction_move(y_dir, last_y, last_speed, layer, extruder=extruder, last_line=True), b" wall"
+        yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, layer.height, extruder=extruder), b" wall"
+        yield gcode.gen_direction_move(y_dir, last_y, last_speed, layer.height, extruder=extruder, last_line=True), b" wall"
 
     def get_slot(self, layer: Layer):
         """
@@ -804,6 +814,32 @@ class SwitchTower:
         else:
             # fill infill slots from the first slot
             self.slot = 0
+
+    def _calculate_purge_values(self, layer: Layer, extruder):
+        """
+        Calculate purge line count, gap and purge feed multiplier for given layer.
+        :param layer: layer object
+        :param extruder: extruder object
+        :return: gap, purge feed multi, purge lines
+        """
+        # calculate wall e length and subtract it from expected purge length
+        wall_e_length = extruder.get_feed_length((self.wall_width + self.wall_height) * 2, layer.height)
+        purge_e = self.purge_e_length - wall_e_length
+
+        # calculate new line counts (fractional, whole) based on layer height feed rate
+        lines = purge_e / (utils.extrusion_feed_rate(self.purge_line_width, layer.height, 1.75) * self.purge_length * 2)
+        whole_lines = round(lines)
+
+        # calculate new purge line gap based on line count differences
+        purge_gap = self.purge_line_width
+        line_diff = self.purge_lines - whole_lines
+        if line_diff:
+            purge_gap += line_diff/whole_lines * purge_gap
+
+        # adjust purge feed multiplier
+        purge_multi = self.settings.purge_multi/100 * lines / whole_lines
+
+        return purge_gap, purge_multi, whole_lines
 
     def get_tower_lines(self, layer: Layer, e_pos, old_e, new_e):
         """
@@ -890,12 +926,13 @@ class SwitchTower:
                 yield line
 
         # post-switch purge
-        purge_feed_multi = self.settings.purge_multi/100
+        gap, purge_multiplier, lines = self._calculate_purge_values(layer, new_e)
         # switch direction depending of prepurge orientation
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
         first_line = True
-        for speed in self.generate_purge_speeds(self.settings.outer_perimeter_speed):
+        # e_len = 0
+        for speed in self.generate_purge_speeds(self.settings.outer_perimeter_speed, lines):
             for _ in range(2):
                 if first_line:
                     yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_line_width/2,
@@ -903,11 +940,16 @@ class SwitchTower:
                     first_line = False
                 else:
                     yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'],
-                                                   self.purge_line_width, gap_speed, layer.height), b" Y shift"
+                                                   gap, gap_speed, layer.height), b" Y shift"
                 yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'],
                                                self.purge_length, speed, layer.height, extruder=new_e,
-                                               feed_multi=purge_feed_multi), b" purge trail"
+                                               feed_multi=purge_multiplier), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
+                # e_len += new_e.get_feed_length(self.purge_length, layer.height, feed_multi=purge_multiplier)
+
+        # DEBUG
+        # wall_e = new_e.get_feed_length((self.wall_width + self.wall_height) * 2, layer.height)
+        # print("Purge E: {}".format(e_len + wall_e))
 
         # move to purge zone wall start position
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
@@ -924,7 +966,7 @@ class SwitchTower:
             yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
-        for line in self._get_wall_gcode(new_e, layer.height, self.settings.outer_perimeter_speed,
+        for line in self._get_wall_gcode(new_e, layer, self.settings.outer_perimeter_speed,
                                          self.slots[self.slot]['horizontal_dir'],
                                          self.slots[self.slot]['vertical_dir']):
             yield line
@@ -1003,7 +1045,7 @@ class SwitchTower:
         yield self._get_prime(extruder)
 
         # wall gcode
-        for line in self._get_wall_gcode(extruder, layer.height, self.settings.default_speed,
+        for line in self._get_wall_gcode(extruder, layer, self.settings.default_speed,
                                          horizontal_dir, vertical_dir, infill=True):
             yield line
 
