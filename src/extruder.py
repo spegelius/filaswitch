@@ -61,7 +61,7 @@ class Extruder:
         """
         Get prime g-code line
         :param change: add this to the length
-        :param: comment: gcode comment (default 'prime')
+        :param comment: gcode comment (default 'prime')
         :return: prime byte string
         """
         prime = self.retract + change
