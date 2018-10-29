@@ -384,13 +384,15 @@ class GCode:
         """
         return ("M104 S%d" % temperature).encode()
 
-    def gen_temperature_nowait_tool(self, temperature, tool):
+    def gen_temperature_nowait_tool(self, temperature, tool, g10=False):
         """
         Generate g-code line for temperature change with no wait and specific tool.
         :param temperature: temperature to set
         :param tool: tool to use
         :return: byte string
         """
+        if g10:
+            return ("G10 P%d R%d S%d" % (tool, temperature, temperature)).encode()
         return ("M104 S%d T%d" % (temperature, tool)).encode()
 
     def gen_temperature_wait(self, temperature):
@@ -409,6 +411,21 @@ class GCode:
         :return: byte string
         """
         return ("M109 S%d T%d" % (temperature, tool)).encode()
+
+    def gen_wait_all_temps(self):
+        """
+        Generate g-code line to wait for all tool temperatures.
+        :param tool: tool to use
+        :return: byte string
+        """
+        return b"M116"
+
+    def gen_wait_tool_temp(self, tool):
+        """
+        Generate g-code line to wait for tool temperature.
+        :return: byte string
+        """
+        return ("M116 P{}".format(tool)).encode()
 
     def gen_tool_change(self, tool):
         """

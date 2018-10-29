@@ -107,6 +107,10 @@ class SwitchTower:
 
         self.e_pos = 0
 
+        # temp settings
+        self.g10 = self.settings.get_hw_config_value("tool.temperature.command") == "G10"
+        self.tool_use_id = self.settings.get_hw_config_bool_value("tool.temperature.use_id")
+
         # infill slot count
         self.infill_slots = 0
 
@@ -390,15 +394,39 @@ class SwitchTower:
             purge_speeds.append(speed)
         return purge_speeds
 
-    def get_pre_switch_gcode(self, extruder, new_e, new_temp, layer: Layer):
+    def get_temperature_gcode(self, temperature, extruder, wait=False):
+        """
+        Generate temperature control gcode based on hw settings
+        :param temperature: target temperature
+        :param extruder: extruder object
+        :param wait: to wait for the temperature or not
+        :return: gcode lines
+        """
+
+        if wait:
+            if self.g10:
+                yield gcode.gen_temperature_nowait_tool(temperature, extruder.tool, g10=self.g10), None
+                yield gcode.gen_wait_tool_temp(extruder.tool), None
+            else:
+                if self.tool_use_id:
+                    yield gcode.gen_temperature_wait_tool(temperature, extruder.tool), None
+                else:
+                    yield gcode.gen_temperature_wait(temperature)
+        else:
+            if self.tool_use_id:
+                yield gcode.gen_temperature_nowait_tool(temperature, extruder.tool, g10=self.g10), None
+            else:
+                yield gcode.gen_temperature_nowait(temperature), None
+
+    def get_pre_switch_gcode(self, old_e, new_e, layer: Layer):
         """
         Generates pre tool switch g-code
-        :param extruder: active extruder
+        :param old_e: active extruder
         :param new_e: new extruder
-        :param new_temp: new temperature value
         :param layer: current layer
         :return:
         """
+
         e_length = self.settings.get_hw_config_float_value("prepurge.sweep.extrusion.length")
 
         sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
@@ -418,7 +446,7 @@ class SwitchTower:
 
         for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
             yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, layer.height,
-                                           extruder=extruder, e_length=e_length), b" purge trail"
+                                           extruder=old_e, e_length=e_length), b" purge trail"
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_sweep_gap, sweep_gap_speed,
                                            layer.height), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
@@ -431,13 +459,6 @@ class SwitchTower:
         # update jitter flag
         if self.pre_purge_jitter:
             self.slots[self.slot]['jitter'][vertical_dir] = not self.slots[self.slot]['jitter'][vertical_dir]
-
-        if new_temp:
-            if self.settings.get_hw_config_bool_value("tool.temperature.use_id"):
-                yield (gcode.gen_temperature_nowait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp")
-                yield (gcode.gen_temperature_nowait_tool(new_temp, new_e.temperature_nr), b" change nozzle temp")
-            else:
-                yield (gcode.gen_temperature_nowait(new_temp), b" change nozzle temp")
 
         i = 0
         while True:
@@ -474,7 +495,7 @@ class SwitchTower:
                 rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
                 rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
                 yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, layer.height,
-                                               extruder=extruder, e_length=rr_cool_len), b" cooling"
+                                               extruder=old_e, e_length=rr_cool_len), b" cooling"
                 horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 i += 1
             except TypeError:
@@ -486,11 +507,10 @@ class SwitchTower:
 
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
-    def get_post_switch_gcode(self, extruder, new_temp, layer: Layer):
+    def get_post_switch_gcode(self, extruder, layer: Layer):
         """
         Generate gcode for actions after tool change
         :param extruder: extruder
-        :param new_temp: new temperature
         :param layer: current layer
         :return:
         """
@@ -529,21 +549,9 @@ class SwitchTower:
                         self.log.warning("No feed[N].length or .speed found. Please check the HW-config")
                     break
 
-            # temperature change handling
-            if new_temp:
-                last_val = values[-1]
-                values[-1] = (last_val[0] - 5, last_val[1])
-                for feed_len, feed_speed in values:
-                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
-                # stop 5mm before feed end to wait proper temp
-                if self.settings.get_hw_config_bool_value("tool.temperature.use_id"):
-                    yield (gcode.gen_temperature_wait_tool(new_temp, extruder.temperature_nr), b" change nozzle temp, wait")
-                else:
-                    yield (gcode.gen_temperature_wait(new_temp), b" change nozzle temp, wait")
-                yield gcode.gen_extruder_move(5, last_val[1]), b" 25mm/s feed"
-            else:
-                for feed_len, feed_speed in values:
-                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+            for feed_len, feed_speed in values:
+                yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+
         # prime trail
         prime_e_length = self.settings.get_hw_config_float_value("prime.trail.extrusion.length")
         prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
@@ -903,41 +911,48 @@ class SwitchTower:
         if self.settings.pressure_advance:
             yield gcode.gen_pressure_advance(self.settings.pressure_advance[0], 0), b" turn off pressure advance"
 
-        yield self._get_prime(old_e)
-
         new_temp = new_e.get_temperature(layer.num)
         old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer.num))
         self.temperatures[new_e.tool] = new_temp
         if new_temp == old_temp:
             new_temp = None
 
+        # Pre-switch temp handling. Lower temp by 10 C before purge
+        pre_temp = old_e.get_temperature(layer.num) - 10
+        for line in self.get_temperature_gcode(pre_temp, old_e):
+            yield line
+
+        if self.g10 or self.tool_use_id:
+            # set also new e temp since it needs to stay the same after filament change
+            for line in self.get_temperature_gcode(pre_temp, new_e):
+                yield line
+        yield gcode.gen_pause(2000), b"delay"
+
+        yield self._get_prime(old_e)
+
         # pre-switch purge
-        for line in self.get_pre_switch_gcode(old_e, new_e, new_temp, layer):
+        for line in self.get_pre_switch_gcode(old_e, new_e, layer):
             yield line
 
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
 
         # feed new filament
-        if new_temp and abs(new_temp - old_temp) > 15:
-            for line in self.get_post_switch_gcode(new_e, new_temp, layer):
-                yield line
-        else:
-            for line in self.get_post_switch_gcode(new_e, None, layer):
-                yield line
+        for line in self.get_post_switch_gcode(new_e, layer):
+            yield line
 
         # post-switch purge
         gap, purge_multiplier, lines = self._calculate_purge_values(layer, new_e)
         # switch direction depending of prepurge orientation
         gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
 
-        first_line = True
         # e_len = 0
-        for speed in self.generate_purge_speeds(self.settings.outer_perimeter_speed, lines):
+        speeds = self.generate_purge_speeds(self.settings.outer_perimeter_speed, lines)
+        for i in range(len(speeds)):
             for _ in range(2):
-                if first_line:
+                speed = speeds[i]
+                if i == 0:
                     yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_line_width/2,
                                                    self.settings.travel_xy_speed, layer.height), b" shift"
-                    first_line = False
                 else:
                     yield gcode.gen_direction_move(self.slots[self.slot]['vertical_dir'],
                                                    gap, gap_speed, layer.height), b" Y shift"
@@ -945,6 +960,17 @@ class SwitchTower:
                                                self.purge_length, speed, layer.height, extruder=new_e,
                                                feed_multi=purge_multiplier), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
+
+            if i == 1 and new_temp:
+                # change nozzle temp after purging the old material.
+                wait = abs(new_temp - old_temp) > 15
+                if wait:
+                    yield new_e.get_retract_gcode()
+                for line in self.get_temperature_gcode(new_temp, new_e, wait=wait):
+                    yield line
+                if wait:
+                    yield new_e.get_prime_gcode()
+
                 # e_len += new_e.get_feed_length(self.purge_length, layer.height, feed_multi=purge_multiplier)
 
         # DEBUG
