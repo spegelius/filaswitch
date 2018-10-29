@@ -44,9 +44,6 @@ class GCodeFile:
         self.settings = settings
         self.log.info("HW config: %s" % self.settings.hw_config)
 
-        if self.settings.purge_lines > 15:
-            self.settings.purge_lines = 15
-            
         #List of tools numbers in the order they are used
         self.tools = []
 
