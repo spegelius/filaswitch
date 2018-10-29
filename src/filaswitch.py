@@ -375,7 +375,7 @@ class AdvancedFrame(Frame):
         self.brim_size_box.grid(row=0, column=3, sticky=W, padx=5, pady=3)
 
         # purge extrusion multiplier
-        purge_multi_values = [100 + val * 5 for val in range(11)]
+        purge_multi_values = [100 + val * 5 for val in range(31)]
         self.purge_multi_var = StringVar(self)
         if self.gui.purge_multi:
             if self.gui.purge_multi in purge_multi_values:
