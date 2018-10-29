@@ -25,6 +25,8 @@ class Settings:
         self._purge_lines = LINE_COUNT_DEFAULT
         self._tower_position = None
         self._raft_multi = 100
+        self._purge_multi = 110
+        self._purge_speed = 60
 
         # print settings
         self._default_speed = None
@@ -42,6 +44,7 @@ class Settings:
         self._z_offset = 0
         self._extrusion_width = None
         self._linear_advance = 0
+        self._pressure_advance = None
 
         # print settings
         self._brim = BRIM_DEFAULT
@@ -227,6 +230,30 @@ class Settings:
     @linear_advance.setter
     def linear_advance(self, value: int):
         self._linear_advance = value
+
+    @property
+    def pressure_advance(self):
+        return self._pressure_advance
+
+    @pressure_advance.setter
+    def pressure_advance(self, value: tuple):
+        self._pressure_advance = value
+
+    @property
+    def purge_multi(self):
+        return self._purge_multi
+
+    @purge_multi.setter
+    def purge_multi(self, value: int):
+        self._purge_multi = value
+
+    @property
+    def purge_speed(self):
+        return self._purge_speed
+
+    @purge_speed.setter
+    def purge_speed(self, value: int):
+        self._purge_speed = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))

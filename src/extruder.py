@@ -61,7 +61,7 @@ class Extruder:
         """
         Get prime g-code line
         :param change: add this to the length
-        :param: comment: gcode comment (default 'prime')
+        :param comment: gcode comment (default 'prime')
         :return: prime byte string
         """
         prime = self.retract + change
@@ -92,10 +92,9 @@ class Extruder:
         :return: temperature
         """
         last_temp = None
-        for lr in self.temperature_setpoints:
+        for lr in sorted(self.temperature_setpoints.keys()):
             if layer_nr <= lr:
                 return self.temperature_setpoints[lr]
-
             last_temp = self.temperature_setpoints[lr]
         return last_temp
 

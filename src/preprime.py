@@ -126,6 +126,7 @@ class PrePrime:
 
         """
         yield None, b" PRIME START"
+        z_pos = round(0.2 + self.settings.z_offset, 5)
         # Reverse order
         for tool in self.tools[::-1]:
             # get extruder object from tool number
@@ -138,7 +139,7 @@ class PrePrime:
             yield (gcode.gen_head_move(self.xstart, self.ystart, self.speed), b" move off print")
 
             # move z close
-            yield gcode.gen_z_move(0.2, self.settings.travel_z_speed), b" move z close"
+            yield gcode.gen_z_move(z_pos, self.settings.travel_z_speed), b" move z close"
 
             # relative movement
             yield gcode.gen_relative_positioning(), b" relative positioning"
@@ -158,7 +159,7 @@ class PrePrime:
 
             if extruder.z_hop:
                 # z-hop
-                yield gcode.gen_z_move(0.2 + extruder.z_hop, self.settings.travel_z_speed), b" z-hop"
+                yield gcode.gen_z_move(z_pos + extruder.z_hop, self.settings.travel_z_speed), b" z-hop"
 
             # absolute movement
             yield gcode.gen_absolute_positioning(), b" absolute positioning"

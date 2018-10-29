@@ -286,8 +286,8 @@ class Simplify3dGCodeFile(GCodeFile):
                 ret = self.check_layer_change(comment, None)
                 if ret:
                     if current_layer.num == 1 and ret[0] == 1:
-                        current_layer.z = round(ret[1], 3)
-                        current_layer.height = round(ret[1], 3)
+                        current_layer.z = round(ret[1], 5)
+                        current_layer.height = round(ret[1], 5)
                     else:
                         if prev_layer:
                             prev_z = prev_layer.z
@@ -295,7 +295,7 @@ class Simplify3dGCodeFile(GCodeFile):
                             prev_z = 0
 
                         # calculate and check layer height.
-                        height = round((current_layer.z - prev_z), 3)
+                        height = round((current_layer.z - prev_z), 5)
                         if height and height > 0:
                             prev_height = height
                         else:
@@ -303,7 +303,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
                         self.layers.append(current_layer)
                         prev_layer = current_layer
-                        current_layer = Layer(round(ret[0], 3), round(ret[1], 3), height)
+                        current_layer = Layer(round(ret[0], 5), round(ret[1], 5), height)
 
                         if current_layer.height < min_layer_height:
                             min_layer_height = current_layer.height
@@ -340,85 +340,6 @@ class Simplify3dGCodeFile(GCodeFile):
         if m:
             return int(m.groups()[0]), float(m.groups()[1])
         return current_layer
-
-    def filter_layers(self):
-        """
-        Filter layers so that only layers relevant purge tower processing
-        are returned. Also layers are tagged for action (tool witch, infill, pass)
-        Layers that are left out:
-        - empty (no command lines)
-        - non-tool
-        :return: none
-        """
-
-        # maxes = [last_switch_heights[k] for k in last_switch_heights]
-        # maxes.sort(reverse=True)
-        # last_switch_height = maxes[1]
-        # print(last_switch_heights)
-        # print(last_switch_height)
-
-        layer_data = {}
-
-        # step 1: filter out empty layers and populate dictionary
-        for layer in self.layers:
-            if layer.z not in layer_data:
-                layer_data[layer.z] = {'layers': []}
-
-            layer_data[layer.z]['layers'].append(layer)
-
-        # z-list sorted
-        zs = sorted(layer_data.keys())
-
-        # get needed slot counts per layer by going through reversed z-position list.
-        # if there are only few changes for slot, tuck them in the previous slot
-        slots = 1
-        zs.reverse()
-        count = 0
-        for z in zs:
-            lrs = 0
-            for l in layer_data[z]['layers']:
-                # each layer counts whether there's tool changes or not
-                lrs += l.has_tool_changes()
-            if lrs > slots:
-                count += 1
-            if count >= 3:
-                slots = lrs
-                count = 0
-            layer_data[z]['slots'] = slots
-
-        self.max_slots = slots
-        self.log.debug("Max slots: {}".format(self.max_slots))
-
-        # tag layers for actions: tool change, infill, etc
-        zs.reverse()
-        for z in zs:
-
-            if layer_data[z]['slots'] == 0:
-                continue
-
-            slots_filled = 0
-            # first check tool change layers
-            for l in layer_data[z]['layers']:
-                l.tower_slots = layer_data[z]['slots']
-                if l.has_tool_changes():
-                    l.action = ACT_SWITCH
-                    slots_filled += 1
-
-            # then check other layers
-            for l in layer_data[z]['layers']:
-                if not l.has_tool_changes():
-                    if slots_filled < layer_data[z]['slots']:
-                        l.action = ACT_INFILL
-                        slots_filled += 1
-                    else:
-                        l.action = ACT_PASS
-
-        # step 3: pack groups to list
-        layers = []
-        for z in zs:
-            for l in layer_data[z]['layers']:
-                layers.append(l)
-        self.filtered_layers = sorted(layers, key=lambda x: x.num)
 
     def fix_retract_during_wipe(self):
         """

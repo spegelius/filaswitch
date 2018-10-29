@@ -24,7 +24,8 @@ class Layer:
 
         self.tool_change_count = 0
         self.action = ACT_PASS
-        self.tower_slots = -1
+        self.slots = 0
+        self.last_z_layer = False
 
     def add_line(self, cmd, comment=None):
         """
@@ -94,8 +95,10 @@ class Layer:
         Check if layer has tool changes
         :return: true or false
         """
-        for cmd, _ in self.lines:
-            if cmd and gcode.is_tool_change(cmd) is not None:
+        for cmd, comment in self.lines:
+            if comment and b"END SCRIPT START" in comment:
+                break
+            elif cmd and gcode.is_tool_change(cmd) is not None:
                 self.tool_change_count += 1
         return self.tool_change_count
 

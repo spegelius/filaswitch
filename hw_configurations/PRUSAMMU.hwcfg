@@ -4,7 +4,10 @@
 
 ## Temperature handling
 ## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
-tool.temperature.use_id:  False
+tool.temperature.use_id: False
+
+## What command to use for controlling nozzle temperature. M104 and G10 supported
+tool.temperature.command: M104
 
 ## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.

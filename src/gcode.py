@@ -37,6 +37,7 @@ class GCode:
     TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
     LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
+    PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D(\d:\d)\s+S(\d.*\d+)")
 
     def __init__(self):
         self.last_match = None
@@ -262,6 +263,18 @@ class GCode:
             self.last_match = int(m.groups()[0])
         return self.last_match
 
+    def is_pressure_advance(self, line):
+        """
+        Match given line against pressure advance regex
+        :param line: g-code line
+        :return: D and S value tuple or None
+        """
+        self.last_match = None
+        m = self.PRESSURE_ADVANCE_RE.match(line)
+        if m:
+            self.last_match = m.groups()[0], float(m.groups()[1])
+        return self.last_match
+
     def gen_lin_advance(self, k_val: int):
         """
         Generate linear advance K-value set gcode
@@ -269,6 +282,15 @@ class GCode:
         :return:
         """
         return ("M900 K%d" % k_val).encode()
+
+    def gen_pressure_advance(self, d_val, s_val):
+        """
+        Generate pressure advance set gcode
+        :param d_val: D value
+        :param s_val: S value
+        :return:
+        """
+        return b"M572 D%s S%.3f" % (d_val, s_val)
 
     def gen_head_move(self, x, y, speed):
         """
@@ -362,13 +384,15 @@ class GCode:
         """
         return ("M104 S%d" % temperature).encode()
 
-    def gen_temperature_nowait_tool(self, temperature, tool):
+    def gen_temperature_nowait_tool(self, temperature, tool, g10=False):
         """
         Generate g-code line for temperature change with no wait and specific tool.
         :param temperature: temperature to set
         :param tool: tool to use
         :return: byte string
         """
+        if g10:
+            return ("G10 P%d R%d S%d" % (tool, temperature, temperature)).encode()
         return ("M104 S%d T%d" % (temperature, tool)).encode()
 
     def gen_temperature_wait(self, temperature):
@@ -387,6 +411,21 @@ class GCode:
         :return: byte string
         """
         return ("M109 S%d T%d" % (temperature, tool)).encode()
+
+    def gen_wait_all_temps(self):
+        """
+        Generate g-code line to wait for all tool temperatures.
+        :param tool: tool to use
+        :return: byte string
+        """
+        return b"M116"
+
+    def gen_wait_tool_temp(self, tool):
+        """
+        Generate g-code line to wait for tool temperature.
+        :return: byte string
+        """
+        return ("M116 P{}".format(tool)).encode()
 
     def gen_tool_change(self, tool):
         """
@@ -479,7 +518,7 @@ class GCode:
             c_x, c_y = self._get_coordinates(direction, extruder.coasting)
             e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
             if e_speed:
-                yield self.gen_extrusion_e_speed_move(x, y, speed, e_length)
+                yield self.gen_extrusion_e_speed_move(x, y, speed, _length, e_length)
             else:
                 yield self.gen_extrusion_speed_move(x, y, speed, e_length)
             yield self.gen_head_move(c_x, c_y, speed)

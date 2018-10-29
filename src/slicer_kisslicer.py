@@ -42,7 +42,6 @@ class KISSlicerGCodeFile(GCodeFile):
         :return: none
         """
 
-        z_offset = 0
         current_tool = None
 
         ext_re = re.compile(b".*Material Settings for Extruder (\d+)")
@@ -72,7 +71,7 @@ class KISSlicerGCodeFile(GCodeFile):
                     self.settings.origin_offset_y = float(comment.split(b' = ')[1])
                 elif b" bed_offset_z_mm =" in comment:
                     #; bed_offset_z_mm = 0
-                    z_offset = float(comment.split(b' = ')[1])
+                    self.settings.z_offset = float(comment.split(b' = ')[1])
                 elif b" round_bed =" in comment:
                     # ; round_bed = 0
                     self.settings.machine_type = int(comment.split(b' = ')[1])
@@ -167,13 +166,18 @@ class KISSlicerGCodeFile(GCodeFile):
             self.log.info("KISSlicer version %d.%d" % self.version)
 
         for t in self.extruders:
-            self.extruders[t].z_offset = z_offset
+            self.extruders[t].z_offset = self.settings.z_offset
             self.extruders[t].extrusion_width = self.settings.extrusion_width
 
         if self.settings.machine_type == 0:
             # fix KISS xy offsets
             self.settings.origin_offset_x = self.settings.origin_offset_x - self.settings.stroke_x/2
             self.settings.origin_offset_y = self.settings.origin_offset_y - self.settings.stroke_y/2
+
+        # correct the layer height to value that doesn't have the z-offset
+        if self.settings.z_offset != 0:
+            for l in self.layers:
+                l.z -= self.settings.z_offset
 
     def parse_print_settings(self):
         """ KISS specific settings """
@@ -239,85 +243,6 @@ class KISSlicerGCodeFile(GCodeFile):
         if m:
             return float(m.groups()[0]), float(m.groups()[1])
         return current_layer
-
-    def filter_layers(self):
-        """
-        Filter layers so that only layers relevant purge tower processing
-        are returned. Also layers are tagged for action (tool witch, infill, pass)
-        Layers that are left out:
-        - empty (no command lines)
-        - non-tool
-        :return: none
-        """
-
-        # maxes = [last_switch_heights[k] for k in last_switch_heights]
-        # maxes.sort(reverse=True)
-        # last_switch_height = maxes[1]
-        # print(last_switch_heights)
-        # print(last_switch_height)
-
-        layer_data = {}
-
-        # step 1: filter out empty layers and add populate dictionary
-        for layer in self.layers:
-            if layer.z not in layer_data:
-                layer_data[layer.z] = {'layers': []}
-
-            layer_data[layer.z]['layers'].append(layer)
-
-        # z-list sorted
-        zs = sorted(layer_data.keys())
-
-        # get needed slot counts per layer by going through reversed z-position list.
-        # if there are only few changes for slot, tuck them in the previous slot
-        slots = 1
-        zs.reverse()
-        count = 0
-        for z in zs:
-            lrs = 0
-            for l in layer_data[z]['layers']:
-                # each layer counts whether there's tool changes or not
-                lrs += l.has_tool_changes()
-            if lrs > slots:
-                count += 1
-            if count >= 3:
-                slots = lrs
-                count = 0
-            layer_data[z]['slots'] = slots
-
-        self.max_slots = slots
-        #print(self.max_slots)
-
-        # tag layers for actions: tool change, infill, etc
-        zs.reverse()
-        for z in zs:
-
-            if layer_data[z]['slots'] == 0:
-                continue
-
-            slots_filled = 0
-            # first check tool change layers
-            for l in layer_data[z]['layers']:
-                l.tower_slots = layer_data[z]['slots']
-                if l.has_tool_changes():
-                    l.action = ACT_SWITCH
-                    slots_filled += 1
-
-            # then check other layers
-            for l in layer_data[z]['layers']:
-                if not l.has_tool_changes():
-                    if slots_filled < layer_data[z]['slots']:
-                        l.action = ACT_INFILL
-                        slots_filled += 1
-                    else:
-                        l.action = ACT_PASS
-
-        # step 3: pack groups to list
-        layers = []
-        for z in zs:
-            for l in layer_data[z]['layers']:
-                layers.append(l)
-        self.filtered_layers = sorted(layers, key=lambda x: x.num)
 
     def parse_perimeter_rates(self):
         """
