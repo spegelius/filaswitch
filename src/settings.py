@@ -26,6 +26,7 @@ class Settings:
         self._tower_position = None
         self._raft_multi = 100
         self._purge_multi = 110
+        self._purge_speed = 60
 
         # print settings
         self._default_speed = None
@@ -243,8 +244,16 @@ class Settings:
         return self._purge_multi
 
     @purge_multi.setter
-    def purge_multi(self, value):
+    def purge_multi(self, value: int):
         self._purge_multi = value
+
+    @property
+    def purge_speed(self):
+        return self._purge_speed
+
+    @purge_speed.setter
+    def purge_speed(self, value: int):
+        self._purge_speed = value
 
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))

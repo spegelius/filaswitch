@@ -384,7 +384,7 @@ class SwitchTower:
         :param lines: purge line count
         :return: list of print speeds
         """
-        max_speed = 3600
+        max_speed = self.settings.purge_speed * 60
         speed = min_speed
         min_speed_lines = 2
         purge_speeds = []

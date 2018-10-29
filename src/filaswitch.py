@@ -161,6 +161,7 @@ class TopFrame(Frame):
         status["force_raft"] = "true" if self.gui.adv_frame.raft_force_var.get() else "false"
         status["raft_multi"] = self.gui.adv_frame.raft_multi_var.get()
         status["purge_multi"] = self.gui.adv_frame.purge_multi_var.get()
+        status["purge_speed"] = self.gui.adv_frame.purge_speed_var.get()
         status["debug"] = "true" if self.gui.adv_frame.debug_var.get() else "false"
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
@@ -201,6 +202,7 @@ class TopFrame(Frame):
                 settings.force_raft = self.gui.adv_frame.raft_force_var.get()
                 settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
                 settings.purge_multi = int(self.gui.adv_frame.purge_multi_var.get())
+                settings.purge_speed = int(self.gui.adv_frame.purge_speed_var.get())
                 brim_val = self.gui.adv_frame.brim_size_var.get()
                 if brim_val == BRIM_AUTO:
                     settings.brim = BRIM_DEFAULT
@@ -303,6 +305,8 @@ class AdvancedFrame(Frame):
         self.debug_label = Label(self, text="Enable debug prints").grid(row=4, column=0, sticky=W, padx=5, pady=3)
         self.brim_label = Label(self, text="Tower brim loops").grid(row=0, column=2, sticky=W, padx=5, pady=3)
         self.purge_multi_label = Label(self, text="Purge extrusion %").grid(row=1, column=2, sticky=W, padx=5, pady=3)
+        self.purge_speed_label = Label(self, text="Purge extrusion max speed (mm/s)")\
+            .grid(row=2, column=2, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -384,6 +388,20 @@ class AdvancedFrame(Frame):
         self.purge_multi_box = OptionMenu(self, self.purge_multi_var, self.purge_multi_var.get(), *purge_multi_values)
         self.purge_multi_box.grid(row=1, column=3, sticky=W, padx=5, pady=3)
 
+        # purge extrusion speed
+        purge_speed_values = [20 + val * 5 for val in range(16)]
+        self.purge_speed_var = StringVar(self)
+        if self.gui.purge_speed:
+            if self.gui.purge_speed in purge_speed_values:
+                self.purge_speed_var.set(self.gui.purge_speed)
+            else:
+                self.purge_speed_var.set(110)
+        else:
+            self.purge_speed_var.set(110)
+
+        self.purge_speed_box = OptionMenu(self, self.purge_speed_var, self.purge_speed_var.get(), *purge_speed_values)
+        self.purge_speed_box.grid(row=2, column=3, sticky=W, padx=5, pady=3)
+
     def set_debug(self):
         self.log.enable_debug(self.debug_var.get())
 
@@ -461,6 +479,11 @@ class GUI:
         except (ValueError, TypeError):
             self.purge_multi = 110
 
+        try:
+            self.purge_speed = int(status.get("purge_speed"))
+        except (ValueError, TypeError):
+            self.purge_speed = 60
+
         # OctoPrint values
         self.octoprint_url = status.get("octoprint_url")
         self.octoprint_api_key = status.get("octoprint_api_key")
@@ -520,6 +543,7 @@ def main():
         parser.add_argument("--brim_count", help="Number of brim loops", type=int, default=0)
         parser.add_argument("--raft_multi", help="Raft extrusion percentage, default 100", type=int, default=100)
         parser.add_argument("--purge_multi", help="Purge extrusion percentage, default 110", type=int, default=110)
+        parser.add_argument("--purge_speed", help="Purge extrusion max speed, default 60", type=int, default=60)
         parser.add_argument("--opurl", help="OctoPrint url for gcode upload", type=str)
         parser.add_argument("--opkey", help="OctoPrint API key for gcode upload", type=str)
         parser.add_argument("--opfolder", help="OctoPrint upload folder", type=str, default="")
@@ -534,6 +558,7 @@ def main():
         settings.tower_force = args.tower_force
         settings.raft_multi = args.raft_multi
         settings.purge_multi = args.purge_multi
+        settings.purge_speed = args.purge_speed
 
         if args.brim_count:
             settings.brim = args.brim_count
