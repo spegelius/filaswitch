@@ -65,12 +65,16 @@ class SwitchTower:
         self.wall_height = self.height + 1.0
 
         # calculate total purge length
-        self.purge_e_length = utils.extrusion_feed_rate(self.purge_line_width, min_layer_h, 1.75) *\
-                              self.purge_length * self.purge_lines * 2
+        extrusion_rate = utils.extrusion_feed_rate(self.purge_line_width, min_layer_h, 1.75)
+        self.purge_e_length = extrusion_rate * self.purge_length * self.purge_lines * 2
         self.purge_e_length += utils.extrusion_feed_rate(self.settings.extrusion_width, min_layer_h, 1.75) *\
                                (self.wall_height + self.wall_width) * 2
         self.log.info("Total purge length with {} purge lines is {}".format(self.settings.purge_lines,
                                                                             self.purge_e_length))
+
+        extrusion_speed = (extrusion_rate * self.purge_length) / (self.purge_length / self.settings.purge_speed)
+        self.log.info("Purge extrusion speed is {} mm/s".format(extrusion_speed))
+
 
         self.brim_width = self.settings.brim * self.settings.extrusion_width
 
