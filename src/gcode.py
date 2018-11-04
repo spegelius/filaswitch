@@ -38,6 +38,7 @@ class GCode:
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
     LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
     PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D(\d:\d)\s+S(\d.*\d+)")
+    FAN_SPEED_RE = re.compile(b"M106\s+S(\d+)")
 
     def __init__(self):
         self.last_match = None
@@ -275,6 +276,18 @@ class GCode:
             self.last_match = m.groups()[0], float(m.groups()[1])
         return self.last_match
 
+    def is_fan_speed(self, line):
+        """
+        Match given line against fan speed regex
+        :param line: g-code line
+        :return: K value or none
+        """
+        self.last_match = None
+        m = self.FAN_SPEED_RE.match(line)
+        if m:
+            self.last_match = int(m.groups()[0])
+        return self.last_match
+
     def gen_lin_advance(self, k_val: int):
         """
         Generate linear advance K-value set gcode
@@ -291,6 +304,21 @@ class GCode:
         :return:
         """
         return b"M572 D%s S%.3f" % (d_val, s_val)
+
+    def gen_fan_speed_gcode(self, speed):
+        """
+        Generate fan speed set gcode
+        :param speed: speed value
+        :return:
+        """
+        return ("M106 S%d" % speed).encode()
+
+    def gen_fan_off_gcode(self):
+        """
+        Generate fan off gcode
+        :return:
+        """
+        return b"M107"
 
     def gen_head_move(self, x, y, speed):
         """

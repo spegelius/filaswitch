@@ -257,6 +257,7 @@ class GCodeFile:
 
         # Keep track of last X, Y position
         last_pos = None
+        fan_speed = 0
 
         def update_retract_position(pos, new_pos):
             """
@@ -292,6 +293,8 @@ class GCodeFile:
                         continue
                     if gcode.is_z_move(cmd):
                         z_move_needed = False
+                    elif gcode.is_fan_speed(cmd):
+                        fan_speed = gcode.last_match
                     elif is_tool_change and layer.action == ACT_SWITCH and gcode.is_tool_change(cmd) is not None:
 
                         layer.delete_line(index)
@@ -302,6 +305,9 @@ class GCodeFile:
                         if self.active_e is not None and self.active_e.tool == new_tool:
                             self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
                         else:
+                            # disable fan
+                            if fan_speed:
+                                index += layer.insert_line(index, gcode.gen_fan_off_gcode(), b"disable fan")
                             # add tool change g-code
                             # first check if retract is needed
                             retract = self.active_e.get_retract_gcode(change=e_pos, comment=b" pre-tower retract")
@@ -319,6 +325,9 @@ class GCodeFile:
                             # always full retract after purge tower
                             e_pos = -new_e.retract
                             z_move_needed = True
+
+                            if fan_speed:
+                                index += layer.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
 
                         is_tool_change = False
                         continue
