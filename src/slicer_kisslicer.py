@@ -18,7 +18,7 @@ class KISSlicerGCodeFile(GCodeFile):
 
     # ; BEGIN_LAYER_OBJECT z=0.294 z_thickness=0.294
     LAYER_START_RE = re.compile(b" BEGIN_LAYER_OBJECT z=(\d+\.*\d*) z_thickness=(\d+\.*\d*)")
-    VERSION_RE = re.compile(b" version (\d+)\.(\d+).*")
+    VERSION_RE = re.compile(b"version (\d+)\.(\d+).*")
 
     def __init__(self, logger, settings: Settings):
         super().__init__(logger, settings)
@@ -36,6 +36,24 @@ class KISSlicerGCodeFile(GCodeFile):
             self.log.info("No tool changes detected, skipping tool change g-code additions")
         return self.save_new_file()
 
+    def parse_version(self, lines):
+        """
+        Parse gcode file version
+        :param lines: lines from gcode file
+        :return:
+        """
+        for line in lines:
+            if b"; version" in line:
+                # parse version
+                try:
+                    comment = line.split(b";")[-1].strip()
+                    m = self.VERSION_RE.match(comment)
+                    self.version = (int(m.groups()[0]), int(m.groups()[1]))
+                except Exception as e:
+                    self.log.exception(e)
+        if self.version is None:
+            raise ValueError("KISSlicer version cannot be parsed")
+
     def parse_header(self):
         """
          Parse KISS header and stuff for print settings
@@ -50,13 +68,7 @@ class KISSlicerGCodeFile(GCodeFile):
             for cmd, comment in layer.lines:
                 if cmd:
                     continue
-                if b" version" in comment:
-                    # parse version
-                    try:
-                        m = self.VERSION_RE.match(comment)
-                        self.version = (int(m.groups()[0]), int(m.groups()[1]))
-                    except Exception as e:
-                        self.log.exception(e)
+
                 elif b" bed_size_x_mm =" in comment:
                     #; bed_size_x_mm = 145
                     self.settings.stroke_x = float(comment.split(b' = ')[1])

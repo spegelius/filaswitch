@@ -68,7 +68,7 @@ class GCodeFile:
         Implement in slicer specific code
 
         """
-        raise NotImplemented
+        raise NotImplementedError()
 
     def parse_print_settings(self):
         """ Parse print settings """
@@ -160,6 +160,7 @@ class GCodeFile:
         # remove extra EOL and empty lines
         lines = [l.strip() for l in gf.readlines() if l.strip()]
         gf.close()
+        self.parse_version(lines)
         self.parse_layers(lines)
 
     def read_all_lines(self):
@@ -191,7 +192,7 @@ class GCodeFile:
 
     def get_extruders(self):
         """ Implement this in slicer specific implementation"""
-        raise NotImplemented
+        raise NotImplementedError()
 
     def check_layer_change(self, line, current_layer):
         """
@@ -200,7 +201,7 @@ class GCodeFile:
         :param current_layer: current layer object
         :return: old or updated layer data
         """
-        raise NotImplemented
+        raise NotImplementedError()
     
     def prerun_prime(self):
         """
@@ -433,7 +434,7 @@ class GCodeFile:
         Store each layer to list.
         :return:
         """
-        raise NotImplemented
+        raise NotImplementedError()
 
     def filter_layers(self):
         """
@@ -498,7 +499,7 @@ class GCodeFile:
 
     def process(self, gcode_file):
         """ Runs processing """
-        raise NotImplemented
+        raise NotImplementedError()
 
     def print_summary(self):
         """
@@ -510,3 +511,11 @@ class GCodeFile:
             self.log.info("Before print: make sure all extruders are UNLOADED")
         else:
             self.log.info("Before print: make sure T0 has filament LOADED")
+
+    def parse_version(self, lines):
+        """
+        Parse version of slicer from gccode file
+        :param lines: lines from gcode file
+        :return:
+        """
+        raise NotImplementedError()

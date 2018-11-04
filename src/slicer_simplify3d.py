@@ -60,6 +60,23 @@ class Simplify3dGCodeFile(GCodeFile):
         self.print_summary()
         return self.save_new_file()
 
+    def parse_version(self, lines):
+        """
+        Parse gcode file version
+        :param lines: lines from gcode file
+        :return:
+        """
+        for line in lines:
+            if b"Simplify3D(R)" in line:
+                # parse version
+                try:
+                    m = self.VERSION_RE.match(line)
+                    self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
+                except Exception as e:
+                    self.log.exception("Version parsing exception: %s" % e)
+        if self.version is None:
+            raise ValueError("Simplify3D version cannot be parsed")
+
     def get_extruders(self):
         """
         Populate extruder list
@@ -142,13 +159,6 @@ class Simplify3dGCodeFile(GCodeFile):
 
             if not comment:
                 pass
-            elif b"Simplify3D(R)" in comment:
-                # parse version
-                try:
-                    m = self.VERSION_RE.match(comment)
-                    self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
-                except Exception as e:
-                    self.log.exception("Version parsing exception: %s" % e)
             elif b"extruderName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_name.append(d)

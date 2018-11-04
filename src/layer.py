@@ -26,6 +26,7 @@ class Layer:
         self.action = ACT_PASS
         self.slots = 0
         self.last_z_layer = False
+        self.support_layer = False  #  Slic3r PE specific
 
     def add_line(self, cmd, comment=None):
         """
