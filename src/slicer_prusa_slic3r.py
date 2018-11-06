@@ -270,51 +270,36 @@ class PrusaSlic3rCodeFile(GCodeFile):
         Store each layer to list.
         :return:
         """
-        prev_layer = None
-        prev_height = 0
         current_layer = FirstLayer(0, 0.2, 0.2)
-
-        layer_start = False
-        layer_num = 0
-        layer_z = 0
 
         # newer PE version have supports on separate layers, which mess the layer height calculation
         support_layer_checking = self.version == (1, 41, 1)
-        support_layer = False
+
+        prev_z = 0
 
         for line in lines:
             cmd, comment = gcode.read_gcode_line(line)
             if comment:
                 ret = self.check_layer_change(comment, None)
                 if ret:
-                    # new layer begins. First close current layer
-                    if support_layer_checking and current_layer:
-                        current_layer.support_layer = True
-
-                    # next calculate new layer values
+                    # calculate new layer values
                     layer_num, layer_z = ret
-                    if current_layer.num == 1 and layer_num == 0:
+                    if current_layer.num == 0 and layer_num == 0:
+                        current_layer.height = layer_z
                         current_layer.z = layer_z
                     else:
-                        if prev_layer:
-                            prev_z = prev_layer.z
+                        if support_layer_checking and current_layer.support_layer:
+                            height = round(layer_z - prev_z, 5)
                         else:
-                            prev_z = 0
-
-                        height = round(current_layer.z - prev_z, 5)
-                        if height:
-                            prev_height = height
-                        else:
-                            height = prev_height
-
-                        prev_layer = current_layer
+                            height = round(layer_z - current_layer.z, 5)
+                            prev_z = current_layer.z
                         self.layers.append(current_layer)
                         current_layer = Layer(layer_num, layer_z, height)
+                        current_layer.support_layer = support_layer_checking
 
-                # check is support layer
-                elif support_layer_checking and comment.strip() == "perimeter":
-                    if current_layer:
-                        current_layer.support_layer = False
+                # check if support layer
+                elif support_layer_checking and b"perimeter" in comment:
+                    current_layer.support_layer = False
 
             current_layer.add_line(cmd, comment)
 
@@ -327,49 +312,16 @@ class PrusaSlic3rCodeFile(GCodeFile):
         for layer in self.layers:
             if not (support_layer_checking and layer.support_layer):
                 if layer.height < min_layer_height:
-                    print(layer.height)
                     min_layer_height = layer.height
             if layer.z > max_z:
                 max_z = layer.z
 
+        self.min_layer_h = min_layer_height
+        self.log.debug("Min layer height: {}".format(min_layer_height))
+
         # sanity check
         if len(self.layers) <= 1 and max_z > self.layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
-
-
-        # current_tool = 0
-        # z_positions = {}
-        # min_ls = {}
-        # for layer in self.layers:
-        #     tools = [current_tool]
-        #     for cmd, comment in layer.lines:
-        #         if cmd and gcode.is_tool_change(cmd):
-        #             current_tool = gcode.last_match
-        #             if not current_tool in tools:
-        #                 tools.append(current_tool)
-        #     for tool in tools:
-        #         if not tool in z_positions:
-        #             z_positions[tool] = [0]
-        #         z_positions[tool].append(layer.z)
-        #
-        # for tool in z_positions:
-        #     prev_z = None
-        #     heights = []
-        #     for z_pos in z_positions[tool]:
-        #         if z_pos == 0:
-        #             continue
-        #         if prev_z:
-        #             height = z_pos - prev_z
-        #         else:
-        #             height = z_pos
-        #         heights.append(height)
-        #         prev_z = z_pos
-        #     min_ls[tool] = min(heights)
-        #
-        # print(min_ls)
-
-
-        self.min_layer_h = min_layer_height
 
     def check_layer_change(self, line, current_layer):
         """

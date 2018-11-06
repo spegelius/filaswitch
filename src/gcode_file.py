@@ -381,7 +381,7 @@ class GCodeFile:
 
                 except IndexError:
                     # if last layer for z, check infill
-                    if layer.last_z_layer and layer.z < self.last_switch_height:
+                    if layer.last_z_layer and layer.z < self.last_switch_height and not layer.support_layer:
                         added = False
                         for line in self.switch_tower.check_infill(layer, e_pos, self.active_e):
                             if line:
