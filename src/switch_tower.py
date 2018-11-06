@@ -75,7 +75,6 @@ class SwitchTower:
         extrusion_speed = (extrusion_rate * self.purge_length) / (self.purge_length / self.settings.purge_speed)
         self.log.info("Purge extrusion speed is {} mm/s".format(extrusion_speed))
 
-
         self.brim_width = self.settings.brim * self.settings.extrusion_width
 
         self.brim_done = False
@@ -98,6 +97,7 @@ class SwitchTower:
         self.total_height = self.raft_height + self.tower_offset
         self.total_width = self.raft_width
         self.extra_width = self.total_width - self.width
+        self.log.debug("Tower dimensions: width = {}, height = {}".format(self.total_width, self.total_height))
 
         # build volume mid points, populated in find tower-fuction
         self.x_mid = None
