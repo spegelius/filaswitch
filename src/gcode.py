@@ -639,6 +639,7 @@ if __name__ == "__main__":
     print("\n*** Z move")
     print(obj.is_z_move(b"G1 Z5.500 F1500"))
     print(obj.is_z_move(b"G1 Z5.500"))
+    print(obj.is_z_move(b"G1 X67.626 Y63.341 Z0.25 E0 F900"))
 
     print("\n*** Tool change")
     print(obj.is_tool_change(b"T0"))
@@ -662,6 +663,7 @@ if __name__ == "__main__":
     import extruder
     e = extruder.Extruder(0)
     e.coasting = 0.2
+    e.extrusion_width = 0.4
     ret = obj.gen_direction_move(W, 40, 3000, 0.2, e)
     for r in ret:
         print(r)
