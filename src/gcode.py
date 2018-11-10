@@ -18,7 +18,7 @@ TYPE_DELTA = 1
 
 class GCode:
 
-    MOVE_RE = re.compile(b"^G1\s+")
+    MOVE_RE = re.compile(b"^G0\s+|^G1\s+")
     X_COORD_RE = re.compile(b".*\s+X([-]*\d+\.*\d*)")
     Y_COORD_RE = re.compile(b".*\s+Y([-]*\d+\.*\d*)")
     E_COORD_RE = re.compile(b".*\s+E([-]*\d+\.*\d*)")
