@@ -37,13 +37,14 @@ class GCode:
     TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
     LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
-    PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D(\d:\d)\s+S(\d.*\d+)")
+    PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D([:0-9]+)\s+S(\d.*\d+)")
     FAN_SPEED_RE = re.compile(b"M106\s+S(\d+)")
 
     def __init__(self):
         self.last_match = None
 
-    def read_gcode_line(self, line):
+    @staticmethod
+    def read_gcode_line(line):
         """
         Read given line and return it split to g-code and comment.
         :param line: g-code line
@@ -57,7 +58,8 @@ class GCode:
             return l, values[1]
         return l, None
 
-    def format_to_string(self, cmd, comment):
+    @staticmethod
+    def format_to_string(cmd, comment):
         """
         Format given g-code command and optional comment to byte string
         :param cmd: command
@@ -71,7 +73,8 @@ class GCode:
         else:
             return cmd + b";" + comment
 
-    def calculate_path_length(self, prev_position, new_position):
+    @staticmethod
+    def calculate_path_length(prev_position, new_position):
         """ Calculate path length from given coordinates"""
         x_len = prev_position[0] - new_position[0]
         y_len = prev_position[1] - new_position[1]
@@ -79,7 +82,8 @@ class GCode:
         path_len = math.sqrt((x_len * x_len) + (y_len * y_len))
         return path_len
 
-    def calculate_feed_rate(self, path_len, extrusion_length):
+    @staticmethod
+    def calculate_feed_rate(path_len, extrusion_length):
         """
         Calculate the feed rate for given path
         :param path_len: length of path
@@ -288,7 +292,8 @@ class GCode:
             self.last_match = int(m.groups()[0])
         return self.last_match
 
-    def gen_lin_advance(self, k_val: int):
+    @staticmethod
+    def gen_lin_advance(k_val: int):
         """
         Generate linear advance K-value set gcode
         :param k_val: K value
@@ -296,7 +301,8 @@ class GCode:
         """
         return ("M900 K%d" % k_val).encode()
 
-    def gen_pressure_advance(self, d_val, s_val):
+    @staticmethod
+    def gen_pressure_advance(d_val, s_val):
         """
         Generate pressure advance set gcode
         :param d_val: D value
@@ -305,7 +311,8 @@ class GCode:
         """
         return b"M572 D%s S%.3f" % (d_val, s_val)
 
-    def gen_fan_speed_gcode(self, speed):
+    @staticmethod
+    def gen_fan_speed_gcode(speed):
         """
         Generate fan speed set gcode
         :param speed: speed value
@@ -313,14 +320,16 @@ class GCode:
         """
         return ("M106 S%d" % speed).encode()
 
-    def gen_fan_off_gcode(self):
+    @staticmethod
+    def gen_fan_off_gcode():
         """
         Generate fan off gcode
         :return:
         """
         return b"M107"
 
-    def gen_head_move(self, x, y, speed):
+    @staticmethod
+    def gen_head_move(x, y, speed):
         """
         Generate g-code line for head move
         :param x: x coordinate
@@ -335,7 +344,8 @@ class GCode:
             return ("G1 X%.3f Y0 F%d" % (x, speed)).encode()
         return ("G1 X%.3f Y%.3f F%d" % (x, y, speed)).encode()
 
-    def gen_extrusion_move(self, x, y, e_length):
+    @staticmethod
+    def gen_extrusion_move(x, y, e_length):
         """
         Generate g-code line for extrusion move. Relative distances
         :param x: x coordinate
@@ -350,7 +360,8 @@ class GCode:
             return ("G1 X%.3f Y0 E%.4f" % (x, e_length)).encode()
         return ("G1 X%.3f Y%.3f E%.4f" % (x, y, e_length)).encode()
 
-    def gen_extrusion_speed_move(self, x, y, speed, e_length):
+    @staticmethod
+    def gen_extrusion_speed_move(x, y, speed, e_length):
         """
         Generate g-code line for extrusion move with speed. Relative distances
         :param x: x coordinate
@@ -377,7 +388,6 @@ class GCode:
         :return: byte string
         """
         # handle zeroes... cannot omit 0-len axes
-
         e_time = e_length / (speed / 60)
         move_speed = move_length / e_time * 60
         # limit max speed
@@ -385,8 +395,8 @@ class GCode:
             move_speed = speed
         return self.gen_extrusion_speed_move(x, y, move_speed, e_length)
 
-
-    def gen_extruder_move(self, e_length, speed):
+    @staticmethod
+    def gen_extruder_move(e_length, speed):
         """
         Generate g-code line for extruder move with given length and speed.
         :param e_length: extruder move length
@@ -395,7 +405,8 @@ class GCode:
         """
         return ("G1 E%.4f F%d" % (e_length, speed)).encode()
 
-    def gen_z_move(self, z, speed):
+    @staticmethod
+    def gen_z_move(z, speed):
         """
         Generate g-code line for z move with given z-position and speed.
         :param z: z position
@@ -404,7 +415,8 @@ class GCode:
         """
         return ("G1 Z%.4f F%d" % (z, speed)).encode()
 
-    def gen_temperature_nowait(self, temperature):
+    @staticmethod
+    def gen_temperature_nowait(temperature):
         """
         Generate g-code line for temperature change with no wait.
         :param temperature: temperature to set
@@ -412,7 +424,8 @@ class GCode:
         """
         return ("M104 S%d" % temperature).encode()
 
-    def gen_temperature_nowait_tool(self, temperature, tool, g10=False):
+    @staticmethod
+    def gen_temperature_nowait_tool(temperature, tool, g10=False):
         """
         Generate g-code line for temperature change with no wait and specific tool.
         :param temperature: temperature to set
@@ -423,7 +436,8 @@ class GCode:
             return ("G10 P%d R%d S%d" % (tool, temperature, temperature)).encode()
         return ("M104 S%d T%d" % (temperature, tool)).encode()
 
-    def gen_temperature_wait(self, temperature):
+    @staticmethod
+    def gen_temperature_wait(temperature):
         """
         Generate g-code line for temperature change with wait.
         :param temperature: temperature to set
@@ -431,7 +445,8 @@ class GCode:
         """
         return ("M109 S%d" % temperature).encode()
 
-    def gen_temperature_wait_tool(self, temperature, tool):
+    @staticmethod
+    def gen_temperature_wait_tool(temperature, tool):
         """
         Generate g-code line for temperature change with wait and specific tool.
         :param temperature: temperature to set
@@ -440,7 +455,8 @@ class GCode:
         """
         return ("M109 S%d T%d" % (temperature, tool)).encode()
 
-    def gen_wait_all_temps(self):
+    @staticmethod
+    def gen_wait_all_temps():
         """
         Generate g-code line to wait for all tool temperatures.
         :param tool: tool to use
@@ -448,22 +464,25 @@ class GCode:
         """
         return b"M116"
 
-    def gen_wait_tool_temp(self, tool):
+    @staticmethod
+    def gen_wait_tool_temp(tool):
         """
         Generate g-code line to wait for tool temperature.
         :return: byte string
         """
         return ("M116 P{}".format(tool)).encode()
 
-    def gen_tool_change(self, tool):
+    @staticmethod
+    def gen_tool_change(tool):
         """
         Generate g-code line for tool change.
         :param tool: tool to use
         :return: byte string
         """
         return ("T%d" % tool).encode()
-        
-    def gen_motor_current(self, axis, current):
+
+    @staticmethod
+    def gen_motor_current(axis, current):
         """
         Send M907 to adjust motor current
         :param axis: the axis to adjust (usually E)
@@ -472,21 +491,24 @@ class GCode:
         """
         return ("M907 %s%d" % (axis, current)).encode()
 
-    def gen_absolute_positioning(self):
+    @staticmethod
+    def gen_absolute_positioning():
         """
         Generate g-code line for absolute positioning.
         :return: byte string
         """
         return b"G90"
 
-    def gen_relative_positioning(self):
+    @staticmethod
+    def gen_relative_positioning():
         """
         Generate g-code line for relative positioning.
         :return: byte string
         """
         return b"G91"
 
-    def gen_pause(self, milliseconds):
+    @staticmethod
+    def gen_pause(milliseconds):
         """
         Generate g-code line for pause.
         :param: milliseconds: pause length
@@ -494,21 +516,24 @@ class GCode:
         """
         return "G4 P{}".format(milliseconds).encode()
 
-    def gen_extruder_reset(self):
+    @staticmethod
+    def gen_extruder_reset():
         """
         Generate g-code line for extruder position reset.
         :return: byte string
         """
         return b"G92 E0"
 
-    def gen_relative_e(self):
+    @staticmethod
+    def gen_relative_e():
         """
         Generate g-code line for extruder relative mode
         :return: byte string
         """
         return b"M83"
 
-    def _get_coordinates(self, direction, length):
+    @staticmethod
+    def _get_coordinates(direction, length):
         """
         Calculate coordinates from given direction and length. If coasting, calculate those coordinates too.
         Relative to 0,0
@@ -620,101 +645,3 @@ class GCode:
         if direction >= 180:
             return direction - 180
         return direction + 180
-
-
-if __name__ == "__main__":
-    # test stuff
-    obj = GCode()
-    print("\n*** Extruder move")
-    print(obj.is_extruder_move(b"G1 E-2.5 F1500"))
-    print(obj.is_extruder_move(b"G1 E-2.5"))
-    print(obj.is_extruder_move(b'G1 E-3.00000 F4800.00000'))
-
-    print("\n*** Read gcode line")
-    print(obj.read_gcode_line(b"G1 E5 F1500  ; juu"))
-    print(obj.read_gcode_line(b"; juu"))
-    print(obj.read_gcode_line(b"; juu ; joo"))
-    print(obj.read_gcode_line(b"G1 E-3.00000 F4800.00000"))
-
-    print("\n*** Z move")
-    print(obj.is_z_move(b"G1 Z5.500 F1500"))
-    print(obj.is_z_move(b"G1 Z5.500"))
-    print(obj.is_z_move(b"G1 X67.626 Y63.341 Z0.25 E0 F900"))
-
-    print("\n*** Tool change")
-    print(obj.is_tool_change(b"T0"))
-    print(obj.is_tool_change(b"T1"))
-
-    print("\n*** Extrusion move")
-    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E-2.5000"))
-    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E0"))
-    print(obj.is_extrusion_move(b"G1 X80.349 Y81.849 E5 F2000"))
-
-    print("\n*** Head move")
-    print(obj.is_head_move(b"G1 X65.82 Y76.532 Z5.7 E0 F1500"))
-    print(obj.is_head_move(b"G1 X65.82 Y76.532 F1500"))
-    print(obj.is_head_move(b"G1 Y76.532 F1500"))
-    print(obj.is_head_move(b"G1 X65.82 F1500"))
-
-    print("\n*** Direction move")
-    ret = obj.gen_direction_move(E, 40, 3000, 0.1)
-    for r in ret:
-        print(r)
-    import extruder
-    e = extruder.Extruder(0)
-    e.coasting = 0.2
-    e.extrusion_width = 0.4
-    ret = obj.gen_direction_move(W, 40, 3000, 0.2, e)
-    for r in ret:
-        print(r)
-    ret = obj.gen_direction_move(S, 40, 3000, 0.1, e, last_line=True)
-    for r in ret:
-        print(r)
-
-    print("\n*** Get coordinates")
-    print(obj._get_coordinates(N, 10))
-    print(obj._get_coordinates(NE, 10))
-    print(obj._get_coordinates(E, 10))
-    print(obj._get_coordinates(SE, 10))
-    print(obj._get_coordinates(S, 10))
-    print(obj._get_coordinates(SW, 10))
-    print(obj._get_coordinates(W, 10))
-    print(obj._get_coordinates(NW, 10))
-
-    print(obj._get_coordinates(30, 10))
-    print(obj._get_coordinates(80, 10))
-
-    print(obj._get_coordinates(100, 10))
-
-    print(obj._get_coordinates(200, 10))
-
-    print(obj._get_coordinates(346, 10))
-
-    print("\n*** Get coordinates by offsets")
-    print(obj.get_coordinates_by_offsets(0, 10, 10, 1, 15))
-    print(obj.get_coordinates_by_offsets(1, 10, 10, 1, 15))
-    print(obj.get_coordinates_by_offsets(0, 10, 10, -3, 15))
-    print(obj.get_coordinates_by_offsets(10, 10, 10, -3, 15))
-    print(obj.get_coordinates_by_offsets(10, 10, 10, 2, 1))
-    print(obj.get_coordinates_by_offsets(10, 10, 10, -4, -2))
-    print(obj.get_coordinates_by_offsets(10, 10, 10, -2, -4))
-
-    print(obj.get_coordinates_by_offsets(10, 10, 10, 2, -4))
-
-    print(obj.is_temp_nowait(b"M104 S255"))
-    print(obj.is_temp_nowait_tool(b"M104 S255  T0"))
-
-    print(obj.is_temp_wait(b"M109 S255"))
-    print(obj.is_temp_wait_tool(b"M109 S255 T0"))
-
-    print(obj.opposite_dir(E))
-    print(obj.opposite_dir(W))
-    print(obj.opposite_dir(S))
-    print(obj.opposite_dir(N))
-
-    print(obj.opposite_dir(E+270))
-    print(obj.opposite_dir(W+270))
-    print(obj.opposite_dir(S+270))
-    print(obj.opposite_dir(N+270))
-
-    print(obj.rotate(W, 270))
