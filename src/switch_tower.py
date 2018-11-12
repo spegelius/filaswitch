@@ -939,15 +939,15 @@ class SwitchTower:
             yield line
         
         if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
-        	yield b"G4 S0", b" wait"
-        	
+            yield b"G4 S0", b" wait"
+
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
         
         if self.settings.get_hw_config_bool_value("tool.reset_feed"):
-        	yield b"M220 S100", b" reset feedrate"
-        	
+            yield b"M220 S100", b" reset feedrate"
+
         if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
-        	yield b"G4 S0", b" wait"
+            yield b"G4 S0", b" wait"
 
         # feed new filament
         for line in self.get_post_switch_gcode(new_e, layer):
@@ -974,12 +974,16 @@ class SwitchTower:
                                                feed_multi=purge_multiplier), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
-            if i == 1 and new_temp:
+            if i == 1:
+                if new_temp:
+                    target_temp = new_temp
+                else:
+                    target_temp = old_temp
                 # change nozzle temp after purging the old material.
-                wait = abs(new_temp - old_temp) > 15
+                wait = abs(target_temp - old_temp) > 15
                 if wait:
                     yield new_e.get_retract_gcode()
-                for line in self.get_temperature_gcode(new_temp, new_e, wait=wait):
+                for line in self.get_temperature_gcode(target_temp, new_e, wait=wait):
                     yield line
                 if wait:
                     yield new_e.get_prime_gcode()
