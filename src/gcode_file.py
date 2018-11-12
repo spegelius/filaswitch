@@ -1,10 +1,14 @@
 import os
 
+from collections import OrderedDict
+
+import utils
 from gcode import GCode
 from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
 from preprime import PrePrime
 from settings import Settings
+
 
 gcode = GCode()
 
@@ -158,10 +162,10 @@ class GCodeFile:
             return 1
 
         # remove extra EOL and empty lines
-        lines = [l.strip() for l in gf.readlines() if l.strip()]
+        self.lines = [l.strip() for l in gf.readlines() if l.strip()]
         gf.close()
-        self.parse_version(lines)
-        self.parse_layers(lines)
+        self.parse_version()
+        self.parse_gcode()
 
     def read_all_lines(self):
         """
@@ -240,6 +244,21 @@ class GCodeFile:
 
         self.switch_tower.find_tower_position(x_max, x_min, y_max, y_min)
 
+    @staticmethod
+    def _get_retract_position(pos, new_pos):
+        """
+        Update E position value. In case of negative value we want to have
+        cumulative status to understand how much retraction is done. In case of positive
+        value we don't care, so 0 is ok.
+        :param pos: current position
+        :param new_pos: new position
+        :return: updated position
+        """
+        pos += new_pos
+        if pos > -0.00001:
+            pos = 0
+        return pos
+
     def add_tool_change_gcode(self):
         """
         Go through the g-code and add tool change g-code where needed.
@@ -260,19 +279,7 @@ class GCodeFile:
         last_pos = None
         fan_speed = 0
 
-        def update_retract_position(pos, new_pos):
-            """
-            Update E position value. In case of negative value we want to have
-            cumulative status to understand how much retraction is done. In case of positive
-            value we don't care, so 0 is ok.
-            :param pos: current position
-            :param new_pos: new position
-            :return: updated position
-            """
-            pos += new_pos
-            if pos > -0.00001:
-                pos = 0
-            return pos
+
             
         for layer in self.filtered_layers:
             if isinstance(layer, FirstLayer):
@@ -343,7 +350,7 @@ class GCodeFile:
                             index -= 1
                         else:
                             # store extruder position
-                            e_pos = update_retract_position(e_pos, gcode.last_match[0])
+                            e_pos = self._get_retract_position(e_pos, gcode.last_match[0])
                     elif gcode.is_extrusion_move(cmd):
                         # add prime if needed
                         if prime_needed:
@@ -363,7 +370,7 @@ class GCodeFile:
                                 e_pos = 0
 
                         # store extruder position
-                        e_pos = update_retract_position(e_pos, gcode.last_match[3])
+                        e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
 
                         # add z move if needed
                         if z_move_needed:
@@ -512,10 +519,158 @@ class GCodeFile:
         else:
             self.log.info("Before print: make sure T0 has filament LOADED")
 
-    def parse_version(self, lines):
+    def parse_version(self):
         """
         Parse version of slicer from gccode file
-        :param lines: lines from gcode file
         :return:
         """
         raise NotImplementedError()
+
+    def parse_gcode_pass1(self):
+
+        self.layers = OrderedDict()
+
+        current_z = 0
+        last_print_z = None
+
+        current_x = 0
+        current_y = 0
+        last_extrusion_x = None
+        last_extrusion_y = None
+
+        current_tool = None
+
+        add_tool = False
+
+        self._retracts = {}
+
+        self.max_z_h = 0
+
+        e_pos = 0
+
+        # find z-heights and tool changes
+        for line in self.lines:
+            cmd, comment = gcode.read_gcode_line(line)
+            if comment and comment.strip() == b"END SCRIPT START":
+                break
+            if not cmd:
+                continue
+            if gcode.is_tool_change(cmd) is not None:
+                tool = gcode.last_match
+                current_tool = tool
+                add_tool = True
+                e_pos = 0
+
+            elif gcode.is_z_move(cmd):
+                # get z position
+                current_z = round(gcode.last_match[0], 5)
+
+            elif gcode.is_extruder_move(cmd):
+                e_pos = self._get_retract_position(e_pos, gcode.last_match[0])
+
+            elif gcode.is_head_move(cmd):
+                # also check z from head move
+                if gcode.last_match[2] is not None:
+                    current_z = round(gcode.last_match[2], 5)
+                current_x = gcode.last_match[0]
+                current_y = gcode.last_match[1]
+
+                # add negative e position list and reset e position
+                if e_pos < 0:
+                    if not current_tool in self._retracts:
+                        self._retracts[current_tool] = []
+                    self._retracts[current_tool].append(e_pos)
+                    e_pos = 0
+
+            elif gcode.is_extrusion_move(cmd):
+
+                # calculate z height and update max z h val if needed
+                if last_print_z is not None:
+                    z_h = current_z - last_print_z
+                    if z_h > self.max_z_h:
+                        self.max_z_h = round(z_h, 5)
+
+                # print move defines the actual z-height for tool
+                last_print_z = current_z
+                if last_print_z not in self.layers:
+                    self.layers[last_print_z] = []
+
+                # add tool to layer list if flag is set
+                if add_tool:
+                    self.layers[last_print_z].append(current_tool)
+                    add_tool = False
+
+                e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
+
+                # update x and y pos (not used at the moment)
+                if gcode.last_match[0] is not None:
+                    current_x = gcode.last_match[0]
+
+                if gcode.last_match[1] is not None:
+                    current_y = gcode.last_match[1]
+
+                if last_extrusion_x is not None and last_extrusion_y is not None and current_tool:
+                    path_len = gcode.calculate_path_length((last_extrusion_x, last_extrusion_y), (current_x, current_y))
+                    e_rate = gcode.calculate_feed_rate(path_len, gcode.last_match[3])
+                    # e rate calculation not used currently
+                    #current_tool.e_rates.append(e_rate)
+
+                if gcode.last_match[0] is not None:
+                    last_extrusion_x = gcode.last_match[0]
+
+                if gcode.last_match[1] is not None:
+                    last_extrusion_y = gcode.last_match[1]
+
+    def parse_gcode_pass2(self):
+
+        # tower instances
+        self.towers = {}
+        t_max = 0
+        for z in self.layers:
+            t_index = 0
+            for tool in self.layers[z]:
+                if not t_index in self.towers:
+                    self.towers[t_index] = []
+                self.towers[t_index].append((z, tool))
+                t_index += 1
+            if t_index > t_max:
+                t_max = t_index
+
+    def parse_gcode_pass3(self):
+
+        # infill
+        for tower in self.towers:
+            prev_z = 0
+            z_list = sorted(self.towers[tower])
+            for z in z_list:
+                print(z)
+                if z - prev_z > self.max_z_h:
+                    gap = z - prev_z
+                    infills = int(gap / self.max_z_h) - 1
+                    if infills:
+                        infill_h = gap / infills
+                        # print(gap, infills, infill_h)
+                        for i in range(infills):
+                            new_z = round(i * infill_h + z - gap, 2)
+                            self.towers[tower].append((new_z, "infill"))
+                    else:
+                        new_z = round(z - gap, 5)
+                        if new_z:
+                            self.towers[tower].append((new_z, "infill2"))
+                prev_z = z
+
+    def _calculate_retractions(self):
+        """
+        Calculates retractions per tool
+        :return:
+        """
+        for tool in self._retracts:
+            self._retracts[tool] = utils.percentile(self._retracts[tool], 0.99)
+
+    def parse_gcode(self):
+        """
+        Parse needed settings from the gcode
+        :return:
+        """
+        self.parse_gcode_pass1()
+        self.parse_gcode_pass2()

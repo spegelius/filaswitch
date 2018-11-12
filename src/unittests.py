@@ -1,8 +1,17 @@
-
+import pprint
+import os
 import unittest
+from unittest.mock import MagicMock
 
 import extruder
 from gcode import GCode, E, W, S, N, NE, SE, NW, SW
+from gcode_file import GCodeFile
+from settings import Settings
+
+from unittest_data import dummy_gcode
+from unittest_data_Cura import pass1_testmodel1_Cura, pass1_testmodel1_retracts_Cura, pass2_testmodel1_towers_Cura
+
+prog_dir = os.path.dirname(os.path.realpath(__file__))
 
 
 class TestGcode(unittest.TestCase):
@@ -148,3 +157,56 @@ class TestGcode(unittest.TestCase):
     def test_rotate(self):
         self.assertEqual(90, self.test_object.rotate(W, 270))
 
+
+class TestGcodeFile(unittest.TestCase):
+
+    def setUp(self):
+        self.test_files_dir = os.path.join(prog_dir, 'test_data')
+        self.settings = Settings()
+        self.logger = MagicMock()
+
+    def test_open_file(self):
+        gcode = GCodeFile(self.logger, self.settings)
+        gcode.parse_version = MagicMock()
+        gcode.parse_gcode = MagicMock()
+        gcode.open_file(os.path.join(self.test_files_dir, "dummy.gcode"))
+        gcode.parse_gcode.assert_called()
+        self.assertEqual(dummy_gcode, gcode.lines)
+
+
+class TestCuraGcodeFile(unittest.TestCase):
+
+    def setUp(self):
+        self.test_files_dir = os.path.join(prog_dir, 'test_data')
+        self.settings = Settings()
+        self.logger = MagicMock()
+
+    def test_parse_gcode_pass1_Cura_testmodel1(self):
+        gcode = GCodeFile(self.logger, self.settings)
+        gcode.parse_version = MagicMock()
+        gcode.parse_gcode = MagicMock()
+        gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
+        gcode.parse_gcode_pass1()
+        self.assertEqual(130, len(gcode.layers))
+        self.assertEqual(pass1_testmodel1_Cura, gcode.layers)
+        self.assertEqual(0.2, gcode.max_z_h)
+        self.assertEqual(0.2, gcode.max_z_h)
+        self.assertEqual(pass1_testmodel1_retracts_Cura, gcode._retracts)
+
+    def test_parse_gcode_pass2_Cura_testmodel1(self):
+        gcode = GCodeFile(self.logger, self.settings)
+        gcode.parse_version = MagicMock()
+        gcode.parse_gcode = MagicMock()
+        gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
+        gcode.parse_gcode_pass1()
+        gcode.parse_gcode_pass2()
+        self.assertEqual(pass2_testmodel1_towers_Cura, gcode.towers)
+
+    def test_parse_gcode_pass3_Cura_testmodel1(self):
+        gcode = GCodeFile(self.logger, self.settings)
+        gcode.parse_version = MagicMock()
+        gcode.parse_gcode = MagicMock()
+        gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
+        gcode.parse_gcode_pass1()
+        gcode.parse_gcode_pass2()
+        self.assertEqual(pass2_testmodel1_towers_Cura, gcode.towers)
