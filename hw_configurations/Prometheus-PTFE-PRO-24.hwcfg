@@ -7,6 +7,14 @@ tool.temperature.use_id: True
 ## What command to use for controlling nozzle temperature. M104 and G10 supported
 tool.temperature.command: M104
 
+## Nozzle diameter. Used with slicers (Cura) that do not provide settings in gcode files
+## Overridden for S3D, Slic3r and KISS
+tool.nozzle.diameter: 0.4
+
+## Z-hop when moving to and from the tower. Used with slicers (Cura) that do not provide settings in gcode files.
+## Overridden for S3D, Slic3r and KISS
+tool.tower.zhop: 0.5
+
 ## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.
 ## load = motor current for load/unload

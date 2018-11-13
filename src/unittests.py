@@ -9,7 +9,7 @@ from gcode_file import GCodeFile
 from settings import Settings
 
 from unittest_data import dummy_gcode
-from unittest_data_Cura import pass1_testmodel1_Cura, pass1_testmodel1_retracts_Cura, pass2_testmodel1_towers_Cura
+from unittest_data_Cura import pass1_testmodel1_Cura, pass1_testmodel1_retracts_Cura, pass2_testmodel1_towers_Cura, pass3_testmodel1_towers_Cura
 
 prog_dir = os.path.dirname(os.path.realpath(__file__))
 
@@ -179,6 +179,7 @@ class TestCuraGcodeFile(unittest.TestCase):
     def setUp(self):
         self.test_files_dir = os.path.join(prog_dir, 'test_data')
         self.settings = Settings()
+        self.settings.hw_config = "Prometheus-PTFE-PRO-12"
         self.logger = MagicMock()
 
     def test_parse_gcode_pass1_Cura_testmodel1(self):
@@ -189,9 +190,24 @@ class TestCuraGcodeFile(unittest.TestCase):
         gcode.parse_gcode_pass1()
         self.assertEqual(130, len(gcode.layers))
         self.assertEqual(pass1_testmodel1_Cura, gcode.layers)
-        self.assertEqual(0.2, gcode.max_z_h)
-        self.assertEqual(0.2, gcode.max_z_h)
         self.assertEqual(pass1_testmodel1_retracts_Cura, gcode._retracts)
+        self.assertEqual(4, len(gcode.extruders))
+
+        data = [(1.9,2400),
+                (6.5, 1500),
+                (6.5, 1500),
+                (6.5, 1500)]
+
+        index = 0
+        for d in data:
+            self.assertEqual(0.4, gcode.extruders[index].nozzle)
+            self.assertEqual(0.5, gcode.extruders[index].z_hop)
+            self.assertEqual(d[0], gcode.extruders[index].retract)
+            self.assertEqual(d[1], gcode.extruders[index].retract_speed)
+            index += 1
+
+        self.assertEqual([0, 1, 2, 3], gcode.tools)
+        self.assertEqual(26.1, gcode.last_switch_height)
 
     def test_parse_gcode_pass2_Cura_testmodel1(self):
         gcode = GCodeFile(self.logger, self.settings)
@@ -200,7 +216,12 @@ class TestCuraGcodeFile(unittest.TestCase):
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
         gcode.parse_gcode_pass2()
-        self.assertEqual(pass2_testmodel1_towers_Cura, gcode.towers)
+        self.assertEqual(4, len(gcode.towers))
+
+        index = 0
+        for data in pass2_testmodel1_towers_Cura:
+            self.assertEqual(data, gcode.towers[index].z)
+            index += 1
 
     def test_parse_gcode_pass3_Cura_testmodel1(self):
         gcode = GCodeFile(self.logger, self.settings)
@@ -209,4 +230,13 @@ class TestCuraGcodeFile(unittest.TestCase):
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
         gcode.parse_gcode_pass2()
-        self.assertEqual(pass2_testmodel1_towers_Cura, gcode.towers)
+        gcode.parse_gcode_pass3()
+        index = 0
+        for data in pass3_testmodel1_towers_Cura:
+            self.assertEqual(data, gcode.towers[index].z)
+            index += 1
+
+        self.assertEqual(0.2, gcode.towers[0].min_z)
+        self.assertEqual(0.2, gcode.towers[1].min_z)
+        self.assertEqual(0.2, gcode.towers[2].min_z)
+        self.assertEqual(0.3, gcode.towers[3].min_z)

@@ -1,8 +1,10 @@
+import math
 import os
 
 from collections import OrderedDict
 
 import utils
+from extruder import Extruder
 from gcode import GCode
 from layer import Layer, FirstLayer, ACT_PASS, ACT_INFILL, ACT_SWITCH
 from switch_tower import SwitchTower
@@ -17,6 +19,25 @@ SLICER_KISSLICER = "KISSlicer"
 SLICER_SIMPLIFY3D = "Simplify3d"
 SLICER_SLIC3R = "Slic3r"
 SLICER_PRUSA_SLIC3R = "PrusaSlic3r"
+
+
+class Tower:
+    def __init__(self):
+        self.z = {}
+        self.min_z = None
+
+    def add(self, z, _type):
+        if z not in self.z:
+            self.z[z] = _type
+
+    def calculate_min_z(self):
+        prev_z = 0
+        for z in self.z:
+            if self.z[z] >= 0:
+                z_h = round(z - prev_z, 5)
+                if self.min_z is None or z_h < self.min_z:
+                    self.min_z = z_h
+            prev_z = z
 
 
 class GCodeFile:
@@ -66,6 +87,8 @@ class GCodeFile:
         # Slicer version
         self.version = None
 
+        self.towers = {}
+
     def parse_header(self):
         """
         Parse header of gcode file, if any.
@@ -87,27 +110,12 @@ class GCodeFile:
 
         for layer in self.layers:
             for cmd, comment, index in layer.read_lines():
-                # find valid tool changes
-                if comment and comment.strip() == b"TOOL CHANGE":
-                    first_layer = isinstance(layer, FirstLayer)
-                    if first_layer and index < layer.start_gcode_end:
-                        continue
-                    is_tool_change = True
-
-                elif cmd:
+                if cmd:
                     # find linear advance commands
-                    if is_tool_change and gcode.is_tool_change(cmd) is not None:
-                        # add unique tools to list
-                        if gcode.last_match not in self.tools:
-                            self.tools.append(gcode.last_match)
-                        self.tool_switch_heights[gcode.last_match] = layer.z
-                    elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
+                    if gcode.is_lin_advance(cmd) and gcode.last_match != 0:
                         self.settings.linear_advance = gcode.last_match
                     elif gcode.is_pressure_advance(cmd) and gcode.last_match != 0:
                         self.settings.pressure_advance = gcode.last_match
-                    is_tool_change = False
-                else:
-                    is_tool_change = False
 
         if not self.layers[0].start_gcode_end:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
@@ -544,9 +552,8 @@ class GCodeFile:
 
         self._retracts = {}
 
-        self.max_z_h = 0
-
         e_pos = 0
+        e_speed = 0
 
         # find z-heights and tool changes
         for line in self.lines:
@@ -556,8 +563,9 @@ class GCodeFile:
             if not cmd:
                 continue
             if gcode.is_tool_change(cmd) is not None:
-                tool = gcode.last_match
-                current_tool = tool
+                current_tool = gcode.last_match
+                if not current_tool in self.tools:
+                    self.tools.append(current_tool)
                 add_tool = True
                 e_pos = 0
 
@@ -567,6 +575,7 @@ class GCodeFile:
 
             elif gcode.is_extruder_move(cmd):
                 e_pos = self._get_retract_position(e_pos, gcode.last_match[0])
+                e_speed = gcode.last_match[1]
 
             elif gcode.is_head_move(cmd):
                 # also check z from head move
@@ -579,16 +588,10 @@ class GCodeFile:
                 if e_pos < 0:
                     if not current_tool in self._retracts:
                         self._retracts[current_tool] = []
-                    self._retracts[current_tool].append(e_pos)
+                    self._retracts[current_tool].append((e_pos, e_speed))
                     e_pos = 0
 
             elif gcode.is_extrusion_move(cmd):
-
-                # calculate z height and update max z h val if needed
-                if last_print_z is not None:
-                    z_h = current_z - last_print_z
-                    if z_h > self.max_z_h:
-                        self.max_z_h = round(z_h, 5)
 
                 # print move defines the actual z-height for tool
                 last_print_z = current_z
@@ -597,7 +600,15 @@ class GCodeFile:
 
                 # add tool to layer list if flag is set
                 if add_tool:
+                    if not current_tool in self.extruders:
+                        # add new extruder instance, if one doesn't exist already
+                        self.extruders[current_tool] = Extruder(current_tool)
+                        self.extruders[current_tool].nozzle = self.settings.get_hw_config_float_value(
+                            "tool.nozzle.diameter")
+                        self.extruders[current_tool].z_hop = self.settings.get_hw_config_float_value(
+                            "tool.tower.zhop")
                     self.layers[last_print_z].append(current_tool)
+                    self.tool_switch_heights[current_tool] = last_print_z
                     add_tool = False
 
                 e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
@@ -621,43 +632,45 @@ class GCodeFile:
                 if gcode.last_match[1] is not None:
                     last_extrusion_y = gcode.last_match[1]
 
+        self.last_switch_height = max(self.tool_switch_heights.values())
+        self._calculate_retractions()
+
     def parse_gcode_pass2(self):
 
-        # tower instances
-        self.towers = {}
+        # create tower instances
         t_max = 0
         for z in self.layers:
             t_index = 0
             for tool in self.layers[z]:
                 if not t_index in self.towers:
-                    self.towers[t_index] = []
-                self.towers[t_index].append((z, tool))
+                    self.towers[t_index] = Tower()
+                self.towers[t_index].add(z, tool)
                 t_index += 1
             if t_index > t_max:
                 t_max = t_index
 
     def parse_gcode_pass3(self):
 
-        # infill
+        max_infill_h = self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625
+
+        # find gaps in z list and fill them with infill (-1). Use aproximate layer h
         for tower in self.towers:
             prev_z = 0
-            z_list = sorted(self.towers[tower])
+            z_list = sorted(self.towers[tower].z)
             for z in z_list:
-                print(z)
-                if z - prev_z > self.max_z_h:
-                    gap = z - prev_z
-                    infills = int(gap / self.max_z_h) - 1
+                if z - prev_z - max_infill_h > max_infill_h:
+                    gap = z - prev_z - max_infill_h
+                    infills = int(math.ceil(gap / max_infill_h))
                     if infills:
                         infill_h = gap / infills
-                        # print(gap, infills, infill_h)
                         for i in range(infills):
                             new_z = round(i * infill_h + z - gap, 2)
-                            self.towers[tower].append((new_z, "infill"))
-                    else:
-                        new_z = round(z - gap, 5)
-                        if new_z:
-                            self.towers[tower].append((new_z, "infill2"))
+                            self.towers[tower].add(new_z, -1)
                 prev_z = z
+
+        # calculate min z h per tower
+        for tower in self.towers:
+            self.towers[tower].calculate_min_z()
 
     def _calculate_retractions(self):
         """
@@ -665,7 +678,11 @@ class GCodeFile:
         :return:
         """
         for tool in self._retracts:
-            self._retracts[tool] = utils.percentile(self._retracts[tool], 0.99)
+            self.extruders[tool].retract = abs(utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[0]))
+            self.extruders[tool].retract_speed = utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[1])
+            if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
+                raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
+                    self.extruders[tool].retract, self.extruders[tool].retract_speed))
 
     def parse_gcode(self):
         """
