@@ -42,13 +42,13 @@ class PrusaSlic3rCodeFile(GCodeFile):
         index = 0
         while True:
             try:
-                cmd, comment = self.layers[0].lines[index]
+                cmd, comment = self._layers[0].lines[index]
                 if cmd and gcode.is_tool_change(cmd) is not None:
                     # fix Prusa slicer first tool change with comment
                     if prev_comment and prev_comment.strip() == b"TOOL CHANGE":
                         index += 1
                         continue
-                    self.layers[0].insert_line(index, None, b"TOOL CHANGE")
+                    self._layers[0].insert_line(index, None, b"TOOL CHANGE")
                     index += 1
                 prev_comment = comment
                 index += 1
@@ -94,7 +94,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
         z_offset = 0
         brim = -1
-        for layer in self.layers:
+        for layer in self._layers:
             for cmd, comment in layer.lines:
                 if cmd:
                     continue
@@ -317,7 +317,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         else:
                             height = round(layer_z - current_layer.z, 5)
                             prev_z = current_layer.z
-                        self.layers.append(current_layer)
+                        self._layers.append(current_layer)
                         current_layer = Layer(layer_num, layer_z, height)
                         current_layer.support_layer = support_layer_checking
 
@@ -328,12 +328,12 @@ class PrusaSlic3rCodeFile(GCodeFile):
             current_layer.add_line(cmd, comment)
 
         # last layer
-        self.layers.append(current_layer)
+        self._layers.append(current_layer)
 
         # calculate min layer and max z
         min_layer_height = 10
         max_z = 0
-        for layer in self.layers:
+        for layer in self._layers:
             if not (support_layer_checking and layer.support_layer):
                 if layer.height < min_layer_height:
                     min_layer_height = layer.height
@@ -344,7 +344,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         self.log.debug("Min layer height: {}".format(min_layer_height))
 
         # sanity check
-        if len(self.layers) <= 1 and max_z > self.layers[0].height:
+        if len(self._layers) <= 1 and max_z > self._layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
 
     def check_layer_change(self, line, current_layer):
@@ -366,7 +366,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         """
 
         # use static values for all layers
-        for layer in self.layers:
+        for layer in self._layers:
             layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
             layer.outer_perimeter_feedrate = 0.05
 

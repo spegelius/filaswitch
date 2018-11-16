@@ -7,6 +7,7 @@ import extruder
 from gcode import GCode, E, W, S, N, NE, SE, NW, SW
 from gcode_file import GCodeFile
 from settings import Settings
+from slicer_cura import CuraGCodeFile
 
 from unittest_data import dummy_gcode
 from unittest_data_Cura import pass1_testmodel1_Cura, pass1_testmodel1_retracts_Cura, pass2_testmodel1_towers_Cura, pass3_testmodel1_towers_Cura
@@ -167,11 +168,85 @@ class TestGcodeFile(unittest.TestCase):
 
     def test_open_file(self):
         gcode = GCodeFile(self.logger, self.settings)
-        gcode.parse_version = MagicMock()
-        gcode.parse_gcode = MagicMock()
         gcode.open_file(os.path.join(self.test_files_dir, "dummy.gcode"))
-        gcode.parse_gcode.assert_called()
         self.assertEqual(dummy_gcode, gcode.lines)
+
+    def test_add_line(self):
+
+        def get_generator_lines():
+            yield (b"test-cmd2", b"test-comment2")
+            yield (b"test-cmd3", b"test-comment3")
+
+        def get_generator_lines2():
+            yield b"test-cmd4"
+            yield b"test-cmd5"
+
+        gcode = GCodeFile(self.logger, self.settings)
+        self.assertEqual(None, gcode.lines)
+        gcode.lines = []
+        ret = gcode.add_line(b"test-cmd", b"test-comment")
+        self.assertEqual(1, ret)
+        self.assertEqual([(b"test-cmd", b"test-comment")], gcode.lines)
+        ret = gcode.add_line(get_generator_lines())
+        self.assertEqual(2, ret)
+        self.assertEqual([(b"test-cmd", b"test-comment"),
+                          (b"test-cmd2", b"test-comment2"),
+                          (b"test-cmd3", b"test-comment3")], gcode.lines)
+
+        gcode.add_line(get_generator_lines2(), b"test")
+        self.assertEqual([(b"test-cmd", b"test-comment"),
+                          (b"test-cmd2", b"test-comment2"),
+                          (b"test-cmd3", b"test-comment3"),
+                          (b"test-cmd4", b"test"),
+                          (b"test-cmd5", b"test")], gcode.lines)
+
+    def test_insert_line(self):
+
+        def get_generator_lines():
+            yield (b"test-cmd7", b"test-comment7")
+            yield (b"test-cmd8", b"test-comment8")
+
+        def get_generator_lines2():
+            yield b"test-cmd9"
+            yield b"test-cmd10"
+
+        gcode = GCodeFile(self.logger, self.settings)
+        self.assertEqual(None, gcode.lines)
+        gcode.lines = [(b"test-cmd", b"test-comment"),
+                        (b"test-cmd2", b"test-comment2"),
+                        (b"test-cmd3", b"test-comment3"),
+                        (b"test-cmd4", b"test"),
+                        (b"test-cmd5", b"test")]
+        ret = gcode.insert_line(3, b"test-cmd6", b"test-comment6")
+        self.assertEqual(1, ret)
+        self.assertEqual([(b"test-cmd", b"test-comment"),
+                          (b"test-cmd2", b"test-comment2"),
+                          (b"test-cmd3", b"test-comment3"),
+                          (b"test-cmd6", b"test-comment6"),
+                          (b"test-cmd4", b"test"),
+                          (b"test-cmd5", b"test")], gcode.lines)
+        ret = gcode.insert_line(2, get_generator_lines())
+        self.assertEqual(2, ret)
+        self.assertEqual([(b"test-cmd", b"test-comment"),
+                          (b"test-cmd2", b"test-comment2"),
+                          (b"test-cmd7", b"test-comment7"),
+                          (b"test-cmd8", b"test-comment8"),
+                          (b"test-cmd3", b"test-comment3"),
+                          (b"test-cmd6", b"test-comment6"),
+                          (b"test-cmd4", b"test"),
+                          (b"test-cmd5", b"test")], gcode.lines)
+        ret = gcode.insert_line(4, get_generator_lines2(), b"test")
+        self.assertEqual(2, ret)
+        self.assertEqual([(b"test-cmd", b"test-comment"),
+                          (b"test-cmd2", b"test-comment2"),
+                          (b"test-cmd7", b"test-comment7"),
+                          (b"test-cmd8", b"test-comment8"),
+                          (b"test-cmd9", b"test"),
+                          (b"test-cmd10", b"test"),
+                          (b"test-cmd3", b"test-comment3"),
+                          (b"test-cmd6", b"test-comment6"),
+                          (b"test-cmd4", b"test"),
+                          (b"test-cmd5", b"test")], gcode.lines)
 
 
 class TestCuraGcodeFile(unittest.TestCase):
@@ -182,14 +257,18 @@ class TestCuraGcodeFile(unittest.TestCase):
         self.settings.hw_config = "Prometheus-PTFE-PRO-12"
         self.logger = MagicMock()
 
+    def test_parse_version(self):
+        gcode = CuraGCodeFile(self.logger, self.settings)
+        gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
+        gcode.parse_version()
+        self.assertEqual(gcode.version, (3, 5, 1))
+
     def test_parse_gcode_pass1_Cura_testmodel1(self):
-        gcode = GCodeFile(self.logger, self.settings)
-        gcode.parse_version = MagicMock()
-        gcode.parse_gcode = MagicMock()
+        gcode = CuraGCodeFile(self.logger, self.settings)
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
-        self.assertEqual(130, len(gcode.layers))
-        self.assertEqual(pass1_testmodel1_Cura, gcode.layers)
+        self.assertEqual(130, len(gcode._layers))
+        self.assertEqual(pass1_testmodel1_Cura, gcode._layers)
         self.assertEqual(pass1_testmodel1_retracts_Cura, gcode._retracts)
         self.assertEqual(4, len(gcode.extruders))
 
@@ -208,15 +287,15 @@ class TestCuraGcodeFile(unittest.TestCase):
 
         self.assertEqual([0, 1, 2, 3], gcode.tools)
         self.assertEqual(26.1, gcode.last_switch_height)
+        self.assertEqual(18, gcode.start_gcode_end)
+
 
     def test_parse_gcode_pass2_Cura_testmodel1(self):
-        gcode = GCodeFile(self.logger, self.settings)
-        gcode.parse_version = MagicMock()
-        gcode.parse_gcode = MagicMock()
+        gcode = CuraGCodeFile(self.logger, self.settings)
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
         gcode.parse_gcode_pass2()
-        self.assertEqual(4, len(gcode.towers))
+        self.assertEqual(len(pass2_testmodel1_towers_Cura), len(gcode.towers))
 
         index = 0
         for data in pass2_testmodel1_towers_Cura:
@@ -224,9 +303,7 @@ class TestCuraGcodeFile(unittest.TestCase):
             index += 1
 
     def test_parse_gcode_pass3_Cura_testmodel1(self):
-        gcode = GCodeFile(self.logger, self.settings)
-        gcode.parse_version = MagicMock()
-        gcode.parse_gcode = MagicMock()
+        gcode = CuraGCodeFile(self.logger, self.settings)
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
         gcode.parse_gcode_pass2()
@@ -239,4 +316,13 @@ class TestCuraGcodeFile(unittest.TestCase):
         self.assertEqual(0.2, gcode.towers[0].min_z)
         self.assertEqual(0.2, gcode.towers[1].min_z)
         self.assertEqual(0.2, gcode.towers[2].min_z)
-        self.assertEqual(0.3, gcode.towers[3].min_z)
+
+    def test_find_model_limits(self):
+        gcode = CuraGCodeFile(self.logger, self.settings)
+        gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
+        gcode.parse_gcode()
+        gcode.find_model_limits()
+        self.assertEqual(93.5, gcode.x_max)
+        self.assertEqual(51.5, gcode.x_min)
+        self.assertEqual(95.0, gcode.y_max)
+        self.assertEqual(53.0, gcode.y_min)

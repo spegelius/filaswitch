@@ -155,7 +155,7 @@ class Simplify3dGCodeFile(GCodeFile):
         skirt = False
         brim = False
         brim_lines = 0
-        for cmd, comment in self.layers[0].lines:
+        for cmd, comment in self._layers[0].lines:
 
             if not comment:
                 pass
@@ -311,7 +311,7 @@ class Simplify3dGCodeFile(GCodeFile):
                         else:
                             height = prev_height
 
-                        self.layers.append(current_layer)
+                        self._layers.append(current_layer)
                         prev_layer = current_layer
                         current_layer = Layer(round(ret[0], 5), round(ret[1], 5), height)
 
@@ -323,8 +323,8 @@ class Simplify3dGCodeFile(GCodeFile):
             current_layer.add_line(cmd, comment)
 
         # last layer
-        self.layers.append(current_layer)
-        if len(self.layers) <= 1 and max_z > self.layers[0].height:
+        self._layers.append(current_layer)
+        if len(self._layers) <= 1 and max_z > self._layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
 
         self.min_layer_h = min_layer_height
@@ -370,7 +370,7 @@ class Simplify3dGCodeFile(GCodeFile):
         last_move_speed = None
         extruder = self.extruders[0]
 
-        for layer in self.layers:
+        for layer in self._layers:
 
             for cmd, comment, index in layer.read_lines():
                 if not cmd:
@@ -406,7 +406,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
         # use constant speed, too fancy to adjust all the time
         # use static values for all layers
-        for layer in self.layers:
+        for layer in self._layers:
             layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
             layer.outer_perimeter_feedrate = 0.05
 

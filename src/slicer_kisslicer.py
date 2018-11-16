@@ -64,7 +64,7 @@ class KISSlicerGCodeFile(GCodeFile):
 
         ext_re = re.compile(b".*Material Settings for Extruder (\d+)")
 
-        for layer in self.layers:
+        for layer in self._layers:
             for cmd, comment in layer.lines:
                 if cmd:
                     continue
@@ -188,7 +188,7 @@ class KISSlicerGCodeFile(GCodeFile):
 
         # correct the layer height to value that doesn't have the z-offset
         if self.settings.z_offset != 0:
-            for l in self.layers:
+            for l in self._layers:
                 l.z -= self.settings.z_offset
 
     def parse_print_settings(self):
@@ -196,11 +196,11 @@ class KISSlicerGCodeFile(GCodeFile):
 
         super().parse_print_settings()
 
-        for cmd, comment, line_index in self.layers[0].read_lines():
+        for cmd, comment, line_index in self._layers[0].read_lines():
             # find first tool change and remove it if it's T0. No need to
             # do tool change as e already have T0 active
-            if line_index > self.layers[0].start_gcode_end and cmd and gcode.is_tool_change(cmd) == 0:
-                self.layers[0].delete_line(line_index)
+            if line_index > self._layers[0].start_gcode_end and cmd and gcode.is_tool_change(cmd) == 0:
+                self._layers[0].delete_line(line_index)
                 break
 
     def parse_layers(self, lines):
@@ -226,7 +226,7 @@ class KISSlicerGCodeFile(GCodeFile):
                         current_layer.height = layer_height
                         layer_num += 1
                     else:
-                        self.layers.append(current_layer)
+                        self._layers.append(current_layer)
                         layer_num += 1
                         current_layer = Layer(layer_num, layer_z, layer_height)
             current_layer.add_line(cmd, comment)
@@ -237,8 +237,8 @@ class KISSlicerGCodeFile(GCodeFile):
                 max_z = current_layer.z
 
         # last layer
-        self.layers.append(current_layer)
-        if len(self.layers) <= 1 and max_z > self.layers[0].height:
+        self._layers.append(current_layer)
+        if len(self._layers) <= 1 and max_z > self._layers[0].height:
             raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
         #print(self.layers)
 
@@ -263,7 +263,7 @@ class KISSlicerGCodeFile(GCodeFile):
         """
         last_speed = None
         last_feed_rate = None
-        for layer in self.layers:
+        for layer in self._layers:
             layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
             layer.outer_perimeter_feedrate = 0.05
 
