@@ -922,13 +922,14 @@ class SwitchTower:
             new_temp = None
 
         # Pre-switch temp handling. Lower temp by 10 C before purge
-        pre_temp = old_e.get_temperature(layer.num) - 10
+        temp_diff = self.settings.get_hw_config_float_value("prepruge.temperature.change")
+        pre_temp = old_e.get_temperature(layer.num) + temp_diff
         for line in self.get_temperature_gcode(pre_temp, old_e):
             yield line
 
         if self.g10 or self.tool_use_id:
             # set also new e temp since it needs to stay the same after filament change
-            for line in self.get_temperature_gcode(pre_temp, new_e):
+            for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
                 yield line
         yield gcode.gen_pause(2000), b"delay"
 
