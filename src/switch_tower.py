@@ -52,7 +52,8 @@ class SwitchTower:
         self.pre_purge_height = pre_purge_lines * self.pre_purge_sweep_gap + self.pre_purge_jitter
 
         # post purge line config
-        self.purge_length = self.width - 1
+        self.purge_length_diff = 1
+        self.purge_length = self.width + self.purge_length_diff
 
         self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
 
@@ -61,7 +62,7 @@ class SwitchTower:
 
         self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_line_width + 0.2
 
-        self.wall_width = self.width + 1.4
+        self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1.0
 
         # calculate total purge length
@@ -455,15 +456,6 @@ class SwitchTower:
                                            layer.height), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
-        # jitter
-        if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
-            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
-                                           layer.height), b" pre-purge jitter"
-
-        # update jitter flag
-        if self.pre_purge_jitter:
-            self.slots[self.slot]['jitter'][vertical_dir] = not self.slots[self.slot]['jitter'][vertical_dir]
-
         i = 0
         while True:
             try:
@@ -475,6 +467,22 @@ class SwitchTower:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
+
+
+        # jitter
+        if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
+            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
+                                           layer.height), b" pre-purge jitter"
+
+        # update jitter flag
+        if self.pre_purge_jitter:
+            self.slots[self.slot]['jitter'][vertical_dir] = not self.slots[self.slot]['jitter'][vertical_dir]
+
+        # check purge len diff
+        if self.purge_length_diff:
+            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.purge_length_diff/2,
+                                           self.settings.travel_xy_speed, layer.height), b" pre-purge x adjust"
+
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
@@ -763,9 +771,9 @@ class SwitchTower:
             y_pos = (self.wall_height + 0.4) * self.slot
 
         if x_direction == self.E:
-            x_offset = -1.2
+            x_offset = -1.7
         else:
-            x_offset = self.wall_width - 1.2
+            x_offset = self.wall_width - 1.7
 
         if y_direction == self.N:
             y_offset = h - 0.5 + y_pos
@@ -931,7 +939,6 @@ class SwitchTower:
             # set also new e temp since it needs to stay the same after filament change
             for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
                 yield line
-        yield gcode.gen_pause(2000), b"delay"
 
         yield self._get_prime(old_e)
 
