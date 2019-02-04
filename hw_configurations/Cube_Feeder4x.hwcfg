@@ -30,8 +30,8 @@ motor.current.run: 0
 ## - speed = how fast to move in one sweep
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
-prepruge.temperature.change: -10
-prepurge.sweep.length: 50
+prepruge.temperature.change: 0
+prepurge.sweep.length: 60
 prepurge.sweep.extrusion.length: 4.5
 prepurge.sweep.speed: 6000
 prepurge.sweep.count: 4
