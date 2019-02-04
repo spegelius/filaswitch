@@ -63,6 +63,11 @@ class TestGcode(unittest.TestCase):
         self.assertEqual(100, self.test_object.is_lin_advance(b"M900 K100"))
         self.assertEqual(0, self.test_object.is_lin_advance(b"M900 K0"))
         self.assertEqual(None, self.test_object.is_lin_advance(b"M900 Ko"))
+        self.assertEqual(0.2, self.test_object.is_lin_advance(b"M900 K0.2"))
+
+    def test_gen_lin_advance(self):
+        self.assertEqual(b"M900 K100", self.test_object.gen_lin_advance(100))
+        self.assertEqual(b"M900 K0.2", self.test_object.gen_lin_advance(0.2))
 
     def test_is_pressure_advance(self):
         self.assertEqual((b'0', 0.3), self.test_object.is_pressure_advance(b"M572 D0 S0.3"))

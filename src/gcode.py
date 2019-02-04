@@ -36,7 +36,7 @@ class GCode:
     TEMP_NOWAIT_TOOL_RE = re.compile(b"M104\s+S(\d+)\s+T(\d)$")
     TEMP_WAIT_RE = re.compile(b"M109\s+S(\d+)$")
     TEMP_WAIT_TOOL_RE = re.compile(b"M109\s+S(\d+)\s+T(\d)$")
-    LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+)")
+    LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+\.*\d*)")
     PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D([:0-9]+)\s+S(\d.*\d+)")
     FAN_SPEED_RE = re.compile(b"M106\s+S(\d+)")
 
@@ -265,7 +265,7 @@ class GCode:
         self.last_match = None
         m = self.LIN_ADVANCE_RE.match(line)
         if m:
-            self.last_match = int(m.groups()[0])
+            self.last_match = float(m.groups()[0])
         return self.last_match
 
     def is_pressure_advance(self, line):
@@ -293,12 +293,14 @@ class GCode:
         return self.last_match
 
     @staticmethod
-    def gen_lin_advance(k_val: int):
+    def gen_lin_advance(k_val):
         """
         Generate linear advance K-value set gcode
         :param k_val: K value
         :return:
         """
+        if type(k_val) == float:
+            return ("M900 K%g" % k_val).encode()
         return ("M900 K%d" % k_val).encode()
 
     @staticmethod
