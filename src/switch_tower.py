@@ -765,10 +765,10 @@ class SwitchTower:
         """
         if infill:
             h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
-            y_pos = 0
         else:
             h = self.wall_height
-            y_pos = (self.wall_height + 0.4) * self.slot
+
+        y_pos = (self.wall_height + 0.4) * self.slot
 
         if x_direction == self.E:
             x_offset = -1.7
@@ -815,25 +815,25 @@ class SwitchTower:
         yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, layer.height, extruder=extruder), b" wall"
         yield gcode.gen_direction_move(y_dir, last_y, last_speed, layer.height, extruder=extruder, last_line=True), b" wall"
 
-    def get_slot(self, layer: Layer):
+    def get_slot(self, layer: Layer, tool_change):
         """
         Get next viable slot, based on lowest z. Start from back
         :param layer: current layer
         :return: none
         """
 
-        if layer.action == ACT_SWITCH:
+        if tool_change:
             slot = 0
             min_z = 1000000000000
 
-            for s in range(layer.slots - 1, -1, -1):
+            for s in range(0, layer.slots):
                 if self.slots[s]['last_z'] < min_z:
                     slot = s
                     min_z = self.slots[s]['last_z']
             self.slot = slot
         else:
-            # fill infill slots from the first slot
-            self.slot = 0
+            # fill infill slots from the first available slot
+            self.slot = layer.slots - self.infill_slots
 
     def _calculate_purge_values(self, layer: Layer, extruder):
         """
@@ -887,7 +887,7 @@ class SwitchTower:
         self.log.debug("Adding purge tower")
         yield None, b" TOWER START"
 
-        self.get_slot(layer)
+        self.get_slot(layer, True)
 
         initial_horizontal_dir = self.slots[self.slot]['horizontal_dir']
 
@@ -1055,7 +1055,7 @@ class SwitchTower:
         # TODO: move this to global state
         self.e_pos = e_pos
 
-        self.get_slot(layer)
+        self.get_slot(layer, False)
 
         self.log.debug("Adding purge tower infill")
         yield None, b" TOWER INFILL START"
@@ -1070,7 +1070,7 @@ class SwitchTower:
 
         tower_z = layer.height + self.slots[self.slot]['last_z']
         for s in range(self.infill_slots):
-            self.slots[s]['last_z'] = round(tower_z, 5)
+            self.slots[self.slot + s]['last_z'] = round(tower_z, 5)
 
         # infill settings
         infill_x = self.wall_width/6
