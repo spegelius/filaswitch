@@ -16,8 +16,8 @@ class Extruder:
         self.retract_speed = 0.0
         self.z_hop = 0.0
         self.z_offset = 0.0
-        self.feed_rate_max = 0.2 # don't go over this
-        self.feed_rate_multiplier = 1 # slicer default feed multi
+        self.feed_rate_max = 0.25  # don't go over this
+        self.feed_rate_multiplier = 1  # slicer default feed multi
         self.current_z = None
         self.coasting = 0.0
         self.wipe = 0.0
@@ -38,7 +38,11 @@ class Extruder:
         """
         rate = utils.extrusion_feed_rate(self.extrusion_width, layer_height, self.filament_d)
         rate *= self.feed_rate_multiplier * feed_multi
-        if rate > self.feed_rate_max:
+        rate_max = self.feed_rate_max
+        if self.nozzle:
+            rate_max = self.feed_rate_max * (0.4/self.nozzle)
+
+        if rate > rate_max:
             raise ValueError("Feed rate too high ({}, layer h {})! Aborting.".format(rate, layer_height))
         return move_length * rate
 
@@ -46,7 +50,7 @@ class Extruder:
         """
         Get retraction g-code line. Optionally add negative change-length to reduce the retract
         :param change: minus this of the length
-        :param: comment: gcode comment (default 'retract')
+        :param comment: gcode comment (default 'retract')
         :return: retraction byte string
         """
         if change != 0 and abs(change) >= self.retract or change > 0:
