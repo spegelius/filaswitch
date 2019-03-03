@@ -453,7 +453,7 @@ class GCodeFile:
                         index -= 1
                     else:
                         # store extruder position
-                        e_pos = self._get_retract_position(self.e_pos, gcode.last_match[0])
+                        self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[0])
                 elif gcode.is_extrusion_move(cmd):
                     # add prime if needed
                     if prime_needed:

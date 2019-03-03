@@ -28,6 +28,7 @@ class TestGcode(unittest.TestCase):
         self.assertEqual((-2.5, None), self.test_object.is_extruder_move(b"G1 E-2.5"))
         self.assertEqual((-3.0, 4800), self.test_object.is_extruder_move(b'G1 E-3.00000 F4800.00000'))
         self.assertEqual((-3.0, 4800), self.test_object.is_extruder_move(b'G1 F4800.00000 E-3.00000'))
+        self.assertEqual((-2.6162, 1200), self.test_object.is_extruder_move(b'G1 F1200 E-2.6162'))
         self.assertEqual(None, self.test_object.is_extruder_move(b'G1 F4800.00000 E-3.00000 X0 Y0 Z0'))
 
     def test_read_gcode_line(self):
