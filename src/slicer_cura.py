@@ -27,7 +27,7 @@ class CuraGCodeFile(GCodeFile):
         self.parse_gcode()
         self.prerun_prime()
         if len(self.tools) > 1:
-            self.find_tower_position()
+            self.find_model_limits()
             self.add_tool_change_gcode()
         else:
             self.log.info("No tool changes detected, skipping tool change g-code additions")

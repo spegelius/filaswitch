@@ -5,7 +5,7 @@ from unittest.mock import MagicMock
 
 import extruder
 from gcode import GCode, E, W, S, N, NE, SE, NW, SW
-from gcode_file import GCodeFile
+from gcode_file import GCodeFile, Towers, Tower
 from settings import Settings
 from slicer_cura import CuraGCodeFile
 
@@ -295,11 +295,11 @@ class TestCuraGcodeFile(unittest.TestCase):
         gcode.open_file(os.path.join(self.test_files_dir, "mc_testmodel1_Cura.gcode"))
         gcode.parse_gcode_pass1()
         gcode.parse_gcode_pass2()
-        self.assertEqual(len(pass2_testmodel1_towers_Cura), len(gcode.towers))
+        self.assertEqual(len(pass2_testmodel1_towers_Cura), gcode.towers.get_max_tower_count())
 
         index = 0
         for data in pass2_testmodel1_towers_Cura:
-            self.assertEqual(data, gcode.towers[index].z)
+            self.assertEqual(data, gcode.towers.get_tower_by_id(index).z)
             index += 1
 
     def test_parse_gcode_pass3_Cura_testmodel1(self):
@@ -310,12 +310,11 @@ class TestCuraGcodeFile(unittest.TestCase):
         gcode.parse_gcode_pass3()
         index = 0
         for data in pass3_testmodel1_towers_Cura:
-            self.assertEqual(data, gcode.towers[index].z)
+            self.assertEqual(data, gcode.towers.get_tower_by_id(index).z)
             index += 1
-
-        self.assertEqual(0.2, gcode.towers[0].min_z)
-        self.assertEqual(0.2, gcode.towers[1].min_z)
-        self.assertEqual(0.2, gcode.towers[2].min_z)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(0).min_z)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(1).min_z)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(2).min_z)
 
     def test_find_model_limits(self):
         gcode = CuraGCodeFile(self.logger, self.settings)
@@ -326,3 +325,71 @@ class TestCuraGcodeFile(unittest.TestCase):
         self.assertEqual(51.5, gcode.x_min)
         self.assertEqual(95.0, gcode.y_max)
         self.assertEqual(53.0, gcode.y_min)
+
+
+class TestTowers(unittest.TestCase):
+
+    def setUp(self):
+        towers = []
+        for i in pass3_testmodel1_towers_Cura:
+            t = Tower()
+            for k, v in i.items():
+                t.add(k, v)
+            towers.append(t)
+        self.towers = Towers()
+        self.towers.add_tower(0, towers[0])
+        self.towers.add_tower(1, towers[1])
+        self.towers.add_tower(2, towers[2])
+
+    def tearDown(self):
+        pass
+
+    def test_tower_calculate_min_z(self):
+        tower = Tower()
+        test_data = {0.3: 1,
+                     0.4: 0,
+                     0.5: 1,
+                     0.65: 0,
+                     0.75: 1,
+                     0.9: 0}
+        for k, v in test_data.items():
+            tower.add(k, v)
+
+        self.assertEqual(test_data, tower.z)
+        self.assertEqual(0.1, tower.min_z)
+
+    def test_towers_get_tower_count(self):
+        self.assertEqual(3, self.towers.get_tower_count(0.3))
+        self.assertEqual(3, self.towers.get_tower_count(2.1))
+        self.assertEqual(1, self.towers.get_tower_count(3.3))
+        self.assertEqual(0, self.towers.get_tower_count(26.3))
+
+    def test_towers_get_min_layer_h(self):
+        self.assertEqual(0.2, self.towers.get_min_layer_h())
+
+    def test_towers_fill_gaps(self):
+        towers = Towers()
+        index = 0
+        for i in pass2_testmodel1_towers_Cura:
+            t = Tower()
+            for k, v in i.items():
+                t.add(k, v)
+            towers.add_tower(index, t)
+            index += 1
+        towers.fill_gaps(0.25,pass1_testmodel1_Cura)
+        for i in range(index):
+            self.assertEqual(towers.get_tower_by_id(i).z, pass3_testmodel1_towers_Cura[i])
+
+    def test_towers_get_max_tower_count(self):
+        self.assertEqual(3, self.towers.get_max_tower_count())
+
+    def test_towers_get_tower_id_by_z_and_tool(self):
+        self.assertEqual(0, self.towers.get_tower_id_by_z_and_tool(0.3, 1))
+        self.assertEqual(0, self.towers.get_tower_id_by_z_and_tool(0.7, 0))
+        self.assertEqual(None, self.towers.get_tower_id_by_z_and_tool(0.7, 1))
+        self.assertEqual(0, self.towers.get_tower_id_by_z_and_tool(11.9, 3))
+        self.assertEqual(2, self.towers.get_tower_id_by_z_and_tool(2.3, 3))
+
+
+if __name__ == "__main__":
+    unittest.main()

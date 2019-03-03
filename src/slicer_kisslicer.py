@@ -5,7 +5,7 @@ from gcode import GCode
 from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
-from gcode_file import SLICER_KISSLICER, GCodeFile
+from gcode_file import GCodeFile
 from settings import Settings
 
 gcode = GCode()
@@ -14,7 +14,7 @@ log = logging.getLogger("KISSlicer")
 
 class KISSlicerGCodeFile(GCodeFile):
 
-    slicer_type = SLICER_KISSLICER
+    slicer_type = GCodeFile.SLICER_KISSLICER
 
     # ; BEGIN_LAYER_OBJECT z=0.294 z_thickness=0.294
     LAYER_START_RE = re.compile(b" BEGIN_LAYER_OBJECT z=(\d+\.*\d*) z_thickness=(\d+\.*\d*)")

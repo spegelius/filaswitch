@@ -16,10 +16,24 @@ from settings import Settings
 gcode = GCode()
 
 
+class ActionPoint:
+    TOOL_CHANGE = 0
+    INFILL = 1
+
+    def __init__(self, action, data):
+        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL:
+            raise ValueError("Bad actionpoint")
+        self.action = action
+        self.data = data
+
+
 class Tower:
+    """
+    Class for storing tool change tower data
+    """
     def __init__(self):
         self.z = {}
-        self.min_z = None
+        self._min_z = None
 
     def add(self, z, _type):
         if z not in self.z:
@@ -30,9 +44,73 @@ class Tower:
         for z in self.z:
             if self.z[z] >= 0:
                 z_h = round(z - prev_z, 5)
-                if self.min_z is None or z_h < self.min_z:
-                    self.min_z = z_h
+                if self._min_z is None or z_h < self._min_z:
+                    self._min_z = z_h
             prev_z = z
+
+    @property
+    def min_z(self):
+        if not self._min_z:
+            self.calculate_min_z()
+        return self._min_z
+
+
+class Towers:
+
+    def __init__(self):
+        self.towers = {}
+
+    def add_tower(self, _id, tower):
+        self.towers[_id] = tower
+
+    def get_tower_count(self, z):
+        count = 0
+        for _, t in self.towers.items():
+            if z in t.z:
+                count += 1
+        return count
+
+    def get_tower_by_id(self, _id):
+        return self.towers.get(_id)
+
+    def get_min_layer_h(self):
+
+        # calculate min z h per tower
+        min_layer_h = 10000
+        for t in self.towers:
+            if self.towers[t].min_z < min_layer_h:
+                min_layer_h = self.towers[t].min_z
+        return min_layer_h
+
+    def fill_gaps(self, max_infill_h, layers):
+        # find gaps in z list and fill them with infill (-1). Use aproximate layer h
+        # for tower in self.towers:
+        #     prev_z = 0
+        #     z_list = sorted(self.towers[tower].z)
+        #     for z in z_list:
+        #         if z - prev_z - max_infill_h > max_infill_h:
+        #             gap = z - prev_z - max_infill_h
+        #             infills = int(math.ceil(gap / max_infill_h))
+        #             if infills:
+        #                 infill_h = gap / infills
+        #                 for i in range(infills):
+        #                     new_z = round(i * infill_h + z - gap, 2)
+        #                     self.towers[tower].add(new_z, -1)
+        #         prev_z = z
+
+        for z in layers:
+            for tower in self.towers:
+                max_z = max(self.towers[tower].z)
+                if not z in self.towers[tower].z and z < max_z:
+                    self.towers[tower].add(z, -1)
+
+    def get_max_tower_count(self):
+        return len(self.towers)
+
+    def get_tower_id_by_z_and_tool(self, layer_z, tool):
+        for t_id in self.towers:
+            if layer_z in self.towers[t_id].z and tool == self.towers[t_id].z[layer_z]:
+                return t_id
 
 
 class GCodeFile:
@@ -88,7 +166,7 @@ class GCodeFile:
         # Slicer version
         self.version = None
 
-        self.towers = {}
+        self.towers = None
 
         self.start_gcode_start = None
         self.start_gcode_end = None
@@ -159,7 +237,7 @@ class GCodeFile:
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
-                    self.add_line(cmd, comment)
+                    self.insert_line(self.pr_index, cmd, comment)
                     self.pr_index += 1
             self.active_e = self.preprime.last_extruder
             self.start_gcode_end = self.pr_index
@@ -190,8 +268,9 @@ class GCodeFile:
         Read lines from all layers
         :return: list of lines
         """
-        lines = self.add_tool_change_gcode_post()
-        for line in lines:
+        for line in self.lines:
+            if type(line[0]) == float:
+                print(line)
             yield gcode.format_to_string(*line)
 
     def save_new_file(self):
@@ -236,7 +315,7 @@ class GCodeFile:
         index = 0
         current_z = 0
         for cmd, _ in self.lines:
-            if cmd and index > self.start_gcode_end:
+            if type(cmd) == bytes and index > self.start_gcode_end:
                 # get z position
                 if gcode.is_z_move(cmd):
                     current_z = round(gcode.last_match[0], 5)
@@ -281,6 +360,9 @@ class GCodeFile:
         :return:
         """
 
+        self.switch_tower = SwitchTower(self.log, self.settings, self.towers)
+        self.switch_tower.find_tower_position(self.x_max, self.x_min, self.y_max, self.y_min)
+
         self.e_pos = 0
         # flag to indicate if z-move is needed after tower g-code
         z_move_needed = False
@@ -293,7 +375,9 @@ class GCodeFile:
         last_pos = None
         fan_speed = 0
 
-        current_z = 0
+        z_pos = 0  # head position
+        current_z = 0  # actual print position, i.e. layer z
+
         index = self.start_gcode_end
 
         while True:
@@ -304,51 +388,60 @@ class GCodeFile:
                     # need command
                     index += 1
                     continue
-                if type(cmd == float):
-                    # tool change line: z, tool
+                if type(cmd) == ActionPoint:
 
-                    # delete command
-                    self.lines.pop(index)
+                    if cmd.action == ActionPoint.TOOL_CHANGE:
+                        # tool change
 
-                    new_tool = comment
+                        # delete command
+                        self.lines.pop(index)
+                        index -= 1
 
-                    # check if tool change is needed
-                    if self.active_e is not None and self.active_e.tool == new_tool:
-                        self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
+                        current_z = cmd.data[0]
+                        new_tool = cmd.data[1]
+
+                        # check if tool change is needed
+                        if self.active_e is not None and self.active_e.tool == new_tool:
+                            self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
+                        else:
+                            # disable fan
+                            if fan_speed:
+                                index += self.insert_line(index, gcode.gen_fan_off_gcode(), b"disable fan")
+                            # add tool change g-code
+                            # first check if retract is needed
+                            retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
+                            if retract:
+                                index += self.insert_line(index, *retract)
+                                self.e_pos = -self.active_e.retract
+
+                            new_e = self.extruders[new_tool]
+
+                            for line in self.switch_tower.get_tower_lines(current_z, z_pos, self.e_pos, self.active_e, new_e):
+                                if line:
+                                    index += self.insert_line(index, line[0], line[1])
+                            prime_needed = True
+                            prime_ok = False
+                            self.active_e = new_e
+                            # always full retract after purge tower
+                            self.e_pos = -new_e.retract
+                            z_move_needed = True
+
+                            if fan_speed:
+                                index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
+                        continue
                     else:
-                        # disable fan
-                        if fan_speed:
-                            index += self.insert_line(index, gcode.gen_fan_off_gcode(), b"disable fan")
-                        # add tool change g-code
-                        # first check if retract is needed
-                        retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
-                        if retract:
-                            index += self.insert_line(index, *retract)
-                            e_pos = -self.active_e.retract
-
-                        new_e = self.extruders[new_tool]
-
-                        for line in self.switch_tower.get_tower_lines(current_z, self.e_pos, self.active_e, new_e):
+                        self.lines.pop(index)
+                        index -= 1
+                        for line in self.switch_tower.check_infill(cmd.data, z_pos, self.e_pos, self.active_e):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
-                        prime_needed = True
-                        prime_ok = False
-                        self.active_e = new_e
-                        # always full retract after purge tower
-                        e_pos = -new_e.retract
                         z_move_needed = True
-
-                        if fan_speed:
-                            index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
-                    continue
+                        continue
                 elif gcode.is_z_move(cmd):
-                    current_z = round(gcode.last_match[0], 5)
+                    z_pos = round(gcode.last_match[0], 5)
                     z_move_needed = False
                 elif gcode.is_fan_speed(cmd):
                     fan_speed = gcode.last_match
-                elif gcode.is_tool_change(cmd) is not None:
-
-
                 elif gcode.is_extruder_move(cmd):
                     if prime_needed and gcode.last_match[0] < 0:
                         # remove retracts after adding tower
@@ -368,23 +461,23 @@ class GCodeFile:
                             # if not in position, add move before prime
                             x = last_pos[0]
                             y = last_pos[1]
-                            index += layer.insert_line(index, gcode.gen_head_move(x, y,
-                                                                                  self.settings.travel_xy_speed),
-                                                        b' update position')
+                            index += self.insert_line(index, gcode.gen_head_move(x, y, self.settings.travel_xy_speed),
+                                                      b' update position')
                         # reset prime flag when printing starts after tower
                         prime_needed = False
                         if self.e_pos < -self.active_e.minimum_extrusion:
                             prime_change_len = -(self.e_pos + self.active_e.retract)
-                            index += layer.insert_line(index,
-                                                       *self.active_e.get_prime_gcode(change=prime_change_len))
-                            e_pos = 0
+                            index += self.insert_line(index, *self.active_e.get_prime_gcode(change=prime_change_len))
+
+                            self.e_pos = 0
 
                     # store extruder position
-                    e_pos = self._get_retract_position(self.e_pos, gcode.last_match[3])
+                    self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[3])
 
                     # add z move if needed
                     if z_move_needed:
-                        index += layer.insert_line(index, gcode.gen_z_move(layer.z, self.settings.travel_z_speed))
+                        index += self.insert_line(index, gcode.gen_z_move(current_z,
+                                                                          self.settings.travel_z_speed))
                         z_move_needed = False
 
                     last_pos = gcode.last_match
@@ -393,57 +486,14 @@ class GCodeFile:
                     if prime_needed:
                         prime_ok = True
                     last_pos = gcode.last_match
+                    # z also moves
                     if last_pos[2]:
+                        z_pos = round(last_pos[2], 5)
                         z_move_needed = False
 
             except IndexError:
-                # if last layer for z, check infill
-                if layer.last_z_layer and layer.z < self.last_switch_height and not layer.support_layer:
-                    added = False
-                    for line in self.switch_tower.check_infill(layer, self.e_pos, self.active_e):
-                        if line:
-                            added = True
-                            index += layer.insert_line(index, line[0], line[1])
-                    if added:
-                        e_pos = -self.active_e.retract
-                    prime_needed = True
-                    prime_ok = False
                 break
             index += 1
-
-    def add_tool_change_gcode_post(self):
-        """
-        Run post steps for the layers, without the layer-object structuring. This should be run before saving
-        to file, after adding tool changes
-        :return: processed lines
-        """
-
-        lines = []
-        for layer in self._layers:
-            for cmd, comment in layer.lines:
-                lines.append((cmd, comment))
-
-        # tower retractions to proper place. This is hard to do in main tool change add loop as it's cumbersome to
-        # modify previous layer objects...
-        index = 0
-        last_pos_index = -1
-        while True:
-            try:
-                cmd, comment = lines[index]
-                if cmd:
-                    if gcode.is_head_move(cmd) or gcode.is_extrusion_move(cmd):
-                        last_pos_index = index
-                if comment == b" pre-tower retract":
-                    if last_pos_index != -1:
-                        new_pos = last_pos_index+1
-                        if index != new_pos:
-                            lines.pop(index)
-                            lines.insert(last_pos_index+1, (cmd, comment))
-            except IndexError:
-                break
-            index += 1
-
-        return lines
 
     def parse_layers(self, lines):
         """
@@ -452,67 +502,6 @@ class GCodeFile:
         :return:
         """
         raise NotImplementedError()
-
-    def filter_layers(self):
-        """
-        Filter layers so that only layers relevant purge tower processing
-        are returned. Also layers are tagged for action (tool witch, infill, pass)
-        Layers that are left out:
-        - empty (no command lines)
-        - non-tool
-        :return: none
-        """
-
-        layer_data = {}
-
-        # step 1: parse z heights and populate dictionary with layers per z height
-        for layer in self._layers:
-            if layer.z not in layer_data:
-                layer_data[layer.z] = {'layers': []}
-
-            layer_data[layer.z]['layers'].append(layer)
-
-        # z-list sorted
-        zs = sorted(layer_data.keys())
-
-        # get needed slot counts per layer by going through reversed z-position list.
-        slots = 0
-        zs.reverse()
-        for z in zs:
-            lrs = 0
-            for l in layer_data[z]['layers']:
-                # each layer counts whether there's tool changes or not
-                lrs += l.has_tool_changes()
-            if lrs > slots:
-                slots = lrs
-            layer_data[z]['slots'] = slots
-
-        self.max_slots = slots
-        # print(self.max_slots)
-
-        # find tool change layers
-        zs.reverse()
-        for z in zs:
-
-            current_slot = layer_data[z]['slots'] - 1
-
-            # check tool change layers
-            for l in layer_data[z]['layers']:
-                l.slots = layer_data[z]['slots']
-                if l.has_tool_changes():
-                    l.action = ACT_SWITCH
-                    l.tower_slot = current_slot
-                    current_slot -= 1
-
-            # mark last layer for curret z
-            layer_data[z]['layers'][-1].last_z_layer = True
-
-        # step 3: pack groups to list
-        layers = []
-        for z in zs:
-            for l in layer_data[z]['layers']:
-                layers.append(l)
-        self.filtered_layers = sorted(layers, key=lambda x: x.num)
 
     def process(self, gcode_file):
         """ Runs processing """
@@ -542,6 +531,7 @@ class GCodeFile:
 
         current_z = 0
         last_print_z = None
+        last_up_z_index = 0
 
         current_x = 0
         current_y = 0
@@ -549,18 +539,26 @@ class GCodeFile:
         last_extrusion_y = None
 
         current_tool = None
-        tool_line_index = None
+        current_tool_temp = None
+        tool_index = 0
 
         add_tool = False
 
         self._retracts = {}
+        self._z_speeds = []
+        self._travel_speeds = []
 
         e_pos = 0
         e_speed = 0
 
         # find z-heights and tool changes
         index = 0
-        for cmd, comment in self.lines:
+        while True:
+            try:
+                cmd, comment = self.lines[index]
+            except IndexError:
+                break
+
             if comment:
                 if comment.strip() == b"END SCRIPT START":
                     break
@@ -577,6 +575,7 @@ class GCodeFile:
             if gcode.is_tool_change(cmd) is not None:
                 # add tool to list only if it's not the first tool
                 add_tool = current_tool is not None
+                tool_index = index
 
                 current_tool = gcode.last_match
                 # tool list in order of appearance
@@ -584,11 +583,15 @@ class GCodeFile:
                     self.tools.append(current_tool)
                 # reset e position
                 e_pos = 0
-                tool_line_index = index
 
             # get z position
             elif gcode.is_z_move(cmd):
+                prev_z = current_z
                 current_z = round(gcode.last_match[0], 5)
+                if current_z - prev_z > 0:
+                    last_up_z_index = index
+                if gcode.last_match[1]:
+                    self._z_speeds.append(round(gcode.last_match[1], 5))
 
             # get extruder position
             elif gcode.is_extruder_move(cmd):
@@ -599,9 +602,14 @@ class GCodeFile:
             elif gcode.is_head_move(cmd):
                 # also check z from head move
                 if gcode.last_match[2] is not None:
+                    prev_z = current_z
                     current_z = round(gcode.last_match[2], 5)
+                    if current_z - prev_z > 0:
+                        last_up_z_index = index
                 current_x = gcode.last_match[0]
                 current_y = gcode.last_match[1]
+                if gcode.last_match[3]:
+                    self._travel_speeds.append(gcode.last_match[3])
 
                 # add negative e position list and reset e position
                 if e_pos < 0:
@@ -614,9 +622,13 @@ class GCodeFile:
             elif gcode.is_extrusion_move(cmd):
 
                 # print move defines the actual z-height for tool
+                if current_z not in self._layers:
+                    self._layers[current_z] = []
+                    if len(self._layers) > 1:
+                        # add infill action with previous layer height
+                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
+                        index += 1
                 last_print_z = current_z
-                if last_print_z not in self._layers:
-                    self._layers[last_print_z] = []
 
                 # add tool to layer list if flag is set
                 if add_tool:
@@ -631,7 +643,7 @@ class GCodeFile:
                     self.tool_switch_heights[current_tool] = last_print_z
 
                     # replace line with z and tool
-                    self.lines[index] = (last_print_z, current_tool)
+                    self.lines[tool_index] = ActionPoint(ActionPoint.TOOL_CHANGE, (last_print_z, current_tool)), None
                     add_tool = False
 
                 e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
@@ -666,7 +678,7 @@ class GCodeFile:
             raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
 
         self.last_switch_height = max(self.tool_switch_heights.values())
-        self._calculate_retractions()
+        self._calculate_values()
 
         # update extruder coasting value
         try:
@@ -681,42 +693,25 @@ class GCodeFile:
 
         # create tower instances
         t_max = 0
+        self.towers = Towers()
         for z in self._layers:
-            t_index = 0
+            t_id = 0
             for tool in self._layers[z]:
-                if not t_index in self.towers:
-                    self.towers[t_index] = Tower()
-                self.towers[t_index].add(z, tool)
-                t_index += 1
-            if t_index > t_max:
-                t_max = t_index
+                tower = self.towers.get_tower_by_id(t_id)
+                if not tower:
+                    tower = Tower()
+                tower.add(z, tool)
+                self.towers.add_tower(t_id, tower)
+                t_id += 1
 
     def parse_gcode_pass3(self):
 
         max_infill_h = self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625
+        self.towers.fill_gaps(max_infill_h, self._layers)
 
-        # find gaps in z list and fill them with infill (-1). Use aproximate layer h
-        for tower in self.towers:
-            prev_z = 0
-            z_list = sorted(self.towers[tower].z)
-            for z in z_list:
-                if z - prev_z - max_infill_h > max_infill_h:
-                    gap = z - prev_z - max_infill_h
-                    infills = int(math.ceil(gap / max_infill_h))
-                    if infills:
-                        infill_h = gap / infills
-                        for i in range(infills):
-                            new_z = round(i * infill_h + z - gap, 2)
-                            self.towers[tower].add(new_z, -1)
-                prev_z = z
-
-        # calculate min z h per tower
-        for tower in self.towers:
-            self.towers[tower].calculate_min_z()
-
-    def _calculate_retractions(self):
+    def _calculate_values(self):
         """
-        Calculates retractions per tool
+        Calculates various values
         :return:
         """
         for tool in self._retracts:
@@ -725,6 +720,12 @@ class GCodeFile:
             if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
                 raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
                     self.extruders[tool].retract, self.extruders[tool].retract_speed))
+
+        if self._z_speeds:
+            self.settings.travel_z_speed = abs(utils.percentile(self._z_speeds, 0.99))
+
+        if self._travel_speeds:
+            self.settings.travel_xy_speed = abs(utils.percentile(self._travel_speeds, 0.99))
 
     def parse_gcode(self):
         """

@@ -31,7 +31,7 @@ class Settings:
         # print settings
         self._default_speed = None
         self._travel_xy_speed = None
-        self._travel_z_speed = None
+        self._travel_z_speed = 1000
         self._outer_perimeter_speed = None
         self._first_layer_speed = None
 
@@ -97,6 +97,8 @@ class Settings:
 
     @property
     def default_speed(self):
+        if not self._default_speed:
+            self._default_speed = self.get_hw_config_int_value("machine.default.speed")
         return self._default_speed
 
     @default_speed.setter
@@ -105,6 +107,8 @@ class Settings:
 
     @property
     def travel_xy_speed(self):
+        if not self._travel_xy_speed:
+            self._travel_xy_speed = self.get_hw_config_int_value("machine.xy.travel.speed")
         return self._travel_xy_speed
 
     @travel_xy_speed.setter
@@ -113,6 +117,8 @@ class Settings:
 
     @property
     def travel_z_speed(self):
+        if not self._travel_z_speed:
+            self._travel_z_speed = self.get_hw_config_int_value("machine.z.travel.speed")
         return self._travel_z_speed
 
     @travel_z_speed.setter
@@ -121,6 +127,8 @@ class Settings:
 
     @property
     def outer_perimeter_speed(self):
+        if not self._outer_perimeter_speed:
+            self._outer_perimeter_speed = self._default_speed
         return self._outer_perimeter_speed
 
     @outer_perimeter_speed.setter
@@ -129,6 +137,8 @@ class Settings:
 
     @property
     def first_layer_speed(self):
+        if not self._first_layer_speed:
+            self._first_layer_speed = self.default_speed/2
         return self._first_layer_speed
 
     @first_layer_speed.setter
@@ -137,14 +147,19 @@ class Settings:
 
     @property
     def machine_type(self):
+        if not self._machine_type:
+            self._machine_type = self.get_hw_config_int_value("machine.type")
         return self._machine_type
 
     @machine_type.setter
     def machine_type(self, value: int):
+        # 0 is delta, 1 cartesian
         self._machine_type = value
 
     @property
     def stroke_x(self):
+        if not self._stroke_x:
+            self._stroke_x = self.get_hw_config_float_value("machine.x.length")
         return self._stroke_x
 
     @stroke_x.setter
@@ -153,6 +168,8 @@ class Settings:
 
     @property
     def stroke_y(self):
+        if not self._stroke_y:
+            self._stroke_y = self.get_hw_config_float_value("machine.y.length")
         return self._stroke_y
 
     @stroke_y.setter
@@ -161,6 +178,8 @@ class Settings:
 
     @property
     def origin_offset_x(self):
+        if not self._origin_offset_x:
+            self._origin_offset_x = self.get_hw_config_float_value("machine.origin.offset_x")
         return self._origin_offset_x
 
     @origin_offset_x.setter
@@ -169,6 +188,8 @@ class Settings:
 
     @property
     def origin_offset_y(self):
+        if not self._origin_offset_y:
+            self._origin_offset_y = self.get_hw_config_float_value("machine.origin.offset_y")
         return self._origin_offset_y
 
     @origin_offset_y.setter
@@ -207,6 +228,8 @@ class Settings:
 
     @property
     def extrusion_width(self):
+        if not self._extrusion_width:
+            self._extrusion_width = self.get_hw_config_float_value("tool.nozzle.diameter")
         return self._extrusion_width
 
     @extrusion_width.setter

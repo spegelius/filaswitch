@@ -5,7 +5,7 @@ from gcode import GCode, TYPE_CARTESIAN, TYPE_DELTA
 from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
-from gcode_file import SLICER_PRUSA_SLIC3R, GCodeFile
+from gcode_file import GCodeFile
 from settings import Settings
 
 gcode = GCode()
@@ -14,7 +14,7 @@ log = logging.getLogger("PrusaSlic3r")
 
 class PrusaSlic3rCodeFile(GCodeFile):
 
-    slicer_type = SLICER_PRUSA_SLIC3R
+    slicer_type = GCodeFile.SLICER_PRUSA_SLIC3R
 
     LAYER_START_RE = re.compile(b"BEFORE_LAYER_CHANGE (\d+) (\d+\.*\d*)")
     VERSION_RE = re.compile(b".*(\d+)\.(\d+)\.(\d+).*")

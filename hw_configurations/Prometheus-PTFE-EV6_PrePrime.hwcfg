@@ -15,6 +15,17 @@ tool.nozzle.diameter: 0.4
 ## Overridden for S3D, Slic3r and KISS
 tool.tower.zhop: 0.5
 
+## Machine properties. Used with slicers (Cura) that do not provide settings in gcode files.
+# 0 is cartesian, 1 delta
+machine.type: 0
+machine.x.length: 145
+machine.y.length: 145
+machine.z.travel.speed: 1500
+machine.xy.travel.speed: 6000
+machine.origin.offset_x: 0
+machine.origin.offset_y: 0
+machine.default.speed: 2400
+
 ## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.
 ## load = motor current for load/unload

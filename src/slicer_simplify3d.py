@@ -5,7 +5,7 @@ from gcode import GCode
 from layer import FirstLayer, ACT_INFILL, ACT_PASS, ACT_SWITCH, Layer
 
 import utils
-from gcode_file import SLICER_SIMPLIFY3D, GCodeFile
+from gcode_file import GCodeFile
 from settings import Settings
 
 gcode = GCode()
@@ -14,7 +14,7 @@ log = logging.getLogger("S3DSlicer")
 
 class Simplify3dGCodeFile(GCodeFile):
 
-    slicer_type = SLICER_SIMPLIFY3D
+    slicer_type = GCodeFile.SLICER_SIMPLIFY3D
 
     LAYER_START_RE = re.compile(b".*layer (\d+), Z = (\d+\.*\d*)")
     VERSION_RE = re.compile(b".*Version (\d)\.(\d)\.(\d)")
