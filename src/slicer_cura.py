@@ -25,7 +25,7 @@ class CuraGCodeFile(GCodeFile):
         self.open_file(gcode_file)
         self.parse_version()
         self.parse_gcode()
-        if len(self.tools) > 1:
+        if len(self.extruders.keys()) > 1:
             self.find_model_limits()
             self.add_tool_change_gcode()
         else:

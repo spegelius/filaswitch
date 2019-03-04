@@ -286,10 +286,9 @@ class TestCuraGcodeFile(unittest.TestCase):
             self.assertEqual(d[1], gcode.extruders[index].retract_speed)
             index += 1
 
-        self.assertEqual([0, 1, 2, 3], gcode.tools)
+        self.assertEqual([0, 1, 2, 3], list(gcode.extruders.keys()))
         self.assertEqual(26.1, gcode.last_switch_height)
         self.assertEqual(18, gcode.start_gcode_end)
-
 
     def test_parse_gcode_pass2_Cura_testmodel1(self):
         gcode = CuraGCodeFile(self.logger, self.settings)

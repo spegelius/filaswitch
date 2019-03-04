@@ -1,4 +1,4 @@
-import math
+from collections import OrderedDict
 
 from gcode import GCode, E,N
 from settings import Settings
@@ -8,7 +8,7 @@ gcode = GCode()
 
 class PrePrime:
 
-    def __init__(self, logger, settings: Settings, max_slots, extruders, tools):
+    def __init__(self, logger, settings: Settings, max_slots, extruders: OrderedDict):
 
         # localize
         self.E = E
@@ -20,7 +20,6 @@ class PrePrime:
         self.settings = settings
         self.log = logger
         self.extruders = extruders
-        self.tools = tools
         self.start_pos_x = None
         self.start_pos_y = None
 
@@ -81,7 +80,7 @@ class PrePrime:
                     self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
 
-        #cooling retracts, also serves as wipe
+        # cooling retracts, also serves as wipe
 
         i = 0
         while True:
@@ -107,7 +106,7 @@ class PrePrime:
     def get_feed_gcode(self, extruder):
         
         i = 0
-        #initial load using standard feed length and speed
+        # initial load using standard feed length and speed
         while True:
             try:
                 feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
@@ -123,13 +122,15 @@ class PrePrime:
 
     def get_prime_lines(self):
         """
-
+        Generate lines for priming the extruders in reverse order (last extruder is primed first)
         """
+
+        tools = list(self.extruders.keys())
         yield None, b" PRIME START"
         yield gcode.gen_relative_e(), b" relative E"
         z_pos = round(0.2 + self.settings.z_offset, 5)
         # Reverse order
-        for tool in self.tools[::-1]:
+        for tool in tools[::-1]:
             # get extruder object from tool number
             extruder = self.extruders[tool]
 
@@ -154,7 +155,7 @@ class PrePrime:
                 yield line
 
             # Do retraction if not on the last extruder
-            if tool != self.tools[0]:
+            if tool != tools[0]:
                 for line in self.get_retract_gcode(extruder):
                     yield line
 
@@ -173,10 +174,3 @@ class PrePrime:
             self.last_extruder = extruder
 
         yield None, b"PRIME END"
-
-
-if __name__ == "__main__":
-    from logger import Logger
-    log = Logger(".")
-    st = PrePurge(0, 1, log, PEEK)
-    

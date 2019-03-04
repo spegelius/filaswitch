@@ -135,7 +135,7 @@ class GCodeFile:
         self.settings = {}
         self.gcode_file = None
 
-        self.extruders = {}
+        self.extruders = OrderedDict()
         self.switch_tower = None
         self.filtered_layers = []
         self.pr_index = None
@@ -148,9 +148,6 @@ class GCodeFile:
 
         self.settings = settings
         self.log.info("HW config: %s" % self.settings.hw_config)
-
-        #List of tools numbers in the order they are used
-        self.tools = []
 
         # max slots needed
         self.max_slots = None
@@ -235,7 +232,7 @@ class GCodeFile:
         """
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
-            self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
+            self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders)
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
                     self.insert_line(index, cmd, comment)
@@ -569,20 +566,16 @@ class GCodeFile:
                     self.pr_index = index
 
             # need command that's not in start gcode section
-            if cmd is None or (self.start_gcode_start is not None and self.start_gcode_end is None):
+            if cmd is None:
                 index += 1
                 continue
 
             # tool change
             if gcode.is_tool_change(cmd) is not None:
-                # add tool to list only if it's not the first tool
-                add_tool = current_tool is not None
+                current_tool = gcode.last_match
+                add_tool = True
                 tool_index = index
 
-                current_tool = gcode.last_match
-                # tool list in order of appearance
-                if not current_tool in self.tools:
-                    self.tools.append(current_tool)
                 # reset e position
                 e_pos = 0
 
@@ -647,11 +640,12 @@ class GCodeFile:
                             "tool.nozzle.diameter")
                         self.extruders[current_tool].z_hop = self.settings.get_hw_config_float_value(
                             "tool.tower.zhop")
-                    self._layers[last_print_z].append(current_tool)
-                    self.tool_switch_heights[current_tool] = last_print_z
 
-                    # replace line with z and tool
-                    self.lines[tool_index] = ActionPoint(ActionPoint.TOOL_CHANGE, (last_print_z, current_tool)), None
+                    # replace line with z and tool, if not the first extruder
+                    if len(self.extruders.keys()) > 1:
+                        self._layers[last_print_z].append(current_tool)
+                        self.tool_switch_heights[current_tool] = last_print_z
+                        self.lines[tool_index] = ActionPoint(ActionPoint.TOOL_CHANGE, (last_print_z, current_tool)), None
                     add_tool = False
 
                 e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
