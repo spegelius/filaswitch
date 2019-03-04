@@ -25,7 +25,6 @@ class CuraGCodeFile(GCodeFile):
         self.open_file(gcode_file)
         self.parse_version()
         self.parse_gcode()
-        self.prerun_prime()
         if len(self.tools) > 1:
             self.find_model_limits()
             self.add_tool_change_gcode()

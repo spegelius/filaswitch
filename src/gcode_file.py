@@ -19,9 +19,10 @@ gcode = GCode()
 class ActionPoint:
     TOOL_CHANGE = 0
     INFILL = 1
+    PREPRIME = 2
 
     def __init__(self, action, data):
-        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL:
+        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL and action != ActionPoint.PREPRIME:
             raise ValueError("Bad actionpoint")
         self.action = action
         self.data = data
@@ -227,7 +228,7 @@ class GCodeFile:
             self.lines.insert(index, (cmd, comment))
             return 1
 
-    def prerun_prime(self):
+    def prerun_prime(self, index):
         """
         Check if pre-run prime is enabled and add the gcode if needed
         :return:
@@ -237,13 +238,13 @@ class GCodeFile:
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders, self.tools)
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
-                    self.insert_line(self.pr_index, cmd, comment)
-                    self.pr_index += 1
+                    self.insert_line(index, cmd, comment)
+                    index += 1
             self.active_e = self.preprime.last_extruder
-            self.start_gcode_end = self.pr_index
         else:
             self.log.info("No pre-prime run")
             self.active_e = self.extruders[0]
+        return index
 
     def open_file(self, gcode_file):
         """
@@ -390,13 +391,11 @@ class GCodeFile:
                     continue
                 if type(cmd) == ActionPoint:
 
+                    # delete command
+                    self.lines.pop(index)
+
                     if cmd.action == ActionPoint.TOOL_CHANGE:
                         # tool change
-
-                        # delete command
-                        self.lines.pop(index)
-                        index -= 1
-
                         current_z = cmd.data[0]
                         new_tool = cmd.data[1]
 
@@ -429,14 +428,15 @@ class GCodeFile:
                             if fan_speed:
                                 index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
                         continue
-                    else:
-                        self.lines.pop(index)
-                        index -= 1
+                    elif cmd.action == ActionPoint.INFILL:
+                        # tower infill
                         for line in self.switch_tower.check_infill(cmd.data, z_pos, self.e_pos, self.active_e):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
                         z_move_needed = True
                         continue
+                    elif cmd.action == ActionPoint.PREPRIME:
+                        index = self.prerun_prime(index)
                 elif gcode.is_z_move(cmd):
                     z_pos = round(gcode.last_match[0], 5)
                     z_move_needed = False
@@ -533,6 +533,8 @@ class GCodeFile:
         last_print_z = None
         last_up_z_index = 0
 
+        head_move_index = None
+
         current_x = 0
         current_y = 0
         last_extrusion_x = None
@@ -617,6 +619,12 @@ class GCodeFile:
                         self._retracts[current_tool] = []
                     self._retracts[current_tool].append((e_pos, e_speed))
                     e_pos = 0
+
+                if head_move_index is None:
+                    self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
+                    index += 1
+
+                head_move_index = index
 
             # extrusion i.e. print move
             elif gcode.is_extrusion_move(cmd):
@@ -715,11 +723,12 @@ class GCodeFile:
         :return:
         """
         for tool in self._retracts:
-            self.extruders[tool].retract = abs(utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[0]))
-            self.extruders[tool].retract_speed = utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[1])
-            if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
-                raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
-                    self.extruders[tool].retract, self.extruders[tool].retract_speed))
+            if tool in self.extruders:
+                self.extruders[tool].retract = abs(utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[0]))
+                self.extruders[tool].retract_speed = utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[1])
+                if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
+                    raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
+                        self.extruders[tool].retract, self.extruders[tool].retract_speed))
 
         if self._z_speeds:
             self.settings.travel_z_speed = abs(utils.percentile(self._z_speeds, 0.99))

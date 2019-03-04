@@ -126,6 +126,7 @@ class PrePrime:
 
         """
         yield None, b" PRIME START"
+        yield gcode.gen_relative_e(), b" relative E"
         z_pos = round(0.2 + self.settings.z_offset, 5)
         # Reverse order
         for tool in self.tools[::-1]:
