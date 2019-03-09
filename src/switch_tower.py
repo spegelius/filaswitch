@@ -437,6 +437,10 @@ class SwitchTower:
         sweep_speed = self.settings.get_hw_config_float_value("prepurge.sweep.speed")
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
         motor_current = self.settings.get_hw_config_int_value("motor.current.load")
+
+        pre_retract = self.settings.get_hw_config_int_value("prepurge.initial.retract")
+        pre_retract_speed = self.settings.get_hw_config_int_value("prepurge.initial.retract.speed")
+        pre_retract_pause = self.settings.get_hw_config_int_value("prepurge.initial.pause")
         
         horizontal_dir = self.slots[self.slot]['horizontal_dir']
         vertical_dir = self.slots[self.slot]['vertical_dir']
@@ -448,6 +452,16 @@ class SwitchTower:
         if self.pre_purge_jitter and self.slots[self.slot]['jitter'][vertical_dir]:
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
                                            layer.height), b" pre-purge jitter"
+
+        if pre_retract:
+            yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
+
+        if pre_retract_pause:
+            yield gcode.gen_pause(pre_retract_pause), b" prepurge initial pause"
+
+        if pre_retract:
+            speed = e_length / (self.width / (sweep_speed/60)) * 60
+            yield gcode.gen_extruder_move(pre_retract, speed), b" prepurge initial prime"
 
         for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
             yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, layer.height,
