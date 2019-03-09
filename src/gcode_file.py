@@ -368,6 +368,8 @@ class GCodeFile:
         prime_needed = False
         # flag for post-tower prime
         prime_ok = False
+        # flag to check head move parameters
+        head_check_needed = False
 
         # Keep track of last X, Y position
         last_pos = None
@@ -421,6 +423,7 @@ class GCodeFile:
                             # always full retract after purge tower
                             self.e_pos = -new_e.retract
                             z_move_needed = True
+                            head_check_needed = True
 
                             if fan_speed:
                                 index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
@@ -431,6 +434,11 @@ class GCodeFile:
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
                         z_move_needed = True
+                        prime_needed = True
+                        prime_ok = False
+                        head_check_needed = True
+                        # always full retract after infill
+                        self.e_pos = -self.active_e.retract
                         continue
                     elif cmd.action == ActionPoint.PREPRIME:
                         index = self.prerun_prime(index)
@@ -480,6 +488,7 @@ class GCodeFile:
                     last_pos = gcode.last_match
 
                 elif gcode.is_head_move(cmd):
+                    # head move before prime -> clear flag
                     if prime_needed:
                         prime_ok = True
                     last_pos = gcode.last_match
@@ -487,6 +496,14 @@ class GCodeFile:
                     if last_pos[2]:
                         z_pos = round(last_pos[2], 5)
                         z_move_needed = False
+                    # check that head move is sane after tool change
+                    if head_check_needed:
+                        head_check_needed = False
+                        if not gcode.last_match[3] or gcode.last_match[3] < self.settings.travel_xy_speed or last_pos[2]:
+                            self.lines[index] = gcode.gen_head_move(gcode.last_match[0], gcode.last_match[1], self.settings.travel_xy_speed), b" fixed travel"
+                            if last_pos[2]:
+                                self.insert_line(index+1, gcode.gen_z_move(last_pos[2], self.settings.travel_z_speed))
+
 
             except IndexError:
                 break

@@ -490,7 +490,6 @@ class SwitchTower:
                     self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
                 break
 
-
         # jitter
         if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
@@ -846,7 +845,6 @@ class SwitchTower:
         :return: none
         """
         if tool_change:
-            print(layer_z, tool)
             self.slot = self.towers.get_tower_id_by_z_and_tool(layer_z, tool)
         else:
             # fill infill slots from the first available slot
