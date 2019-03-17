@@ -99,15 +99,15 @@ class Extruder:
             return rate * self.feed_rate_multiplier
         return rate * self.feed_rate_multiplier * multiplier
 
-    def get_temperature(self, layer_nr):
+    def get_temperature(self, layer_z):
         """
         Return nozzle temperature for given layer
-        :param layer_nr: layer number
+        :param layer_z: layer z
         :return: temperature
         """
         last_temp = None
         for lr in sorted(self.temperature_setpoints.keys()):
-            if layer_nr <= lr:
+            if layer_z <= lr:
                 return self.temperature_setpoints[lr]
             last_temp = self.temperature_setpoints[lr]
         return last_temp

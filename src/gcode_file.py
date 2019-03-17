@@ -504,7 +504,6 @@ class GCodeFile:
                             if last_pos[2]:
                                 self.insert_line(index+1, gcode.gen_z_move(last_pos[2], self.settings.travel_z_speed))
 
-
             except IndexError:
                 break
             index += 1
@@ -544,7 +543,7 @@ class GCodeFile:
         self._layers = OrderedDict()
 
         current_z = 0
-        last_print_z = None
+        last_print_z = 0
         last_up_z_index = 0
 
         head_move_index = None
@@ -563,6 +562,7 @@ class GCodeFile:
         self._retracts = {}
         self._z_speeds = []
         self._travel_speeds = []
+        self._temperatures = {}
 
         e_pos = 0
         e_speed = 0
@@ -686,6 +686,19 @@ class GCodeFile:
                 if gcode.last_match[1] is not None:
                     last_extrusion_y = gcode.last_match[1]
 
+            elif gcode.is_temp_nowait(cmd) or gcode.is_temp_nowait_tool(cmd) or gcode.is_temp_wait(cmd) or gcode.is_temp_wait_tool(cmd):
+                if gcode.last_match[0] == 0:
+                    self.lines.pop(index)
+                    continue
+                try:
+                    tool = gcode.last_match[1]
+                    if not tool in self._temperatures:
+                        self._temperatures[tool] = {}
+                    self._temperatures[tool][last_print_z] = gcode.last_match[0]
+                    current_tool_temp = gcode.last_match[0]
+                except IndexError:
+                    current_tool_temp = gcode.last_match[0]
+
             # find linear advance/pressure advance commands
             elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
                 self.settings.linear_advance = gcode.last_match
@@ -740,6 +753,10 @@ class GCodeFile:
                 if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
                     raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
                         self.extruders[tool].retract, self.extruders[tool].retract_speed))
+
+        for tool in self._temperatures:
+            if tool in self.extruders:
+                self.extruders[tool].temperature_setpoints = self._temperatures[tool]
 
         if self._z_speeds:
             self.settings.travel_z_speed = abs(utils.percentile(self._z_speeds, 0.99))
