@@ -11,7 +11,7 @@ class Extruder:
         self.tool = tool
         self.name = name
         self.nozzle = None
-        self.extrusion_width = None
+        self._extrusion_width = None
         self.retract = 0.0
         self.retract_speed = 0.0
         self.z_hop = 0.0
@@ -26,6 +26,16 @@ class Extruder:
         self.temperature_nr = None
         self.temperature_setpoints = {}
         self.minimum_extrusion = 0.01
+
+    @property
+    def extrusion_width(self):
+        if self._extrusion_width is None:
+            return self.nozzle
+        return self._extrusion_width
+
+    @extrusion_width.setter
+    def extrusion_width(self, width):
+        self._extrusion_width = width
 
     def get_feed_length(self, move_length, layer_height, feed_multi=1.0):
         """

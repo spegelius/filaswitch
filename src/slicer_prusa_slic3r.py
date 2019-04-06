@@ -72,6 +72,20 @@ class PrusaSlic3rCodeFile(GCodeFile):
         if self.version is None:
             raise ValueError("Slic3r PE version cannot be parsed")
 
+    @staticmethod
+    def _parse_float_or_percentage(text, base_value):
+        """
+        Parse Prusa PE comment value that can be either float or percentage
+        :param text: text to parse
+        :param base_value: if percentage, calculate final value based on this
+        :return:
+        """
+        if b"%" in text:
+            percentage = float(text.split(b' = ')[1].strip(b"%"))
+            return base_value / 100 * percentage
+        else:
+            return float(text.split(b' = ')[1])
+
     def parse_header(self):
         """
          Parse Prusa Slic3r header and stuff for print settings
@@ -117,7 +131,11 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b" external_perimeter_extrusion_width" in comment:
                     # ; external_perimeter_extrusion_width = 0.45
-                    self.settings.extrusion_width = float(comment.split(b" = ")[1])
+                    try:
+                        self.settings.extrusion_width = float(comment.split(b" = ")[1])
+                    except:
+                        # don't fail if value is percentage
+                        self.settings.extrusion_width = self.extruders[0].nozzle
 
                 # elif b"perimeters extrusion width" in comment:
                 #     self.perimeter_widths.append(float(comment.split(b"=")[1:].strip()))
@@ -186,11 +204,12 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b" perimeter_speed =" in comment:
                     # ; perimeter_speed = 40
-                    self.settings.default_speed = float(comment.split(b' = ')[1]) * 60
+                    self.settings.default_speed = float(comment.split(b' = ')[1])
 
                 elif b" external_perimeter_speed =" in comment:
                     # ; external_perimeter_speed = 30
-                    self.settings.outer_perimeter_speed = float(comment.split(b' = ')[1]) * 60
+                    self.settings.outer_perimeter_speed = self._parse_float_or_percentage(comment,
+                                                                                          self.settings.default_speed)
 
                 elif b" z_offset =" in comment:
                     # ; z_offset = 0
@@ -198,7 +217,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b" first_layer_speed =" in comment:
                     # ; first_layer_speed = 70%
-                    self.settings.first_layer_speed = float(comment.split(b' = ')[1].strip(b"%"))
+                    self.settings.first_layer_speed = self._parse_float_or_percentage(comment,
+                                                                                      self.settings.default_speed)
 
                 elif b" nozzle_diameter = " in comment:
                     # ; nozzle_diameter = 0.4,0.4,0.4,0.4
@@ -212,7 +232,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
 
                 elif b" travel_speed =" in comment:
                     # ; travel_speed = 120
-                    self.settings.travel_xy_speed = float(comment.split(b' = ')[1]) * 60
+                    self.settings.travel_xy_speed = float(comment.split(b' = ')[1])
 
                 elif b" layer_height =" in comment:
                     # ; layer_height = 0.2
@@ -248,12 +268,11 @@ class PrusaSlic3rCodeFile(GCodeFile):
         else:
             self.log.info("Slic3r version %d.%d.%d" % self.version)
 
-        self.settings.first_layer_speed = (self.settings.first_layer_speed/100) * self.settings.outer_perimeter_speed
-
         for t in self.extruders:
             self.extruders[t].z_offset = z_offset
             self.extruders[t].extrusion_width = self.settings.extrusion_width
 
+        # use xy speed as z speed as there's no separate z speed value
         self.settings.travel_z_speed = self.settings.travel_xy_speed
 
         if self.settings.brim_auto and brim != -1:
