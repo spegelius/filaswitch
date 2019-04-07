@@ -199,7 +199,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                         if tool not in self.extruders:
                             self.extruders[tool] = Extruder(tool)
                         if d == b"1":
-                            self.extruders[tool].wipe = 4 # TODO: figure a way to read wipe length
+                            self.extruders[tool].wipe = 4  # TODO: figure a way to read wipe length
                         tool += 1
 
                 elif b" perimeter_speed =" in comment:
@@ -268,12 +268,17 @@ class PrusaSlic3rCodeFile(GCodeFile):
         else:
             self.log.info("Slic3r version %d.%d.%d" % self.version)
 
-        for t in self.extruders:
-            self.extruders[t].z_offset = z_offset
-            self.extruders[t].extrusion_width = self.settings.extrusion_width
+        self.settings.default_speed *= 60
+        self.settings.first_layer_speed *= 60
+        self.settings.outer_perimeter_speed *= 60
+        self.settings.travel_xy_speed *= 60
 
         # use xy speed as z speed as there's no separate z speed value
         self.settings.travel_z_speed = self.settings.travel_xy_speed
+
+        for t in self.extruders:
+            self.extruders[t].z_offset = z_offset
+            self.extruders[t].extrusion_width = self.settings.extrusion_width
 
         if self.settings.brim_auto and brim != -1:
             # Slic3r brim is in mm, convert to lines
