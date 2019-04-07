@@ -43,11 +43,10 @@ class Tower:
 
     def calculate_min_z(self):
         prev_z = 0
-        for z in self.z:
-            if self.z[z] >= 0:
-                z_h = round(z - prev_z, 5)
-                if self._min_z is None or z_h < self._min_z:
-                    self._min_z = z_h
+        for z in sorted(self.z.keys()):
+            z_h = round(z - prev_z, 5)
+            if self._min_z is None or z_h < self._min_z:
+                self._min_z = z_h
             prev_z = z
 
     @property
@@ -90,8 +89,7 @@ class Towers:
     def fill_gaps(self, max_infill_h, layers):
         # find gaps in z list and fill them with infill (-1). Use approximate layer h
 
-        #all_z_list = self.get_tool_change_z()
-        all_z_list = layers.keys()
+        all_z_list = sorted(layers.keys())
 
         def find_z(start_z):
             zses = []
@@ -118,24 +116,10 @@ class Towers:
                                 new_z = current_z + max_infill_h
                         gap -= new_z - current_z
                         self.towers[tower].add(new_z, -1)
-                        z_list.append(new_z)
+                        if not new_z in all_z_list:
+                            z_list.append(new_z)
                         current_z = new_z
-
-                    # infills = int(math.ceil(gap / max_infill_h))
-                    # if infills:
-                    #     infill_h = gap / infills
-                    #     for i in range(infills):
-                    #         new_z = round(i * infill_h + z - gap, 2)
-                    #         self.towers[tower].add(new_z, -1)
-                    #         print(new_z)
                 prev_z = z
-
-        # for z in layers:
-        #     for tower in self.towers:
-        #         max_z = max(self.towers[tower].z)
-        #         if not z in self.towers[tower].z and z < max_z:
-        #             self.towers[tower].add(z, -1)
-        #             print(z)
 
     def get_tool_change_z(self):
         z_list = []
