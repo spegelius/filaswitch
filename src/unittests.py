@@ -135,11 +135,11 @@ class TestGcode(unittest.TestCase):
         self.assertEqual((12.664208216692137, 6.408065343285028), self.test_object.get_coordinates_by_offsets(10, 10, 10, 2, -4))
 
     def test_is_temp_nowait(self):
-        self.assertEqual(255, self.test_object.is_temp_nowait(b"M104 S255"))
+        self.assertEqual((255,), self.test_object.is_temp_nowait(b"M104 S255"))
         self.assertEqual((255, 0), self.test_object.is_temp_nowait_tool(b"M104 S255  T0"))
 
     def test_is_temp_wait(self):
-        self.assertEqual(255, self.test_object.is_temp_wait(b"M109 S255"))
+        self.assertEqual((255,), self.test_object.is_temp_wait(b"M109 S255"))
         self.assertEqual((255, 0), self.test_object.is_temp_wait_tool(b"M109 S255 T0"))
 
     def test_is_fan_speed(self):

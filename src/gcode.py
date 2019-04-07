@@ -217,7 +217,7 @@ class GCode:
         self.last_match = None
         m = self.TEMP_NOWAIT_RE.match(line)
         if m:
-            self.last_match = int(m.groups()[0])
+            self.last_match = (int(m.groups()[0]),)
         return self.last_match
 
     def is_temp_nowait_tool(self, line):
@@ -241,7 +241,7 @@ class GCode:
         self.last_match = None
         m = self.TEMP_WAIT_RE.match(line)
         if m:
-            self.last_match = int(m.groups()[0])
+            self.last_match = (int(m.groups()[0]),)
         return self.last_match
 
     def is_temp_wait_tool(self, line):

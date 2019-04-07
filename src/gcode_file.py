@@ -35,6 +35,7 @@ class Tower:
     def __init__(self):
         self.z = {}
         self._min_z = None
+        self.max_z_h = None
 
     def add(self, z, _type):
         if z not in self.z:
@@ -54,6 +55,9 @@ class Tower:
         if not self._min_z:
             self.calculate_min_z()
         return self._min_z
+
+    def get_tool_change_z(self):
+        return [z for z in self.z if self.z[z] >= 0]
 
 
 class Towers:
@@ -84,26 +88,62 @@ class Towers:
         return min_layer_h
 
     def fill_gaps(self, max_infill_h, layers):
-        # find gaps in z list and fill them with infill (-1). Use aproximate layer h
-        # for tower in self.towers:
-        #     prev_z = 0
-        #     z_list = sorted(self.towers[tower].z)
-        #     for z in z_list:
-        #         if z - prev_z - max_infill_h > max_infill_h:
-        #             gap = z - prev_z - max_infill_h
-        #             infills = int(math.ceil(gap / max_infill_h))
-        #             if infills:
-        #                 infill_h = gap / infills
-        #                 for i in range(infills):
-        #                     new_z = round(i * infill_h + z - gap, 2)
-        #                     self.towers[tower].add(new_z, -1)
-        #         prev_z = z
+        # find gaps in z list and fill them with infill (-1). Use approximate layer h
 
-        for z in layers:
-            for tower in self.towers:
-                max_z = max(self.towers[tower].z)
-                if not z in self.towers[tower].z and z < max_z:
-                    self.towers[tower].add(z, -1)
+        #all_z_list = self.get_tool_change_z()
+        all_z_list = layers.keys()
+
+        def find_z(start_z):
+            zses = []
+            for z in all_z_list:
+                if z > start_z and z - start_z < max_infill_h:
+                    zses.append(z)
+            if zses:
+                return max(zses)
+
+        for tower in self.towers:
+            prev_z = 0
+            z_list = sorted(self.towers[tower].z)
+            self.towers[tower].max_z_h = max_infill_h
+            for z in z_list:
+                gap = z - prev_z - max_infill_h
+                if gap > max_infill_h:
+                    current_z = prev_z
+                    while gap > 0:
+                        new_z = find_z(current_z)
+                        if not new_z:
+                            if max_infill_h > gap:
+                                new_z = current_z + gap
+                            else:
+                                new_z = current_z + max_infill_h
+                        gap -= new_z - current_z
+                        self.towers[tower].add(new_z, -1)
+                        z_list.append(new_z)
+                        current_z = new_z
+
+                    # infills = int(math.ceil(gap / max_infill_h))
+                    # if infills:
+                    #     infill_h = gap / infills
+                    #     for i in range(infills):
+                    #         new_z = round(i * infill_h + z - gap, 2)
+                    #         self.towers[tower].add(new_z, -1)
+                    #         print(new_z)
+                prev_z = z
+
+        # for z in layers:
+        #     for tower in self.towers:
+        #         max_z = max(self.towers[tower].z)
+        #         if not z in self.towers[tower].z and z < max_z:
+        #             self.towers[tower].add(z, -1)
+        #             print(z)
+
+    def get_tool_change_z(self):
+        z_list = []
+        for tower in self.towers:
+            for z in self.towers[tower].get_tool_change_z():
+                if not z in z_list:
+                    z_list.append(z)
+        return z_list
 
     def get_max_tower_count(self):
         return len(self.towers)
@@ -156,7 +196,7 @@ class GCodeFile:
         self.preprime = None
 
         # currently active e
-        self.active_e = 0
+        self.active_e = None
 
         # min z height
         self.min_layer_h = None
@@ -507,14 +547,6 @@ class GCodeFile:
             except IndexError:
                 break
             index += 1
-
-    def parse_layers(self, lines):
-        """
-        Go through the g-code and find layer start points.
-        Store each layer to list.
-        :return:
-        """
-        raise NotImplementedError()
 
     def process(self, gcode_file):
         """ Runs processing """
