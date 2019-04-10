@@ -438,10 +438,15 @@ class SwitchTower:
         sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
         motor_current = self.settings.get_hw_config_int_value("motor.current.load")
 
-        pre_retract = self.settings.get_hw_config_int_value("prepurge.initial.retract")
-        pre_retract_speed = self.settings.get_hw_config_int_value("prepurge.initial.retract.speed")
-        pre_retract_pause = self.settings.get_hw_config_int_value("prepurge.initial.pause")
-        
+        try:
+            pre_retract = self.settings.get_hw_config_int_value("prepurge.initial.retract")
+            pre_retract_speed = self.settings.get_hw_config_int_value("prepurge.initial.retract.speed")
+            pre_retract_pause = self.settings.get_hw_config_int_value("prepurge.initial.pause")
+        except TypeError:
+            pre_retract = None
+            pre_retract_speed = None
+            pre_retract_pause = None
+
         horizontal_dir = self.slots[self.slot]['horizontal_dir']
         vertical_dir = self.slots[self.slot]['vertical_dir']
         
