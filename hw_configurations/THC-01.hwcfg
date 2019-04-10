@@ -31,7 +31,7 @@ motor.current.run: 0
 prepurge.temperature.change: 0
 prepurge.sweep.length: 50
 prepurge.sweep.extrusion.length: 4.5
-prepurge.sweep.speed: 6000
+prepurge.sweep.speed: 3000
 prepurge.sweep.count: 5
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
@@ -44,8 +44,8 @@ prerun.prime.extrusion.length: 1.8
 prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
 prerun.prime.xstart: 5.0
-prerun.prime.ystart: -3.0
-prerun.prime.purge.count: 6
+prerun.prime.ystart: 0.0
+prerun.prime.purge.count: 8
 
 ## Rapid retract means pulling the filament out of the nozzle.
 ## Various stages can be defined.
@@ -54,11 +54,30 @@ prerun.prime.purge.count: 6
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 20
+rapid.retract.initial[0].length: 15
 rapid.retract.initial[0].speed: 3000
 rapid.retract.pause: 2500
-rapid.retract.long[0].length: 140
+rapid.retract.long[0].length: 35
 rapid.retract.long[0].speed: 3000
+
+## Various filament cooling movements after major retract
+## Serves as a wipe
+rapid.retract.cool[0].length: 3
+rapid.retract.cool[0].speed: 1600
+rapid.retract.cool[1].length: -5
+rapid.retract.cool[1].speed: 1600
+rapid.retract.cool[2].length: 5
+rapid.retract.cool[2].speed: 2000
+rapid.retract.cool[3].length: -5
+rapid.retract.cool[3].speed: 2400
+rapid.retract.cool[4].length: 5
+rapid.retract.cool[4].speed: 2400
+rapid.retract.cool[5].length: -5
+rapid.retract.cool[5].speed: 2400
+rapid.retract.cool[6].length: 5
+rapid.retract.cool[6].speed: 2400
+rapid.retract.cool[7].length: -5
+rapid.retract.cool[7].speed: 2400
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
@@ -66,11 +85,11 @@ rapid.retract.long[0].speed: 3000
 ## - ramp up the speed for the main length of the feed
 ## - slow down for the last bit for smoother insert
 
-feed[0].length: 10
+feed[0].length: 9
 feed[0].speed: 1500
-feed[1].length: 90
+feed[1].length: 33
 feed[1].speed: 3000
-feed[2].length: 49
+feed[2].length: 5
 feed[2].speed: 1500
 
 ## Do X movement during feeding to prevent blobs
@@ -80,7 +99,7 @@ feed.trail: False
 ## prime trail is the first extrusion after filament is almost fully fed to the nozzle.
 ## Might be useful for clearing old filament if extruding bit more than normally
 prime.trail.extrusion.length: 5
-prime.trail.speed: 900
+prime.trail.speed: 500
 
 ## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
 post.tower.coast: 0.2

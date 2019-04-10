@@ -15,13 +15,11 @@ tool.temperature.command: G10
 motor.current.load: 0
 motor.current.run: 0
 
-## Extruder motor current values. Adjusts motor current using M907. Values are 
-## for load/unload and for normal operation.
-## load = motor current for load/unload
-## run = motor current for normal operation
-## These can be set to 0 if not applicable
-motor.current.load: 0
-motor.current.run: 0
+## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
+## Disabled by default
+prepurge.initial.retract: 20
+prepurge.initial.retract.speed: 350
+prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
 ## - temperature = change temperature of the nozzle this amount before doing the prepurge. Negative value lowers the temperature
@@ -30,10 +28,7 @@ motor.current.run: 0
 ## - speed = how fast to move in one sweep
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
-prepruge.temperature.change: 0
-prepurge.initial.retract: 20
-prepurge.initial.retract.speed: 350
-prepurge.initial.pause: 2500
+prepurge.temperature.change: 0
 prepurge.sweep.length: 60
 prepurge.sweep.extrusion.length: 5.4
 prepurge.sweep.speed: 6000

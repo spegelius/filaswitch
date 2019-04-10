@@ -949,7 +949,7 @@ class SwitchTower:
             new_temp = None
 
         # Pre-switch temp handling. Lower temp by 10 C before purge
-        temp_diff = self.settings.get_hw_config_float_value("prepruge.temperature.change")
+        temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
         pre_temp = old_e.get_temperature(layer.num) + temp_diff
         for line in self.get_temperature_gcode(pre_temp, old_e):
             yield line
