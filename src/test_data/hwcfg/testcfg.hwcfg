@@ -1,0 +1,88 @@
+## Hint: [0] means array of values ([0], [1], [2]...)
+
+## Temperature handling
+## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
+tool.temperature.use_id: True
+
+## What command to use for controlling nozzle temperature. M104 and G10 supported
+tool.temperature.command: M104
+
+## Extruder motor current values. Adjusts motor current using M907. Values are 
+## for load/unload and for normal operation.
+## load = motor current for load/unload
+## run = motor current for normal operation
+## These can be set to 0 if not applicable
+motor.current.load: 0
+motor.current.run: 0
+
+## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
+## Disabled by default
+#prepurge.initial.retract: 20
+#prepurge.initial.retract.speed: 350
+#prepurge.initial.pause: 2500
+
+## Prepurge means the fast purge movements that purge old material before tool change
+## - temperature = change temperature of the nozzle this amount before doing the prepurge. Negative value lowers the temperature
+## - length = length of one sweep
+## - extrusion.length = how much material to extrude per sweep
+## - speed = how fast to move in one sweep
+## - count = how many sweeps
+## - gap = distance to next sweep line
+prepurge.temperature.change: 0
+prepurge.sweep.length: 50
+prepurge.sweep.extrusion.length: 4.5
+prepurge.sweep.speed: 6000
+prepurge.sweep.count: 4
+prepurge.sweep.gap: 1
+prepurge.sweep.gap.speed: 3000
+
+## Prime extruders
+## Change next line to True to enable
+prerun.prime: False
+prerun.prime.length: 49
+prerun.prime.extrusion.length: 1.8
+prerun.prime.gap: 0.48
+prerun.prime.speed: 2200
+prerun.prime.xstart: 5.0
+prerun.prime.ystart: -3.0
+prerun.prime.purge.count: 6
+
+## Rapid retract means pulling the filament out of the nozzle.
+## Various stages can be defined.
+## - initial retract happens right after prepurge is done
+## length and speed are self explanatory
+## pause = how long to let filament cool in throat (ms)
+## long retract = pulling filament fully out of way
+
+rapid.retract.initial[0].length: 20
+rapid.retract.initial[0].speed: 1500
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 1500
+rapid.retract.pause: 2000
+rapid.retract.long[0].length: 95
+rapid.retract.long[0].speed: 1500
+
+## After tool change, feed new filament
+## Use one or more stages (array). Feeding is recommended to do in different speeds:
+## - start relatively slow
+## - ramp up the speed for the main length of the feed
+## - slow down for the last bit for smoother insert
+
+feed[0].length: 10
+feed[0].speed: 1500
+feed[1].length: 90
+feed[1].speed: 3000
+feed[2].length: 20
+feed[2].speed: 1500
+
+## Do X movement during feeding to prevent blobs
+## Change next line to True to enable
+feed.trail: False
+
+## prime trail is the first extrusion after filament is almost fully fed to the nozzle.
+## Might be useful for clearing old filament if extruding bit more than normally
+prime.trail.extrusion.length: 5
+prime.trail.speed: 900
+
+## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
+post.tower.coast: 0.2

@@ -3,6 +3,7 @@ import unittest
 
 import extruder
 from gcode import GCode, E, W, S, N, NE, SE, NW, SW
+import settings
 
 
 class TestGcode(unittest.TestCase):
@@ -148,3 +149,24 @@ class TestGcode(unittest.TestCase):
     def test_rotate(self):
         self.assertEqual(90, self.test_object.rotate(W, 270))
 
+
+class TestSettings(unittest.TestCase):
+
+    def setUp(self):
+        settings.Settings.HW_CFG_DIR = "src/test_data/hwcfg"
+        self.settings = settings.Settings()
+        self.settings.hw_config = "testcfg"
+
+    def test_get_hw_config_array(self):
+
+        result = self.settings.get_hw_config_array("rapid.retract.initial[].length", _type=float)
+        self.assertEqual(result, [20.0, 15.0])
+
+    def test_get_hw_config_bool_value(self):
+
+        result = self.settings.get_hw_config_bool_value("prerun.prime")
+        self.assertFalse(result)
+
+        # TODO: should this raise exception?
+        result = self.settings.get_hw_config_bool_value("does.not.exist")
+        self.assertFalse(result)
