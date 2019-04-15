@@ -1007,12 +1007,21 @@ class SwitchTower:
                 else:
                     target_temp = old_temp
                 # change nozzle temp after purging the old material.
-                wait = abs(target_temp - old_temp) > 15
+                temp_change = abs(target_temp - old_temp)
+                wait = temp_change > 15
                 if wait:
+                    # retract to minimize ooze during wait
                     yield new_e.get_retract_gcode()
-                for line in self.get_temperature_gcode(target_temp, new_e, wait=wait):
+                # change temp without wait
+                for line in self.get_temperature_gcode(target_temp, new_e, wait=False):
                     yield line
                 if wait:
+                    # assume temp change of 1C per second and do some wipe movements during temp change
+                    wipe_speed = self.purge_length*2/temp_change * 60
+                    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_length,
+                                                   wipe_speed, layer.height), b" ooze wipe"
+                    yield gcode.gen_direction_move(gcode.opposite_dir(self.slots[self.slot]['horizontal_dir']),
+                                                   self.purge_length, wipe_speed, layer.height), b" ooze wipe"
                     yield new_e.get_prime_gcode()
 
                 # e_len += new_e.get_feed_length(self.purge_length, layer.height, feed_multi=purge_multiplier)
