@@ -390,7 +390,7 @@ class GCode:
         :return: byte string
         """
         # handle zeroes... cannot omit 0-len axes
-        e_time = e_length / (speed / 60)
+        e_time = abs(e_length) / (speed / 60)
         move_speed = move_length / e_time * 60
         # limit max speed
         if move_speed > speed:
