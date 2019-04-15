@@ -475,18 +475,32 @@ class SwitchTower:
                                            layer.height), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
-        i = 0
-        while True:
-            try:
-                rr_len = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].length".format(i))
-                rr_speed = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].speed".format(i))
-                yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
-                break
+        # rapid retract section
+        rr_wipe = self.settings.get_hw_config_bool_value("rapid.retract.wipe")
+        rr_lengths = self.settings.get_hw_config_array("rapid.retract.initial[].length", float)
+        rr_speeds = self.settings.get_hw_config_array("rapid.retract.initial[].speed", float)
 
+        # sanity check
+        if len(rr_lengths) != len(rr_speeds):
+            raise ValueError("not equal amount of rapid.retract.initial length and speed parameters. Check hwcfg")
+        if len(rr_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
+
+        rr_wipe_length = 5
+        rr_total_wipe = 0
+        for length, speed in zip(rr_lengths, rr_speeds):
+            if rr_wipe:
+                if rr_total_wipe + 5 < self.width:
+                    yield gcode.gen_direction_move(horizontal_dir, rr_wipe_length, speed, layer.height, extruder=old_e,
+                                                   e_speed=True, e_length=-length), b" rapid retract with wipe"
+                    rr_total_wipe += 5
+            else:
+                yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
+
+        if rr_wipe:
+            length = self.width - rr_total_wipe
+            yield gcode.gen_direction_move(horizontal_dir, length, self.settings.travel_xy_speed, layer.height), b" wipe"
 
         # jitter
         if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
@@ -502,40 +516,52 @@ class SwitchTower:
             yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.purge_length_diff/2,
                                            self.settings.travel_xy_speed, layer.height), b" pre-purge x adjust"
 
-
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
-            yield gcode.gen_pause(pause), b" cooling period"
+            if rr_wipe:
+                speed = self.purge_length*2/pause*1000*60
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
+                                               layer.height), b" cooling period move"
+                yield gcode.gen_direction_move(horizontal_dir, self.width, speed,
+                                               layer.height), b" cooling period move"
+            else:
+                yield gcode.gen_pause(pause), b" cooling period"
 
-        i = 0
-        while True:
-            try:
-                rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long[{}].length".format(i))
-                rr_long_speed = self.settings.get_hw_config_float_value("rapid.retract.long[{}].speed".format(i))
-                yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
-                break
+        rr_long_lengths = self.settings.get_hw_config_array("rapid.retract.long[].length", float)
+        rr_long_speeds = self.settings.get_hw_config_array("rapid.retract.long[].speed", float)
+
+        if len(rr_long_lengths) != len(rr_long_speeds):
+            raise ValueError("Not equal amount of rapid.retract.long length and speed parameters. Check hwcfg")
+        if len(rr_long_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
+
+        rr_wipe_length = self.width/len(rr_long_lengths)
+        for length, speed in zip(rr_long_lengths, rr_long_speeds):
+            if rr_wipe:
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), rr_wipe_length, speed,
+                                               layer.height, e_length=-length, e_speed=True), b" long retract with wipe"
+            else:
+                yield gcode.gen_extruder_move(-length, speed), b" long retract"
                 
         # Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py
-        i = 0
-        while True:
-            try:
-                rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
-                rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, layer.height,
-                                               extruder=old_e, e_length=rr_cool_len), b" cooling"
-                horizontal_dir = gcode.opposite_dir(horizontal_dir)
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No cooling steps. That's OK.")
-                else:
-                    self.log.debug("Cooling movements enabled")
-                break
+        rr_cool_lengths = self.settings.get_hw_config_array("rapid.retract.cool[].length", float)
+        rr_cool_speeds = self.settings.get_hw_config_array("rapid.retract.cool[].speed", float)
 
+        if len(rr_cool_lengths) != len(rr_cool_speeds):
+            raise ValueError("not equal amount of rapid.retract.cool length and speed parameters. Check hwcfg")
+        if len(rr_cool_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No cooling steps. That's OK.")
+        else:
+            self.log.debug("Cooling movements enabled")
+
+        for length, speed in zip(rr_cool_lengths, rr_cool_speeds):
+            yield gcode.gen_direction_move(horizontal_dir, self.width, speed, layer.height,
+                                           extruder=old_e, e_length=length), b" cooling"
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
+        # update slot horizontal dir
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
     def get_post_switch_gcode(self, extruder, layer: Layer):

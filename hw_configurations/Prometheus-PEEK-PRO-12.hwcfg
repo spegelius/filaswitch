@@ -51,6 +51,7 @@ prerun.prime.purge.count: 6
 ## Various stages can be defined.
 ## - initial retract happens right after prepurge is done
 ## length and speed are self explanatory
+## wipe = do wipe movements during retracts to reduce oozing
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
@@ -58,9 +59,26 @@ rapid.retract.initial[0].length: 20
 rapid.retract.initial[0].speed: 1500
 rapid.retract.initial[1].length: 15
 rapid.retract.initial[1].speed: 1500
+rapid.retract.wipe: False
 rapid.retract.pause: 2000
 rapid.retract.long[0].length: 95
 rapid.retract.long[0].speed: 1500
+
+## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
+## of cooling movements and the total length is 0
+## Serves as a wipe
+#rapid.retract.cool[0].length: 3
+#rapid.retract.cool[0].speed: 1600
+#rapid.retract.cool[1].length: -5
+#rapid.retract.cool[1].speed: 1600
+#rapid.retract.cool[2].length: 5
+#rapid.retract.cool[2].speed: 2000
+#rapid.retract.cool[3].length: -5
+#rapid.retract.cool[3].speed: 2400
+#rapid.retract.cool[4].length: 5
+#rapid.retract.cool[4].speed: 2400
+#rapid.retract.cool[5].length: -3
+#rapid.retract.cool[5].speed: 2400
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
