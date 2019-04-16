@@ -710,7 +710,8 @@ class SwitchTower:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
 
-        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, self.raft_pos_y + self.brim_width - 0.3,
+        raft_pos_y = self.raft_pos_y + self.wall_height * (self.max_slots - slot_count)
+        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, raft_pos_y + self.brim_width - 0.3,
                                   self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset,
                                self.settings.travel_z_speed), b" move z close"
@@ -745,7 +746,8 @@ class SwitchTower:
 
         # update slot z values
         for i in range(slot_count):
-             self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
+            slot = i + (self.max_slots - slot_count)
+            self.slots[slot]['last_z'] = self.slots[slot]['last_z'] + self.raft_layer_height
 
     def _get_z_hop(self, layer: Layer, extruder):
         """
