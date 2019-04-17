@@ -459,13 +459,34 @@ class SwitchTower:
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
                                            layer.height), b" pre-purge jitter"
 
+        # pre-purge section
+        rr_wipe = self.settings.get_hw_config_bool_value("rapid.retract.wipe")
+        pre_retract_wipe_length = 10
+
         if pre_retract:
-            yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
+            if rr_wipe:
+                yield gcode.gen_direction_move(horizontal_dir, pre_retract_wipe_length, pre_retract_speed,
+                                               layer.height, extruder=old_e, e_speed=True,
+                                               e_length=-pre_retract), b" pre-retract with wipe"
+            else:
+                yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
 
         if pre_retract_pause:
-            yield gcode.gen_pause(pre_retract_pause), b" prepurge initial pause"
+            if rr_wipe:
+                speed = (self.width*2-10)/pre_retract_pause*1000*60
+                yield gcode.gen_direction_move(horizontal_dir, self.width-pre_retract_wipe_length, speed,
+                                               layer.height), b" pre-retract initial pause wipe"
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
+                                               layer.height), b" pre-retract initial pause wipe"
+            else:
+                yield gcode.gen_pause(pre_retract_pause), b" pre-retract initial pause"
+        elif rr_wipe:
+            # reset nozzle position after wipe
+            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), pre_retract_wipe_length,
+                                           self.settings.travel_xy_speed, layer.height)
 
         if pre_retract:
+            # prime nozzle for the pre-purge after pre-retract
             speed = e_length / (self.width / (sweep_speed/60)) * 60
             yield gcode.gen_extruder_move(pre_retract, speed), b" prepurge initial prime"
 
@@ -477,9 +498,10 @@ class SwitchTower:
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
         # rapid retract section
-        rr_wipe = self.settings.get_hw_config_bool_value("rapid.retract.wipe")
         rr_lengths = self.settings.get_hw_config_array("rapid.retract.initial[].length", float)
         rr_speeds = self.settings.get_hw_config_array("rapid.retract.initial[].speed", float)
+        rr_wipe_length = 8
+        rr_total_wipe = 0
 
         # sanity check
         if len(rr_lengths) != len(rr_speeds):
@@ -488,14 +510,12 @@ class SwitchTower:
             if not self.warnings_shown:
                 self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
 
-        rr_wipe_length = 5
-        rr_total_wipe = 0
         for length, speed in zip(rr_lengths, rr_speeds):
             if rr_wipe:
-                if rr_total_wipe + 5 < self.width:
+                if rr_total_wipe + rr_wipe_length < self.width:
                     yield gcode.gen_direction_move(horizontal_dir, rr_wipe_length, speed, layer.height, extruder=old_e,
                                                    e_speed=True, e_length=-length), b" rapid retract with wipe"
-                    rr_total_wipe += 5
+                    rr_total_wipe += rr_wipe_length
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
 
