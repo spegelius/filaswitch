@@ -33,6 +33,7 @@ class SwitchTower:
         self.settings = settings
         self.log = logger
         self.max_slots = max_slots
+        self.min_layer_h = min_layer_h
 
         self.slot = 0
         self.slots = {}
@@ -44,7 +45,7 @@ class SwitchTower:
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
         pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
 
-        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor
+        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor * 1.1
         self.pre_purge_jitter = self.pre_purge_sweep_gap - self.settings.get_hw_config_float_value("prepurge.sweep.gap")
         if self.pre_purge_jitter < 0:
             self.pre_purge_jitter = 0
@@ -1212,7 +1213,8 @@ class SwitchTower:
         zero_count = 0
         for s in range(layer.slots):
             z = round(layer.z + self.settings.z_offset, 5)
-            if self.slots[s]['last_z'] < z:
+            z_diff = z - self.slots[s]['last_z']
+            if z_diff >= self.min_layer_h:
                 if self.slots[s]['last_z'] == 0:
                     zero_count += 1
                 else:
