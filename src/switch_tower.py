@@ -1129,7 +1129,7 @@ class SwitchTower:
             self.slots[self.slot + s]['last_z'] = round(tower_z, 5)
 
         # infill settings
-        infill_x = self.wall_width/6
+        infill_x = (self.wall_width-2)/len(self.infill_speeds)
         infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4 - 0.3
         infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
@@ -1156,24 +1156,30 @@ class SwitchTower:
                                          horizontal_dir, vertical_dir, infill=True):
             yield line
 
-        direction = infill_angle
+        # infill 'lip' for better purge base
+        yield gcode.gen_direction_move(horizontal_dir, 1, self.settings.travel_xy_speed, layer.height), b" infill position"
+        yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), infill_y, self.settings.default_speed, layer.height, extruder=extruder), b" infill lip"
 
-        rounds = len(self.infill_speeds)
         for speed in self.infill_speeds:
-            rounds -= 1
             if flip:
-                direction = horizontal_dir + infill_angle
+                direction = horizontal_dir - infill_angle
             else:
-                direction = horizontal_dir + 360-infill_angle
+                direction = horizontal_dir + 360 + infill_angle
             yield gcode.gen_direction_move(direction, infill_path_length, speed, layer.height,
-                                           extruder=extruder, last_line=rounds == 0), b" infill"
+                                           extruder=extruder), b" infill"
 
             flip = not flip
+
+        if len(self.infill_speeds) % 2:
+            vertical_dir = gcode.opposite_dir(vertical_dir)
+
+        yield gcode.gen_direction_move(vertical_dir, infill_y, self.infill_speeds[-1], layer.height,
+                                       extruder=extruder, last_line=True), b" infill lip"
 
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract
         if extruder.wipe:
-            yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000, layer.height), b" wipe"
+            yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer.height), b" wipe"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
