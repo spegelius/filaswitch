@@ -126,7 +126,7 @@ class SwitchTower:
                               self.settings.default_speed,
                               self.settings.default_speed,
                               self.settings.default_speed,
-                              self.settings.outer_perimeter_speed]
+                              self.settings.default_speed]
 
     def initialize_slots(self):
         """
@@ -1096,7 +1096,7 @@ class SwitchTower:
             yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
-        for line in self._get_wall_gcode(new_e, layer_h, self.settings.outer_perimeter_speed,
+        for line in self._get_wall_gcode(new_e, layer_h, self.settings.default_speed,
                                          self.slots[self.slot]['horizontal_dir'],
                                          self.slots[self.slot]['vertical_dir']):
             yield line
