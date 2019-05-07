@@ -2,29 +2,10 @@
 
 ## Temperature handling
 ## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
-tool.temperature.use_id: True
+tool.temperature.use_id:  True
 
 ## What command to use for controlling nozzle temperature. M104 and G10 supported
-tool.temperature.command: M104
-
-## Nozzle diameter. Used with slicers (Cura) that do not provide settings in gcode files
-## Overridden for S3D, Slic3r and KISS
-tool.nozzle.diameter: 0.4
-
-## Z-hop when moving to and from the tower. Used with slicers (Cura) that do not provide settings in gcode files.
-## Overridden for S3D, Slic3r and KISS
-tool.tower.zhop: 0.5
-
-## Machine properties. Used with slicers (Cura) that do not provide settings in gcode files.
-# 0 is cartesian, 1 delta
-machine.type: 0
-machine.x.length: 145
-machine.y.length: 145
-machine.z.travel.speed: 1500
-machine.xy.travel.speed: 6000
-machine.origin.offset_x: 0
-machine.origin.offset_y: 0
-machine.default.speed: 2400
+tool.temperature.command: G10
 
 ## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.
@@ -36,9 +17,9 @@ motor.current.run: 0
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
-#prepurge.initial.retract: 20
-#prepurge.initial.retract.speed: 350
-#prepurge.initial.pause: 2500
+prepurge.initial.retract: 20
+prepurge.initial.retract.speed: 350
+prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
 ## - temperature = change temperature of the nozzle this amount before doing the prepurge. Negative value lowers the temperature
@@ -48,23 +29,26 @@ motor.current.run: 0
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
-prepurge.sweep.length: 50
-prepurge.sweep.extrusion.length: 4.5
+prepurge.sweep.length: 60
+prepurge.sweep.extrusion.length: 5.4
 prepurge.sweep.speed: 6000
-prepurge.sweep.count: 4
+prepurge.sweep.count: 2
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
 
 ## Prime extruders
 ## Change next line to True to enable
-prerun.prime: False
-prerun.prime.length: 49
-prerun.prime.extrusion.length: 1.8
+prerun.prime: True
+prerun.prime.length: 33
+prerun.prime.extrusion.length: 1.5
 prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
 prerun.prime.xstart: 5.0
-prerun.prime.ystart: -3.0
-prerun.prime.purge.count: 6
+prerun.prime.ystart: 1
+prerun.prime.purge.count: 7
+
+## Use this to fine tune filament position after preprime. Neagtive values retract
+prerun.finetune.length: 5
 
 ## Rapid retract means pulling the filament out of the nozzle.
 ## Various stages can be defined.
@@ -75,11 +59,15 @@ prerun.prime.purge.count: 6
 ## long retract = pulling filament fully out of way
 
 rapid.retract.initial[0].length: 20
-rapid.retract.initial[0].speed: 3000
-rapid.retract.wipe: False
-rapid.retract.pause: 2500
-rapid.retract.long[0].length: 140
-rapid.retract.long[0].speed: 3000
+rapid.retract.initial[0].speed: 1500
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 1500
+rapid.retract.initial[2].length: 120
+rapid.retract.initial[2].speed: 1500
+rapid.retract.wipe: True
+rapid.retract.pause: 0
+rapid.retract.long[0].length: 5
+rapid.retract.long[0].speed: 1500
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0
@@ -105,14 +93,14 @@ rapid.retract.long[0].speed: 3000
 
 feed[0].length: 10
 feed[0].speed: 1500
-feed[1].length: 90
-feed[1].speed: 3000
-feed[2].length: 49
+feed[1].length: 120
+feed[1].speed: 2000
+feed[2].length: 20
 feed[2].speed: 1500
 
 ## Do X movement during feeding to prevent blobs
 ## Change next line to True to enable
-feed.trail: False
+feed.trail: True
 
 ## prime trail is the first extrusion after filament is almost fully fed to the nozzle.
 ## Might be useful for clearing old filament if extruding bit more than normally
@@ -121,3 +109,4 @@ prime.trail.speed: 900
 
 ## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
 post.tower.coast: 0.2
+

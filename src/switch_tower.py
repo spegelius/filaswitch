@@ -47,7 +47,7 @@ class SwitchTower:
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
         pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
 
-        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor
+        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor * 1.1
         self.pre_purge_jitter = self.pre_purge_sweep_gap - self.settings.get_hw_config_float_value("prepurge.sweep.gap")
         if self.pre_purge_jitter < 0:
             self.pre_purge_jitter = 0
@@ -128,7 +128,7 @@ class SwitchTower:
                               self.settings.default_speed,
                               self.settings.default_speed,
                               self.settings.default_speed,
-                              self.settings.outer_perimeter_speed]
+                              self.settings.default_speed]
 
     def initialize_slots(self):
         """
@@ -431,7 +431,7 @@ class SwitchTower:
         Generates pre tool switch g-code
         :param old_e: active extruder
         :param new_e: new extruder
-        :param layer_h: layer_h
+        :param layer_h: current layer height
         :return:
         """
 
@@ -461,13 +461,34 @@ class SwitchTower:
             yield gcode.gen_direction_move(vertical_dir, self.pre_purge_jitter, sweep_gap_speed,
                                            layer_h), b" pre-purge jitter"
 
+        # pre-purge section
+        rr_wipe = self.settings.get_hw_config_bool_value("rapid.retract.wipe")
+        pre_retract_wipe_length = 10
+
         if pre_retract:
-            yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
+            if rr_wipe:
+                yield gcode.gen_direction_move(horizontal_dir, pre_retract_wipe_length, pre_retract_speed,
+                                               layer_h, extruder=old_e, e_speed=True,
+                                               e_length=-pre_retract), b" pre-retract with wipe"
+            else:
+                yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
 
         if pre_retract_pause:
-            yield gcode.gen_pause(pre_retract_pause), b" prepurge initial pause"
+            if rr_wipe:
+                speed = (self.width*2-10)/pre_retract_pause*1000*60
+                yield gcode.gen_direction_move(horizontal_dir, self.width - pre_retract_wipe_length, speed,
+                                               layer_h), b" pre-retract initial pause wipe"
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
+                                               layer_h), b" pre-retract initial pause wipe"
+            else:
+                yield gcode.gen_pause(pre_retract_pause), b" pre-retract initial pause"
+        elif rr_wipe:
+            # reset nozzle position after wipe
+            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), pre_retract_wipe_length,
+                                           self.settings.travel_xy_speed, layer_h)
 
         if pre_retract:
+            # prime nozzle for the pre-purge after pre-retract
             speed = e_length / (self.width / (sweep_speed/60)) * 60
             yield gcode.gen_extruder_move(pre_retract, speed), b" prepurge initial prime"
 
@@ -478,17 +499,31 @@ class SwitchTower:
                                            layer_h), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
-        i = 0
-        while True:
-            try:
-                rr_len = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].length".format(i))
-                rr_speed = self.settings.get_hw_config_float_value("rapid.retract.initial[{}].speed".format(i))
-                yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
-                break
+        # rapid retract section
+        rr_lengths = self.settings.get_hw_config_array("rapid.retract.initial[].length", float)
+        rr_speeds = self.settings.get_hw_config_array("rapid.retract.initial[].speed", float)
+        rr_wipe_length = 8
+        rr_total_wipe = 0
+
+        # sanity check
+        if len(rr_lengths) != len(rr_speeds):
+            raise ValueError("not equal amount of rapid.retract.initial length and speed parameters. Check hwcfg")
+        if len(rr_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
+
+        for length, speed in zip(rr_lengths, rr_speeds):
+            if rr_wipe:
+                if rr_total_wipe + rr_wipe_length < self.width:
+                    yield gcode.gen_direction_move(horizontal_dir, rr_wipe_length, speed, layer_h, extruder=old_e,
+                                                   e_speed=True, e_length=-length), b" rapid retract with wipe"
+                    rr_total_wipe += rr_wipe_length
+            else:
+                yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
+
+        if rr_wipe:
+            length = self.width - rr_total_wipe
+            yield gcode.gen_direction_move(horizontal_dir, length, self.settings.travel_xy_speed, layer_h), b" wipe"
 
         # jitter
         if self.pre_purge_jitter and not self.slots[self.slot]['jitter'][vertical_dir]:
@@ -501,50 +536,62 @@ class SwitchTower:
 
         # check purge len diff
         if self.purge_length_diff:
-            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.purge_length_diff/2,
+            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.purge_length_diff / 2,
                                            self.settings.travel_xy_speed, layer_h), b" pre-purge x adjust"
-
 
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
-            yield gcode.gen_pause(pause), b" cooling period"
+            if rr_wipe:
+                speed = self.purge_length*2/pause*1000*60
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
+                                               layer_h), b" cooling period move"
+                yield gcode.gen_direction_move(horizontal_dir, self.width, speed,
+                                               layer_h), b" cooling period move"
+            else:
+                yield gcode.gen_pause(pause), b" cooling period"
 
-        i = 0
-        while True:
-            try:
-                rr_long_len = self.settings.get_hw_config_float_value("rapid.retract.long[{}].length".format(i))
-                rr_long_speed = self.settings.get_hw_config_float_value("rapid.retract.long[{}].speed".format(i))
-                yield gcode.gen_extruder_move(-rr_long_len, rr_long_speed), b" long retract"
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
-                break
+        rr_long_lengths = self.settings.get_hw_config_array("rapid.retract.long[].length", float)
+        rr_long_speeds = self.settings.get_hw_config_array("rapid.retract.long[].speed", float)
+
+        if len(rr_long_lengths) != len(rr_long_speeds):
+            raise ValueError("Not equal amount of rapid.retract.long length and speed parameters. Check hwcfg")
+        if len(rr_long_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
+
+        rr_wipe_length = self.width/len(rr_long_lengths)
+        for length, speed in zip(rr_long_lengths, rr_long_speeds):
+            if rr_wipe:
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), rr_wipe_length, speed,
+                                               layer_h, e_length=-length, e_speed=True), b" long retract with wipe"
+            else:
+                yield gcode.gen_extruder_move(-length, speed), b" long retract"
                 
         # Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py
-        i = 0
-        while True:
-            try:
-                rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
-                rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(horizontal_dir, self.width, rr_cool_speed, layer_h,
-                                               extruder=old_e, e_length=rr_cool_len), b" cooling"
-                horizontal_dir = gcode.opposite_dir(horizontal_dir)
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No cooling steps. That's OK.")
-                else:
-                    self.log.debug("Cooling movements enabled")
-                break
+        rr_cool_lengths = self.settings.get_hw_config_array("rapid.retract.cool[].length", float)
+        rr_cool_speeds = self.settings.get_hw_config_array("rapid.retract.cool[].speed", float)
 
+        if len(rr_cool_lengths) != len(rr_cool_speeds):
+            raise ValueError("not equal amount of rapid.retract.cool length and speed parameters. Check hwcfg")
+        if len(rr_cool_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No cooling steps. That's OK.")
+        else:
+            self.log.debug("Cooling movements enabled")
+
+        for length, speed in zip(rr_cool_lengths, rr_cool_speeds):
+            yield gcode.gen_direction_move(horizontal_dir, self.width, speed, layer_h,
+                                           extruder=old_e, e_length=length), b" cooling"
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
+        # update slot horizontal dir
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
                 
     def get_post_switch_gcode(self, extruder, layer_h):
         """
         Generate gcode for actions after tool change
         :param extruder: extruder
-        :param layer_h: layer height
+        :param layer_h: current layer height
         :return:
         """
         # should we move head while feeding?
@@ -688,7 +735,8 @@ class SwitchTower:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
 
-        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, self.raft_pos_y + self.brim_width - 0.3,
+        raft_pos_y = self.raft_pos_y + self.wall_height * (self.max_slots - slot_count)
+        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, raft_pos_y + self.brim_width - 0.3,
                                   self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset,
                                self.settings.travel_z_speed), b" move z close"
@@ -723,7 +771,8 @@ class SwitchTower:
 
         # update slot z values
         for i in range(slot_count):
-             self.slots[i]['last_z'] = self.slots[i]['last_z'] + self.raft_layer_height
+            slot = i + (self.max_slots - slot_count)
+            self.slots[slot]['last_z'] = self.slots[slot]['last_z'] + self.raft_layer_height
 
     def _get_z_hop(self, z_pos, extruder):
         """
@@ -811,7 +860,7 @@ class SwitchTower:
         """
         Return g-code for printing the purge tower walls
         :param extruder: extruder object
-        :param layer_h: layer height
+        :param layer_h: current layer height
         :param last_speed: speed for the last line
         :param x_direction: current x direction
         :param y_direction: current y direction
@@ -853,7 +902,7 @@ class SwitchTower:
     def _calculate_purge_values(self, layer_h, extruder):
         """
         Calculate purge line count, gap and purge feed multiplier for given layer.
-        :param layer: layer object
+        :param layer_h: layer height
         :param extruder: extruder object
         :return: gap, purge feed multi, purge lines
         """
@@ -863,13 +912,13 @@ class SwitchTower:
 
         # calculate new line counts (fractional, whole) based on layer height feed rate
         lines = purge_e / (utils.extrusion_feed_rate(self.purge_line_width, layer_h, 1.75) * self.purge_length * 2)
-        whole_lines = round(lines)
+        whole_lines = int(lines)
 
         # calculate new purge line gap based on line count differences
         purge_gap = self.purge_line_width
         line_diff = self.purge_lines - whole_lines
         if line_diff:
-            purge_gap += line_diff/whole_lines * purge_gap
+            purge_gap += line_diff/(whole_lines - 1) * purge_gap
 
         # adjust purge feed multiplier
         purge_multi = self.settings.purge_multi/100 * lines / whole_lines
@@ -1006,12 +1055,21 @@ class SwitchTower:
             #     else:
             #         target_temp = old_temp
             #     # change nozzle temp after purging the old material.
-            #     wait = abs(target_temp - old_temp) > 15
+            #     temp_change = abs(target_temp - old_temp)
+            #     wait = temp_change > 15
             #     if wait:
+            #         # retract to minimize ooze during wait
             #         yield new_e.get_retract_gcode()
-            #     for line in self.get_temperature_gcode(target_temp, new_e, wait=wait):
+            #     # change temp without wait
+            #     for line in self.get_temperature_gcode(target_temp, new_e, wait=False):
             #         yield line
             #     if wait:
+            #         # assume temp change of 1C per second and do some wipe movements during temp change
+            #         wipe_speed = self.purge_length*2/temp_change * 60
+            #         yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_length,
+            #                                        wipe_speed, layer_h), b" ooze wipe"
+            #         yield gcode.gen_direction_move(gcode.opposite_dir(self.slots[self.slot]['horizontal_dir']),
+            #                                        self.purge_length, wipe_speed, layer_h), b" ooze wipe"
             #         yield new_e.get_prime_gcode()
 
                 # e_len += new_e.get_feed_length(self.purge_length, layer.height, feed_multi=purge_multiplier)
@@ -1035,7 +1093,8 @@ class SwitchTower:
             yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
-        for line in self._get_wall_gcode(new_e, layer_h, self.settings.outer_perimeter_speed,
+
+        for line in self._get_wall_gcode(new_e, layer_h, self.settings.default_speed,
                                          self.slots[self.slot]['horizontal_dir'],
                                          self.slots[self.slot]['vertical_dir']):
             yield line
@@ -1094,7 +1153,7 @@ class SwitchTower:
             self.slots[self.slot + s]['last_z'] = round(tower_z, 5)
 
         # infill settings
-        infill_x = self.wall_width/6
+        infill_x = (self.wall_width-2)/len(self.infill_speeds)
         infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4 - 0.3
         infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
@@ -1121,24 +1180,29 @@ class SwitchTower:
                                          horizontal_dir, vertical_dir, infill=True):
             yield line
 
-        direction = infill_angle
+        # infill 'lip' for better purge base
+        yield gcode.gen_direction_move(horizontal_dir, 1, self.settings.travel_xy_speed, layer_h), b" infill position"
+        yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), infill_y, self.settings.default_speed, layer_h, extruder=extruder), b" infill lip"
 
-        rounds = len(self.infill_speeds)
         for speed in self.infill_speeds:
-            rounds -= 1
             if flip:
-                direction = horizontal_dir + infill_angle
+                direction = horizontal_dir - infill_angle
             else:
-                direction = horizontal_dir + 360-infill_angle
+                direction = horizontal_dir + 360 + infill_angle
             yield gcode.gen_direction_move(direction, infill_path_length, speed, layer_h,
-                                           extruder=extruder, last_line=rounds == 0), b" infill"
-
+                                           extruder=extruder), b" infill"
             flip = not flip
+
+        if len(self.infill_speeds) % 2:
+            vertical_dir = gcode.opposite_dir(vertical_dir)
+
+        yield gcode.gen_direction_move(vertical_dir, infill_y, self.infill_speeds[-1], layer_h,
+                                       extruder=extruder, last_line=True), b" infill lip"
 
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract
         if extruder.wipe:
-            yield gcode.gen_direction_move(direction + 180, extruder.wipe, 2000, layer_h), b" wipe"
+            yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer_h), b" wipe"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
@@ -1170,9 +1234,11 @@ class SwitchTower:
         # find slots that need work
         count = 0
         zero_count = 0
+
         for s in range(self.towers.get_tower_count(current_z)):
             z = round(current_z + self.settings.z_offset, 5)
-            if self.slots[s]['last_z'] < z:
+            z_diff = z - self.slots[s]['last_z']
+            if z_diff >= self.towers.get_min_layer_h() - 0.05:
                 if self.slots[s]['last_z'] == 0:
                     zero_count += 1
                 else:

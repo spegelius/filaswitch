@@ -72,6 +72,7 @@ prerun.prime.purge.count: 6
 ## Various stages can be defined.
 ## - initial retract happens right after prepurge is done
 ## length and speed are self explanatory
+## wipe = do wipe movements during retracts to reduce oozing
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
@@ -81,8 +82,10 @@ rapid.retract.initial[1].length: 50
 rapid.retract.initial[1].speed: 5400
 rapid.retract.initial[2].length: 15
 rapid.retract.initial[2].speed: 3000
+rapid.retract.wipe: False
 
-## Various filament cooling movements after major retract
+## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
+## of cooling movements and the total length is 0
 ## Serves as a wipe
 rapid.retract.cool[0].length: 3
 rapid.retract.cool[0].speed: 1600

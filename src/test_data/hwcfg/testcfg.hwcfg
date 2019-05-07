@@ -7,25 +7,6 @@ tool.temperature.use_id: True
 ## What command to use for controlling nozzle temperature. M104 and G10 supported
 tool.temperature.command: M104
 
-## Nozzle diameter. Used with slicers (Cura) that do not provide settings in gcode files
-## Overridden for S3D, Slic3r and KISS
-tool.nozzle.diameter: 0.4
-
-## Z-hop when moving to and from the tower. Used with slicers (Cura) that do not provide settings in gcode files.
-## Overridden for S3D, Slic3r and KISS
-tool.tower.zhop: 0.5
-
-## Machine properties. Used with slicers (Cura) that do not provide settings in gcode files.
-# 0 is cartesian, 1 delta
-machine.type: 0
-machine.x.length: 145
-machine.y.length: 145
-machine.z.travel.speed: 1500
-machine.xy.travel.speed: 6000
-machine.origin.offset_x: 0
-machine.origin.offset_y: 0
-machine.default.speed: 2400
-
 ## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.
 ## load = motor current for load/unload
@@ -70,32 +51,16 @@ prerun.prime.purge.count: 6
 ## Various stages can be defined.
 ## - initial retract happens right after prepurge is done
 ## length and speed are self explanatory
-## wipe = do wipe movements during retracts to reduce oozing
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
 rapid.retract.initial[0].length: 20
-rapid.retract.initial[0].speed: 3000
-rapid.retract.wipe: False
-rapid.retract.pause: 2500
-rapid.retract.long[0].length: 140
-rapid.retract.long[0].speed: 3000
-
-## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
-## of cooling movements and the total length is 0
-## Serves as a wipe
-#rapid.retract.cool[0].length: 3
-#rapid.retract.cool[0].speed: 1600
-#rapid.retract.cool[1].length: -5
-#rapid.retract.cool[1].speed: 1600
-#rapid.retract.cool[2].length: 5
-#rapid.retract.cool[2].speed: 2000
-#rapid.retract.cool[3].length: -5
-#rapid.retract.cool[3].speed: 2400
-#rapid.retract.cool[4].length: 5
-#rapid.retract.cool[4].speed: 2400
-#rapid.retract.cool[5].length: -3
-#rapid.retract.cool[5].speed: 2400
+rapid.retract.initial[0].speed: 1500
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 1500
+rapid.retract.pause: 2000
+rapid.retract.long[0].length: 95
+rapid.retract.long[0].speed: 1500
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
@@ -107,7 +72,7 @@ feed[0].length: 10
 feed[0].speed: 1500
 feed[1].length: 90
 feed[1].speed: 3000
-feed[2].length: 49
+feed[2].length: 20
 feed[2].speed: 1500
 
 ## Do X movement during feeding to prevent blobs

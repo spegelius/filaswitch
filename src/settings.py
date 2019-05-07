@@ -20,6 +20,8 @@ BRIM_AUTO = "Auto"
 
 class Settings:
 
+    HW_CFG_DIR = "hw_configurations"
+
     def __init__(self):
         self._hw_config = None
         self._purge_lines = LINE_COUNT_DEFAULT
@@ -281,7 +283,7 @@ class Settings:
     def read_hw_configs(self):
         _dir = os.path.dirname(os.path.realpath(__file__))
         root_dir = os.path.realpath(os.path.join(_dir, ".."))
-        hw_dir = os.path.join(root_dir, "hw_configurations")
+        hw_dir = os.path.join(root_dir, self.HW_CFG_DIR)
         for f in os.listdir(hw_dir):
             path = os.path.join(hw_dir, f)
             if f.endswith(".hwcfg"):
@@ -325,3 +327,26 @@ class Settings:
         except:
             pass
         return False
+
+    def get_hw_config_array(self, key, _type):
+
+        _key = key.replace("[]", "[{}]")
+
+        values = []
+        i = 0
+        if _type == float:
+            getter = self.get_hw_config_float_value
+        elif _type == int:
+            getter = self.get_hw_config_int_value
+        elif _type == bool:
+            getter = self.get_hw_config_bool_value
+        else:
+            getter = self.get_hw_config_value
+        while True:
+            try:
+                val = getter(_key.format(i))
+                values.append(val)
+                i += 1
+            except TypeError:
+                break
+        return values
