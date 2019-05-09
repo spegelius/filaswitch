@@ -597,9 +597,11 @@ class GCodeFile:
                 elif comment.strip() == b"START SCRIPT END":
                     self.start_gcode_end = index
                     self.pr_index = index
+                elif comment.strip() == b"START SCRIPT START":
+                    self.start_gcode_start = index
 
-            # need command that's not in start gcode section
-            if cmd is None:
+            # need command and one that's not in start gcode section
+            if cmd is None or (self.start_gcode_start is not None and self.start_gcode_end is None):
                 index += 1
                 continue
 
