@@ -121,9 +121,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].feed_rate_multiplier = float(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].feed_rate_multiplier = float(d)
                     tool += 1
 
             elif b" external_perimeter_extrusion_width" in comment:
@@ -148,9 +147,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b";"):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].filament_type = d
+                    if tool in self.extruders:
+                        self.extruders[tool].filament_type = d
                     tool += 1
 
             elif b" retract_length =" in comment:
@@ -158,9 +156,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].retract = float(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].retract = float(d)
                     tool += 1
 
             elif b" retract_lift =" in comment:
@@ -168,9 +165,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].z_hop = float(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].z_hop = float(d)
                     tool += 1
 
             elif b" retract_speed =" in comment:
@@ -178,9 +174,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
+                    if tool in self.extruders:
                         self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].retract_speed = 60*float(d)
                     tool += 1
 
             elif b" use_relative_e_distances =" in comment:
@@ -193,10 +188,9 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    if d == b"1":
-                        self.extruders[tool].wipe = 4 # TODO: figure a way to read wipe length
+                    if tool in self.extruders:
+                        if d == b"1":
+                            self.extruders[tool].wipe = 4 # TODO: figure a way to read wipe length
                     tool += 1
 
             elif b" perimeter_speed =" in comment:
@@ -222,9 +216,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].nozzle = float(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].nozzle = float(d)
                     tool += 1
 
             elif b" travel_speed =" in comment:
@@ -240,10 +233,9 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].temperature_nr = tool
-                    self.extruders[tool].temperature_setpoints[1] = int(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].temperature_nr = tool
+                        self.extruders[tool].temperature_setpoints[1] = int(d)
                     tool += 1
 
             elif b" temperature =" in comment:
@@ -251,9 +243,8 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 values = comment.split(b' = ')[1]
                 tool = 0
                 for d in values.split(b","):
-                    if tool not in self.extruders:
-                        self.extruders[tool] = Extruder(tool)
-                    self.extruders[tool].temperature_setpoints[2] = int(d)
+                    if tool in self.extruders:
+                        self.extruders[tool].temperature_setpoints[2] = int(d)
                     tool += 1
 
             elif b" brim_width =" in comment:
