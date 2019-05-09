@@ -46,27 +46,25 @@ class Simplify3dGCodeFile(GCodeFile):
 
     def process(self, gcode_file):
         self.open_file(gcode_file)
+        self.parse_gcode()
         self.parse_header()
         self.get_extruders()
-        self.parse_print_settings()
-        self.filter_layers()
         self.fix_retract_during_wipe()
-        self.parse_perimeter_rates()
-        if len(self.tools) > 1:
-            self.find_tower_position()
+        if len(self.extruders) > 1:
+            self.find_model_limits()
             self.add_tool_change_gcode()
         else:
             self.log.info("No tool changes detected, skipping tool change g-code additions")
         self.print_summary()
         return self.save_new_file()
 
-    def parse_version(self, lines):
+    def parse_version(self):
         """
         Parse gcode file version
         :param lines: lines from gcode file
         :return:
         """
-        for line in lines:
+        for line in self.lines:
             if b"Simplify3D(R)" in line:
                 # parse version
                 try:
@@ -85,6 +83,10 @@ class Simplify3dGCodeFile(GCodeFile):
 
         for i in range(len(self.extruder_name)):
             t = self.extruder_tool[i]
+
+            # skip tool definitions that aren't used in print
+            if not t in self.extruders:
+                continue
             name = self.extruder_name[i]
             ext = Extruder(t, name=name)
             ext.nozzle = self.extruder_diameter[i]
@@ -104,7 +106,7 @@ class Simplify3dGCodeFile(GCodeFile):
         temp_setpoint_index = 0
         for i in range(len(self.temperature_names)):
             t = self.temperature_numbers[i]
-            if self.temperature_heated_bed[i] == 0:
+            if self.temperature_heated_bed[i] == 0 and t in self.extruders:
                 ext = self.extruders[t]
                 ext.temperature_nr = t
             else:
@@ -121,7 +123,7 @@ class Simplify3dGCodeFile(GCodeFile):
         last_setpoints = None
         for e in self.extruders:
             # setpoints
-            if self.extruders[e].temperature_setpoints:
+            if e in self.extruders and self.extruders[e].temperature_setpoints:
                 last_setpoints = self.extruders[e].temperature_setpoints
                 break
 
@@ -131,13 +133,14 @@ class Simplify3dGCodeFile(GCodeFile):
 
         warning = False
         for e in self.extruders:
-            if not self.extruders[e].temperature_setpoints:
-                self.extruders[e].temperature_setpoints = last_setpoints
-                warning = True
+            if e in self.extruders:
+                if not self.extruders[e].temperature_setpoints:
+                    self.extruders[e].temperature_setpoints = last_setpoints
+                    warning = True
 
-            # temp nr. Use tool number if not defined
-            if self.extruders[e].temperature_nr is None:
-                self.extruders[e].temperature_nr = self.extruders[e].tool
+                # temp nr. Use tool number if not defined
+                if self.extruders[e].temperature_nr is None:
+                    self.extruders[e].temperature_nr = self.extruders[e].tool
 
         # debug
         # for e in self.extruders:
@@ -155,10 +158,13 @@ class Simplify3dGCodeFile(GCodeFile):
         skirt = False
         brim = False
         brim_lines = 0
-        for cmd, comment in self._layers[0].lines:
+        for cmd, comment in self.lines:
 
             if not comment:
                 pass
+            if cmd:
+                # stop when commands start
+                break
             elif b"extruderName" in comment:
                 for d in comment.split(b",")[1:]:
                     self.extruder_name.append(d)
@@ -279,78 +285,6 @@ class Simplify3dGCodeFile(GCodeFile):
         if self.settings.brim_auto and skirt and brim:
             self.settings.brim = brim_lines
 
-    def parse_layers(self, lines):
-        """
-        Go through the g-code and find layer start points.
-        Store each layer to list.
-        :return:
-        """
-        prev_layer = None
-        prev_height = 0
-        current_layer = FirstLayer(1, 0.2, 0.2)
-        min_layer_height = 10
-        max_z = 0
-        for line in lines:
-            cmd, comment = gcode.read_gcode_line(line)
-            if comment:
-                ret = self.check_layer_change(comment, None)
-                if ret:
-                    if current_layer.num == 1 and ret[0] == 1:
-                        current_layer.z = round(ret[1], 5)
-                        current_layer.height = round(ret[1], 5)
-                    else:
-                        if prev_layer:
-                            prev_z = prev_layer.z
-                        else:
-                            prev_z = 0
-
-                        # calculate and check layer height.
-                        height = round((current_layer.z - prev_z), 5)
-                        if height and height > 0:
-                            prev_height = height
-                        else:
-                            height = prev_height
-
-                        self._layers.append(current_layer)
-                        prev_layer = current_layer
-                        current_layer = Layer(round(ret[0], 5), round(ret[1], 5), height)
-
-                        if current_layer.height < min_layer_height:
-                            min_layer_height = current_layer.height
-                        if current_layer.z > max_z:
-                            max_z = current_layer.z
-
-            current_layer.add_line(cmd, comment)
-
-        # last layer
-        self._layers.append(current_layer)
-        if len(self._layers) <= 1 and max_z > self._layers[0].height:
-            raise ValueError("Detected only one layer, possibly an parsing error. Processing halted")
-
-        self.min_layer_h = min_layer_height
-        # debug
-        #for l in self.layers:
-        #    print(l.height == self.layer_height)
-
-    def parse_print_settings(self):
-        """
-        Simplify3D specific settings
-        :return:
-        """
-        super().parse_print_settings()
-
-    def check_layer_change(self, line, current_layer):
-        """
-        Check if line is layer change
-        :param line: g-code line
-        :param current_layer: current layer data
-        :return: None or tuple of layer nr and layer z
-        """
-        m = self.LAYER_START_RE.match(line)
-        if m:
-            return int(m.groups()[0]), float(m.groups()[1])
-        return current_layer
-
     def fix_retract_during_wipe(self):
         """
         Fix S3D 3.1.1 bug where option "Retract during wipe" causes over-extrusion
@@ -370,69 +304,35 @@ class Simplify3dGCodeFile(GCodeFile):
         last_move_speed = None
         extruder = self.extruders[0]
 
-        for layer in self._layers:
-
-            for cmd, comment, index in layer.read_lines():
-                if not cmd:
-                    continue
-                if gcode.is_extrusion_move(cmd):
-                    # detect retract/wipe
-                    if gcode.last_match[3] < 0:
-                        wipe_on = True
-                        if gcode.last_match[4] is not None:
-                            wipe_speed = gcode.last_match[4]
-                        else:
-                            wipe_speed = last_move_speed or self.settings.default_speed
-                        wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
-                        wipe_layer = layer
-                elif gcode.is_head_move(cmd) and wipe_on:
-                    # retract/wipe ended
-                    last_move_speed = gcode.last_match[2]
-                    wipe_on = False
-                    for index, x, y, speed in wipe_indexes:
-                        wipe_layer.replace_line(index, gcode.gen_head_move(x, y, speed), b"fixed wipe")
-                    first_wipe = wipe_indexes[0][0]
-                    wipe_layer.insert_line(first_wipe, *extruder.get_retract_gcode())
-                    wipe_indexes = []
-                elif gcode.is_tool_change(cmd) is not None:
-                    # tool change, set active extruder
-                    extruder = self.extruders[gcode.last_match]
-
-    def parse_perimeter_rates(self):
-        """
-        Parses perimeter print speed and feed rate for each layer
-        :return: none
-        """
-
-        # use constant speed, too fancy to adjust all the time
-        # use static values for all layers
-        for layer in self._layers:
-            layer.outer_perimeter_speed = self.settings.outer_perimeter_speed
-            layer.outer_perimeter_feedrate = 0.05
-
-        # last_speed = None
-        # last_feed_rate = None
-        # for layer in self.layers:
-        #     speed, rate = layer.get_outer_perimeter_rates()
-        #     if speed and rate:
-        #         last_speed = speed
-        #         last_feed_rate = rate
-        #     else:
-        #         layer.outer_perimeter_speed = last_speed
-        #         layer.outer_perimeter_feedrate = last_feed_rate
-        #
-        # # second pass, check that every layer has a speed and feed rate
-        # for layer in self.layers:
-        #     if not layer.outer_perimeter_speed:
-        #         if isinstance(layer, FirstLayer):
-        #             layer.outer_perimeter_speed = self.settings.first_layer_speed
-        #             layer.outer_perimeter_feedrate = last_feed_rate
-        #         else:
-        #             layer.outer_perimeter_speed = last_speed
-        #             layer.outer_perimeter_feedrate = last_feed_rate
-        #     else:
-        #         last_speed = layer.outer_perimeter_speed
-        #         last_feed_rate = layer.outer_perimeter_feedrate
+        index = 0
+        while True:
+            try:
+                cmd, comment = self.lines[index]
+            except IndexError:
+                break
+            if not cmd:
+                continue
+            if gcode.is_extrusion_move(cmd):
+                # detect retract/wipe
+                if gcode.last_match[3] < 0:
+                    wipe_on = True
+                    if gcode.last_match[4] is not None:
+                        wipe_speed = gcode.last_match[4]
+                    else:
+                        wipe_speed = last_move_speed or self.settings.default_speed
+                    wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
+            elif gcode.is_head_move(cmd) and wipe_on:
+                # retract/wipe ended
+                last_move_speed = gcode.last_match[2]
+                wipe_on = False
+                for index, x, y, speed in wipe_indexes:
+                    self.lines[index] = (gcode.gen_head_move(x, y, speed), b"fixed wipe")
+                first_wipe = wipe_indexes[0][0]
+                wipe_layer.insert_line(first_wipe, *extruder.get_retract_gcode())
+                wipe_indexes = []
+            elif gcode.is_tool_change(cmd) is not None:
+                # tool change, set active extruder
+                extruder = self.extruders[gcode.last_match]
 
 
 if __name__ == "__main__":
