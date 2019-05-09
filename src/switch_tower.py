@@ -954,7 +954,10 @@ class SwitchTower:
 
         self.get_slot(current_z, new_e.tool, True)
 
+        # calculate layer height
         layer_h = round(current_z - self.slots[self.slot]['last_z'], 5)
+        if layer_h <= 0.0:
+            layer_h = self.towers.get_min_layer_h()
 
         initial_horizontal_dir = self.slots[self.slot]['horizontal_dir']
 
@@ -1135,7 +1138,11 @@ class SwitchTower:
 
         self.get_slot(current_z, extruder.tool, False)
 
+            # calculate layer height
         layer_h = current_z - self.slots[self.slot]['last_z']
+        if layer_h <= 0.0:
+            # no reason to print infill. Actually no reason to be here...
+            return
 
         self.log.debug("Adding purge tower infill")
         yield None, b" TOWER INFILL START"
