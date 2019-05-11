@@ -99,13 +99,21 @@ class Towers:
             if zses:
                 return max(zses)
 
+        # make sure each tower has same initial z
+        first_z = min(layers.keys())
+        for tower in self.towers:
+            if first_z not in self.towers[tower].z:
+                print(first_z, tower)
+                self.towers[tower].add(first_z, -1)
+
+        # find and fill gaps
         for tower in self.towers:
             prev_z = 0
             z_list = sorted(self.towers[tower].z)
             self.towers[tower].max_z_h = max_infill_h
             for z in z_list:
-                gap = z - prev_z - max_infill_h
-                if gap > max_infill_h:
+                gap = round(z - prev_z - max_infill_h, 5)
+                if gap >= max_infill_h:
                     current_z = prev_z
                     while gap > 0:
                         new_z = find_z(current_z)
@@ -116,7 +124,7 @@ class Towers:
                                 new_z = current_z + max_infill_h
                         gap -= new_z - current_z
                         self.towers[tower].add(new_z, -1)
-                        if not new_z in all_z_list:
+                        if new_z not in all_z_list:
                             z_list.append(new_z)
                         current_z = new_z
                 prev_z = z
@@ -756,7 +764,7 @@ class GCodeFile:
 
     def parse_gcode_pass3(self):
 
-        max_infill_h = self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625
+        max_infill_h = round(self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5)
         self.towers.fill_gaps(max_infill_h, self._layers)
 
     def _calculate_values(self):

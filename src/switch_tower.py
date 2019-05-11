@@ -918,7 +918,8 @@ class SwitchTower:
         purge_gap = self.purge_line_width
         line_diff = self.purge_lines - whole_lines
         if line_diff:
-            purge_gap += line_diff/(whole_lines - 1) * purge_gap
+            if whole_lines > 1:
+                purge_gap += line_diff/(whole_lines - 1) * purge_gap
 
         # adjust purge feed multiplier
         purge_multi = self.settings.purge_multi/100 * lines / whole_lines
@@ -1241,10 +1242,9 @@ class SwitchTower:
         # find slots that need work
         count = 0
         zero_count = 0
-
         for s in range(self.towers.get_tower_count(current_z)):
             z = round(current_z + self.settings.z_offset, 5)
-            z_diff = z - self.slots[s]['last_z']
+            z_diff = round(z - self.slots[s]['last_z'], 5)
             if z_diff >= self.towers.get_min_layer_h() - 0.05:
                 if self.slots[s]['last_z'] == 0:
                     zero_count += 1
