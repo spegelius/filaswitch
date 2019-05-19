@@ -563,7 +563,8 @@ class SwitchTower:
         for length, speed in zip(rr_long_lengths, rr_long_speeds):
             if rr_wipe:
                 yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), rr_wipe_length, speed,
-                                               layer_h, e_length=-length, e_speed=True), b" long retract with wipe"
+                                               layer_h, extruder=old_e, e_length=-length,
+                                               e_speed=True), b" long retract with wipe"
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" long retract"
                 
