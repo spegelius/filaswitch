@@ -20,9 +20,11 @@ class ActionPoint:
     TOOL_CHANGE = 0
     INFILL = 1
     PREPRIME = 2
+    LAYER_CHANGE = 3
 
     def __init__(self, action, data):
-        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL and action != ActionPoint.PREPRIME:
+        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL and action != ActionPoint.PREPRIME \
+                and action != ActionPoint.LAYER_CHANGE:
             raise ValueError("Bad actionpoint")
         self.action = action
         self.data = data
@@ -412,6 +414,8 @@ class GCodeFile:
 
         index = self.start_gcode_end
 
+        layer_nr = 0
+
         while True:
             try:
                 cmd, comment = self.lines[index]
@@ -474,6 +478,8 @@ class GCodeFile:
                         continue
                     elif cmd.action == ActionPoint.PREPRIME:
                         index = self.prerun_prime(index)
+                    elif cmd.action == ActionPoint.LAYER_CHANGE:
+                        layer_nr = cmd.data
                 elif gcode.is_z_move(cmd):
                     z_pos = round(gcode.last_match[0], 5)
                     z_move_needed = False
@@ -591,6 +597,8 @@ class GCodeFile:
         e_pos = 0
         e_speed = 0
 
+        layer_nr = 0
+
         # find z-heights and tool changes
         index = 0
         while True:
@@ -618,7 +626,6 @@ class GCodeFile:
                 current_tool = gcode.last_match
                 add_tool = True
                 tool_index = index
-
                 # reset e position
                 e_pos = 0
 
@@ -627,8 +634,10 @@ class GCodeFile:
                 prev_z = current_z
                 current_z = round(gcode.last_match[0], 5)
                 if current_z - prev_z > 0:
+                    # if z move is up, store index
                     last_up_z_index = index
                 if gcode.last_match[1]:
+                    # store speed to list
                     self._z_speeds.append(round(gcode.last_match[1], 5))
 
             # get extruder position
@@ -668,10 +677,13 @@ class GCodeFile:
                 # print move defines the actual z-height for tool
                 if current_z not in self._layers:
                     self._layers[current_z] = []
+                    self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
+                    layer_nr += 1
                     if len(self._layers) > 1:
                         # add infill action with previous layer height
                         self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
                         index += 1
+                    last_up_z_index = None
                 last_print_z = current_z
 
                 # add tool to layer list if flag is set
