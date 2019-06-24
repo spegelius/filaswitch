@@ -977,7 +977,6 @@ class SwitchTower:
 
         tower_z = layer.z
         layer_h = round(layer.z - self.slots[self.slot]['last_z'], 5)
-        print("TOWER:", layer_h)
 
         self.slots[self.slot]['last_z'] = round(tower_z, 5)
         if z_hop:
