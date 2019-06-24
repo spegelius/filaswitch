@@ -980,6 +980,7 @@ class SwitchTower:
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         self.slots[self.slot]['last_z'] = round(current_z, 5)
+
         if z_hop:
             yield gcode.gen_z_move(current_z, self.settings.travel_z_speed), b" move z close"
 
