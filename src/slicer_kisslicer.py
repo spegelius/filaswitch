@@ -19,6 +19,7 @@ class KISSlicerGCodeFile(GCodeFile):
     # ; BEGIN_LAYER_OBJECT z=0.294 z_thickness=0.294
     LAYER_START_RE = re.compile(b" BEGIN_LAYER_OBJECT z=(\d+\.*\d*) z_thickness=(\d+\.*\d*)")
     VERSION_RE = re.compile(b"version (\d+)\.(\d+).*")
+    VERSION_2_RE = re.compile(b"version 2 a (\d+)\.(\d+).*")
 
     def __init__(self, logger, settings: Settings):
         super().__init__(logger, settings)
@@ -48,11 +49,25 @@ class KISSlicerGCodeFile(GCodeFile):
                 try:
                     comment = line.split(b";")[-1].strip()
                     m = self.VERSION_RE.match(comment)
-                    self.version = (int(m.groups()[0]), int(m.groups()[1]))
+                    if not m:
+                        m = self.VERSION_2_RE.match(comment)
+                        self.version = (2, int(m.groups()[0]), int(m.groups()[1]))
+                    else:
+                        self.version = (int(m.groups()[0]), int(m.groups()[1]))
                 except Exception as e:
                     self.log.exception(e)
         if self.version is None:
             raise ValueError("KISSlicer version cannot be parsed")
+
+    def _version_to_string(self):
+        """
+        Retunn version as string
+        :return: version string
+        """
+        try:
+            return "%d.%d" % self.version
+        except:
+            return "%d.%d.%d" % self.version
 
     def parse_header(self):
         """
@@ -175,7 +190,7 @@ class KISSlicerGCodeFile(GCodeFile):
         if not self.version:
             self.log.warning("Could not detect KISSlicer version. Use at your own risk!")
         else:
-            self.log.info("KISSlicer version %d.%d" % self.version)
+            self.log.info("KISSlicer version %s" % self._version_to_string())
 
         for t in self.extruders:
             self.extruders[t].z_offset = self.settings.z_offset
