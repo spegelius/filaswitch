@@ -46,6 +46,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
     def process(self, gcode_file):
         self.open_file(gcode_file)
+        self.parse_version()
         self.parse_gcode()
         self.parse_header()
         self.get_extruders()
@@ -64,11 +65,11 @@ class Simplify3dGCodeFile(GCodeFile):
         :param lines: lines from gcode file
         :return:
         """
-        for line in self.lines:
-            if b"Simplify3D(R)" in line:
+        for cmd, comment in self.lines:
+            if comment and b"Simplify3D(R)" in comment:
                 # parse version
                 try:
-                    m = self.VERSION_RE.match(line)
+                    m = self.VERSION_RE.match(comment)
                     self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
                 except Exception as e:
                     self.log.exception("Version parsing exception: %s" % e)
