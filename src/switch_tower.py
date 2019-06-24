@@ -797,7 +797,6 @@ class SwitchTower:
         if extruder.z_hop:
             new_z_hop += extruder.z_hop
         if new_z_hop > current_z:
-            #print(new_z_hop, current_z)
             return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
 
     def _get_retraction(self, extruder):
@@ -1261,13 +1260,3 @@ class SwitchTower:
             self.infill_slots = count
             for l in self.get_infill_lines(current_z, z_pos, e_pos, extruder):
                 yield l
-
-
-if __name__ == "__main__":
-    from logger import Logger
-    log = Logger(".")
-    settings = Settings()
-    print(settings.get_hw_config_names())
-    settings.hw_config = 'PTFE-PRO-12'
-    st = SwitchTower(log, settings, 3)
-    print(st.generate_purge_speeds(600))

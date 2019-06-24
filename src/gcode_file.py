@@ -105,7 +105,6 @@ class Towers:
         first_z = min(layers.keys())
         for tower in self.towers:
             if first_z not in self.towers[tower].z:
-                print(first_z, tower)
                 self.towers[tower].add(first_z, -1)
 
         # find and fill gaps
@@ -301,8 +300,6 @@ class GCodeFile:
         :return: list of lines
         """
         for line in self.lines:
-            if type(line[0]) == float:
-                print(line)
             yield gcode.format_to_string(*line)
 
     def save_new_file(self):
@@ -322,19 +319,6 @@ class GCodeFile:
             self.log.exception("Could not save file, error: %s" % e)
             return 1
 
-    def get_extruders(self):
-        """ Implement this in slicer specific implementation"""
-        raise NotImplementedError()
-
-    def check_layer_change(self, line, current_layer):
-        """
-        Implement this in slicer specific implementation
-        :param line: g-code line to check
-        :param current_layer: current layer object
-        :return: old or updated layer data
-        """
-        raise NotImplementedError()
-    
     def find_model_limits(self):
         """
         Find x and y min and max coordinates
@@ -613,6 +597,8 @@ class GCodeFile:
                 elif comment.strip() == b"START SCRIPT END":
                     self.start_gcode_end = index
                     self.pr_index = index
+                    self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
+                    index += 1
                 elif comment.strip() == b"START SCRIPT START":
                     self.start_gcode_start = index
 
@@ -664,10 +650,6 @@ class GCodeFile:
                         self._retracts[current_tool] = []
                     self._retracts[current_tool].append((e_pos, e_speed))
                     e_pos = 0
-
-                if head_move_index is None:
-                    self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
-                    index += 1
 
                 head_move_index = index
 
