@@ -3,6 +3,7 @@ import os
 import types
 
 from collections import OrderedDict
+from pprint import pprint
 
 import utils
 from extruder import Extruder
@@ -434,7 +435,8 @@ class GCodeFile:
 
                             new_e = self.extruders[new_tool]
 
-                            for line in self.switch_tower.get_tower_lines(current_z, z_pos, self.e_pos, self.active_e, new_e):
+                            for line in self.switch_tower.get_tower_lines(current_z, z_pos, self.e_pos, self.active_e,
+                                                                          new_e, layer_nr):
                                 if line:
                                     index += self.insert_line(index, line[0], line[1])
                             prime_needed = True
@@ -596,19 +598,42 @@ class GCodeFile:
                     break
                 elif comment.strip() == b"START SCRIPT END":
                     self.start_gcode_end = index
-                    self.pr_index = index
-                    self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
                     index += 1
+                    self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
                 elif comment.strip() == b"START SCRIPT START":
                     self.start_gcode_start = index
 
             # need command and one that's not in start gcode section
-            if cmd is None or (self.start_gcode_start is not None and self.start_gcode_end is None):
+            if cmd is None:
+                index += 1
+                continue
+            elif self.start_gcode_start is not None and self.start_gcode_end is None:
+                in_start_gcode = True
+            else:
+                in_start_gcode = False
+
+            # temperature parsing
+            if gcode.is_temp_nowait(cmd) or gcode.is_temp_nowait_tool(cmd) or \
+                    gcode.is_temp_wait(cmd) or gcode.is_temp_wait_tool(cmd):
+                if gcode.last_match[0] == 0:
+                    # remove temperature changes to 0 during print. Cura does these, not good for single nozzle setups
+                    self.lines.pop(index)
+                    continue
+                try:
+                    tool = gcode.last_match[1]
+                except IndexError:
+                    tool = current_tool or 0
+                if tool not in self._temperatures:
+                    self._temperatures[tool] = {}
+                self._temperatures[tool][layer_nr] = gcode.last_match[0]
+
+            if in_start_gcode:
+                # skip rest of the parsing if in start gcode
                 index += 1
                 continue
 
             # tool change
-            if gcode.is_tool_change(cmd) is not None:
+            elif gcode.is_tool_change(cmd) is not None:
                 current_tool = gcode.last_match
                 add_tool = True
                 tool_index = index
@@ -670,7 +695,7 @@ class GCodeFile:
 
                 # add tool to layer list if flag is set
                 if add_tool:
-                    if not current_tool in self.extruders:
+                    if current_tool not in self.extruders:
                         # add new extruder instance, if one doesn't exist already
                         self.extruders[current_tool] = Extruder(current_tool)
                         self.extruders[current_tool].nozzle = self.settings.get_hw_config_float_value(
@@ -705,19 +730,6 @@ class GCodeFile:
 
                 if gcode.last_match[1] is not None:
                     last_extrusion_y = gcode.last_match[1]
-
-            elif gcode.is_temp_nowait(cmd) or gcode.is_temp_nowait_tool(cmd) or gcode.is_temp_wait(cmd) or gcode.is_temp_wait_tool(cmd):
-                if gcode.last_match[0] == 0:
-                    self.lines.pop(index)
-                    continue
-                try:
-                    tool = gcode.last_match[1]
-                    if not tool in self._temperatures:
-                        self._temperatures[tool] = {}
-                    self._temperatures[tool][last_print_z] = gcode.last_match[0]
-                    current_tool_temp = gcode.last_match[0]
-                except IndexError:
-                    current_tool_temp = gcode.last_match[0]
 
             # find linear advance/pressure advance commands
             elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:

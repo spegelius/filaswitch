@@ -926,7 +926,7 @@ class SwitchTower:
 
         return purge_gap, purge_multi, whole_lines
 
-    def get_tower_lines(self, current_z, z_pos, e_pos, old_e, new_e):
+    def get_tower_lines(self, current_z, z_pos, e_pos, old_e, new_e, layer_nr):
         """
         G-code for switch tower
         :param current_z: current layer z
@@ -934,6 +934,7 @@ class SwitchTower:
         :param e_pos: extruder position
         :param old_e: old extruder
         :param new_e: new extruder
+        :param layer_nr: layer number
         :return: list of cmd, comment tuples
         """
 
@@ -993,24 +994,22 @@ class SwitchTower:
         if self.settings.pressure_advance:
             yield gcode.gen_pressure_advance(self.settings.pressure_advance[0], 0), b" turn off pressure advance"
 
-        new_temp = None
-        old_temp = 1
-        # new_temp = new_e.get_temperature(0)
-        # old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(0))
-        # self.temperatures[new_e.tool] = new_temp
-        # if new_temp == old_temp:
-        #     new_temp = None
+        new_temp = new_e.get_temperature(layer_nr)
+        old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer_nr))
+        self.temperatures[new_e.tool] = new_temp
+        if new_temp == old_temp:
+            new_temp = None
 
         # Pre-switch temp handling. Lower temp by 10 C before purge
-        # temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
-        # pre_temp = old_e.get_temperature(1) + temp_diff
-        # for line in self.get_temperature_gcode(pre_temp, old_e):
-        #     yield line
+        temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
+        pre_temp = old_e.get_temperature(1) + temp_diff
+        for line in self.get_temperature_gcode(pre_temp, old_e):
+            yield line
 
-        # if self.g10 or self.tool_use_id:
-        #     # set also new e temp since it needs to stay the same after filament change
-        #     for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
-        #         yield line
+        if self.g10 or self.tool_use_id:
+            # set also new e temp since it needs to stay the same after filament change
+            for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
+                yield line
 
         yield self._get_prime(old_e)
 
@@ -1054,28 +1053,28 @@ class SwitchTower:
                                                feed_multi=purge_multiplier), b" purge trail"
                 self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(self.slots[self.slot]['horizontal_dir'])
 
-            # if i == 1:
-            #     if new_temp:
-            #         target_temp = new_temp
-            #     else:
-            #         target_temp = old_temp
-            #     # change nozzle temp after purging the old material.
-            #     temp_change = abs(target_temp - old_temp)
-            #     wait = temp_change > 15
-            #     if wait:
-            #         # retract to minimize ooze during wait
-            #         yield new_e.get_retract_gcode()
-            #     # change temp without wait
-            #     for line in self.get_temperature_gcode(target_temp, new_e, wait=False):
-            #         yield line
-            #     if wait:
-            #         # assume temp change of 1C per second and do some wipe movements during temp change
-            #         wipe_speed = self.purge_length*2/temp_change * 60
-            #         yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_length,
-            #                                        wipe_speed, layer_h), b" ooze wipe"
-            #         yield gcode.gen_direction_move(gcode.opposite_dir(self.slots[self.slot]['horizontal_dir']),
-            #                                        self.purge_length, wipe_speed, layer_h), b" ooze wipe"
-            #         yield new_e.get_prime_gcode()
+            if i == 1:
+                if new_temp:
+                    target_temp = new_temp
+                else:
+                    target_temp = old_temp
+                # change nozzle temp after purging the old material.
+                temp_change = abs(target_temp - old_temp)
+                wait = temp_change > 15
+                if wait:
+                    # retract to minimize ooze during wait
+                    yield new_e.get_retract_gcode()
+                # change temp without wait
+                for line in self.get_temperature_gcode(target_temp, new_e, wait=False):
+                    yield line
+                if wait:
+                    # assume temp change of 1C per second and do some wipe movements during temp change
+                    wipe_speed = self.purge_length*2/temp_change * 60
+                    yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_length,
+                                                   wipe_speed, layer_h), b" ooze wipe"
+                    yield gcode.gen_direction_move(gcode.opposite_dir(self.slots[self.slot]['horizontal_dir']),
+                                                   self.purge_length, wipe_speed, layer_h), b" ooze wipe"
+                    yield new_e.get_prime_gcode()
 
                 # e_len += new_e.get_feed_length(self.purge_length, layer.height, feed_multi=purge_multiplier)
 

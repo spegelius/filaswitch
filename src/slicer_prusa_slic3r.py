@@ -236,7 +236,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 for d in values.split(b","):
                     if tool in self.extruders:
                         self.extruders[tool].temperature_nr = tool
-                        self.extruders[tool].temperature_setpoints[1] = int(d)
+                        self.extruders[tool].temperature_setpoints[0] = int(d)
                     tool += 1
 
             elif b" temperature =" in comment:
@@ -245,7 +245,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                 tool = 0
                 for d in values.split(b","):
                     if tool in self.extruders:
-                        self.extruders[tool].temperature_setpoints[2] = int(d)
+                        self.extruders[tool].temperature_setpoints[1] = int(d)
                     tool += 1
 
             elif b" brim_width =" in comment:

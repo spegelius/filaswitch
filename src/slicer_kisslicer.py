@@ -83,19 +83,19 @@ class KISSlicerGCodeFile(GCodeFile):
                 continue
 
             elif b" bed_size_x_mm =" in comment:
-                #; bed_size_x_mm = 145
+                # ; bed_size_x_mm = 145
                 self.settings.stroke_x = float(comment.split(b' = ')[1])
             elif b" bed_size_y_mm =" in comment:
-                #; bed_size_y_mm = 145
+                # ; bed_size_y_mm = 145
                 self.settings.stroke_y = float(comment.split(b' = ')[1])
             elif b" bed_offset_x_mm =" in comment:
-                #; bed_offset_x_mm = 72.5
+                # ; bed_offset_x_mm = 72.5
                 self.settings.origin_offset_x = float(comment.split(b' = ')[1])
             elif b" bed_offset_y_mm =" in comment:
-                #; bed_offset_y_mm = 72.5
+                # ; bed_offset_y_mm = 72.5
                 self.settings.origin_offset_y = float(comment.split(b' = ')[1])
             elif b" bed_offset_z_mm =" in comment:
-                #; bed_offset_z_mm = 0
+                # ; bed_offset_z_mm = 0
                 self.settings.z_offset = float(comment.split(b' = ')[1])
             elif b" round_bed =" in comment:
                 # ; round_bed = 0
@@ -169,11 +169,11 @@ class KISSlicerGCodeFile(GCodeFile):
 
             elif current_tool is not None and b" first_layer_C =" in comment:
                 # ; first_layer_C = 235
-                self.extruders[current_tool].temperature_setpoints[1] = int(comment.split(b' = ')[1])
+                self.extruders[current_tool].temperature_setpoints[0] = int(comment.split(b' = ')[1])
 
             elif current_tool is not None and b" temperature_C =" in comment:
                 # ; temperature_C = 242
-                self.extruders[current_tool].temperature_setpoints[2] = int(comment.split(b' = ')[1])
+                self.extruders[current_tool].temperature_setpoints[1] = int(comment.split(b' = ')[1])
 
             elif b" firmware_type =" in comment:
                 # ; firmware_type = 1
@@ -198,11 +198,6 @@ class KISSlicerGCodeFile(GCodeFile):
             # fix KISS xy offsets
             self.settings.origin_offset_x = self.settings.origin_offset_x - self.settings.stroke_x/2
             self.settings.origin_offset_y = self.settings.origin_offset_y - self.settings.stroke_y/2
-
-        # correct the layer height to value that doesn't have the z-offset
-        if self.settings.z_offset != 0:
-            for l in self._layers:
-                l.z -= self.settings.z_offset
 
 
 if __name__ == "__main__":

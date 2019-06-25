@@ -116,7 +116,7 @@ class Simplify3dGCodeFile(GCodeFile):
             # need to parse all setpoints to keep proper indexing even with bed
             for j in range(self.temperature_setpoints[i]):
                 if ext:
-                    layer_nr = self.temperature_setpoint_layers[temp_setpoint_index]
+                    layer_nr = self.temperature_setpoint_layers[temp_setpoint_index] - 1
                     ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
                 temp_setpoint_index += 1
 
@@ -263,7 +263,6 @@ class Simplify3dGCodeFile(GCodeFile):
                 brim = True
             elif b"skirtOutlines" in comment:
                 brim_lines = int(comment.split(b",")[-1])
-
             elif b"toolChangeRetractionDistance" in comment:
                 if comment.split(b",")[1] != b"0":
                     self.log.warning("'toolChangeRetractionDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D.")
