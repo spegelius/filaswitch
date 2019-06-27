@@ -30,6 +30,7 @@ class TestGcode(unittest.TestCase):
         self.assertEqual((-3.0, 4800), self.test_object.is_extruder_move(b'G1 F4800.00000 E-3.00000'))
         self.assertEqual((-2.6162, 1200), self.test_object.is_extruder_move(b'G1 F1200 E-2.6162'))
         self.assertEqual(None, self.test_object.is_extruder_move(b'G1 F4800.00000 E-3.00000 X0 Y0 Z0'))
+        self.assertEqual((2.0, 2700), self.test_object.is_extruder_move(b"G1 F2700 E2"))
 
     def test_read_gcode_line(self):
         self.assertEqual((b"G1 E5 F1500  ", b" juu"), self.test_object.read_gcode_line(b"G1 E5 F1500  ; juu"))
@@ -69,6 +70,7 @@ class TestGcode(unittest.TestCase):
         self.assertEqual((None, 76.532, None, 1500), self.test_object.is_head_move(b"G1 Y76.532 F1500"))
         self.assertEqual((65.82, None, None, 1500), self.test_object.is_head_move(b"G1 X65.82 F1500"))
         self.assertEqual((65.82, 76.532, None, 1500), self.test_object.is_head_move(b"G1 F1500 X65.82 Y76.532"))
+        self.assertEqual((0.0, 10.0, 0.5, 5400.0), self.test_object.is_head_move(b"G0 F5400 X0.00 Y10 Z0.5"))
 
     def test_is_lin_advance(self):
         self.assertEqual(100, self.test_object.is_lin_advance(b"M900 K100"))
