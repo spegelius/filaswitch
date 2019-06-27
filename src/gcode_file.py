@@ -452,20 +452,24 @@ class GCodeFile:
                         continue
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
+                        prev_index = index
                         for line in self.switch_tower.check_infill(cmd.data, z_pos, self.e_pos, self.active_e):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
-                        z_move_needed = True
-                        prime_needed = True
-                        prime_ok = False
-                        head_check_needed = True
-                        # always full retract after infill
-                        self.e_pos = -self.active_e.retract
+                        if index > prev_index:
+                            z_move_needed = True
+                            prime_needed = True
+                            prime_ok = False
+                            head_check_needed = True
+                            # always full retract after infill
+                            self.e_pos = -self.active_e.retract
                         continue
                     elif cmd.action == ActionPoint.PREPRIME:
                         index = self.prerun_prime(index)
+                        continue
                     elif cmd.action == ActionPoint.LAYER_CHANGE:
                         layer_nr = cmd.data
+                        continue
                 elif gcode.is_z_move(cmd):
                     z_pos = round(gcode.last_match[0], 5)
                     z_move_needed = False
@@ -485,6 +489,7 @@ class GCodeFile:
                         self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[0])
                 elif gcode.is_extrusion_move(cmd):
                     # add prime if needed
+                    current_z = z_pos
                     if prime_needed:
                         if not prime_ok:
                             # if not in position, add move before prime
@@ -492,6 +497,7 @@ class GCodeFile:
                             y = last_pos[1]
                             index += self.insert_line(index, gcode.gen_head_move(x, y, self.settings.travel_xy_speed),
                                                       b' update position')
+                            head_check_needed = False
                         # reset prime flag when printing starts after tower
                         prime_needed = False
                         if self.e_pos < -self.active_e.minimum_extrusion:
@@ -526,7 +532,7 @@ class GCodeFile:
                         if not gcode.last_match[3] or gcode.last_match[3] < self.settings.travel_xy_speed or last_pos[2]:
                             self.lines[index] = gcode.gen_head_move(gcode.last_match[0], gcode.last_match[1], self.settings.travel_xy_speed), b" fixed travel"
                             if last_pos[2]:
-                                self.insert_line(index+1, gcode.gen_z_move(last_pos[2], self.settings.travel_z_speed))
+                                index += self.insert_line(index+1, gcode.gen_z_move(last_pos[2], self.settings.travel_z_speed))
 
             except IndexError:
                 break
