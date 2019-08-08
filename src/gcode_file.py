@@ -633,6 +633,12 @@ class GCodeFile:
                     self._temperatures[tool] = {}
                 self._temperatures[tool][layer_nr] = gcode.last_match[0]
 
+            # find linear advance/pressure advance commands
+            elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
+                self.settings.linear_advance = gcode.last_match
+            elif gcode.is_pressure_advance(cmd) and gcode.last_match != 0:
+                self.settings.pressure_advance = gcode.last_match
+
             if in_start_gcode:
                 # skip rest of the parsing if in start gcode
                 index += 1
@@ -737,11 +743,6 @@ class GCodeFile:
                 if gcode.last_match[1] is not None:
                     last_extrusion_y = gcode.last_match[1]
 
-            # find linear advance/pressure advance commands
-            elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
-                self.settings.linear_advance = gcode.last_match
-            elif gcode.is_pressure_advance(cmd) and gcode.last_match != 0:
-                self.settings.pressure_advance = gcode.last_match
             index += 1
 
         if self.start_gcode_end is None:
