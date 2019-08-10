@@ -35,6 +35,7 @@ class KISSlicerGCodeFile(GCodeFile):
             self.add_tool_change_gcode()
         else:
             self.log.info("No tool changes detected, skipping tool change g-code additions")
+        self.print_summary()
         return self.save_new_file()
 
     def parse_version(self, lines):
@@ -115,7 +116,7 @@ class KISSlicerGCodeFile(GCodeFile):
                             self.extruders[t] = Extruder(t)
                             self.extruders[t].temperature_nr = t
 
-                elif b"; nozzle_dia" in comment:
+                elif b" nozzle_dia" in comment:
                     # ; nozzle_dia_1 = 0.4
                     parts = comment.split(b" = ")
                     dia = float(parts[1])
