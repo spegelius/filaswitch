@@ -50,10 +50,11 @@ class Extruder:
         rate *= self.feed_rate_multiplier * feed_multi
         rate_max = self.feed_rate_max
         if self.nozzle:
-            rate_max = self.feed_rate_max * (0.4/self.nozzle)
+            rate_max = self.feed_rate_max * (self.nozzle/0.4)
 
         if rate > rate_max:
-            raise ValueError("Feed rate too high ({}, layer h {})! Aborting.".format(rate, layer_height))
+            raise ValueError("Feed rate too high ({:.4}, layer h {}, max allowed {})! Aborting."
+                             .format(rate, layer_height, rate_max))
         return move_length * rate
 
     def get_retract_gcode(self, change=0.0, comment=b" retract"):
