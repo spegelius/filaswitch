@@ -30,7 +30,7 @@ class Settings:
         self._purge_multi = 110
         self._purge_speed = 60
 
-        # print settings
+        # speeds
         self._default_speed = None
         self._travel_xy_speed = None
         self._travel_z_speed = None
@@ -48,11 +48,12 @@ class Settings:
         self._linear_advance = 0
         self._pressure_advance = None
 
-        # print settings
+        # tower print settings
         self._brim = BRIM_DEFAULT
         self._brim_auto = False
         self._force_raft = None
         self._tower_force = []
+        self._tower_fan_off = None
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -206,6 +207,14 @@ class Settings:
     @brim_auto.setter
     def brim_auto(self, value: bool):
         self._brim_auto = value
+
+    @property
+    def tower_fan_off(self):
+        return self._tower_fan_off
+
+    @tower_fan_off.setter
+    def tower_fan_off(self, value: bool):
+        self._tower_fan_off = value
 
     @property
     def extrusion_width(self):

@@ -156,6 +156,7 @@ class TopFrame(Frame):
         status["purge_multi"] = self.gui.adv_frame.purge_multi_var.get()
         status["purge_speed"] = self.gui.adv_frame.purge_speed_var.get()
         status["debug"] = "true" if self.gui.adv_frame.debug_var.get() else "false"
+        status["tower_fan_off"] = "true" if self.gui.adv_frame.tower_fan_off_var.get() else "false"
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
             status["brim_size"] = BRIM_DEFAULT
@@ -196,7 +197,9 @@ class TopFrame(Frame):
                 settings.raft_multi = int(self.gui.adv_frame.raft_multi_var.get())
                 settings.purge_multi = int(self.gui.adv_frame.purge_multi_var.get())
                 settings.purge_speed = int(self.gui.adv_frame.purge_speed_var.get())
+                settings.tower_fan_off = self.gui.adv_frame.tower_fan_off_var.get()
                 brim_val = self.gui.adv_frame.brim_size_var.get()
+
                 if brim_val == BRIM_AUTO:
                     settings.brim = BRIM_DEFAULT
                     settings.brim_auto = True
@@ -300,6 +303,7 @@ class AdvancedFrame(Frame):
         self.purge_multi_label = Label(self, text="Purge extrusion %").grid(row=1, column=2, sticky=W, padx=5, pady=3)
         self.purge_speed_label = Label(self, text="Purge extrusion max speed (mm/s)")\
             .grid(row=2, column=2, sticky=W, padx=5, pady=3)
+        self.tower_fan_off_label = Label(self, text="Fan off during tower").grid(row=3, column=2, sticky=W, padx=5, pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -395,6 +399,13 @@ class AdvancedFrame(Frame):
         self.purge_speed_box = OptionMenu(self, self.purge_speed_var, self.purge_speed_var.get(), *purge_speed_values)
         self.purge_speed_box.grid(row=2, column=3, sticky=W, padx=5, pady=3)
 
+        # fan off
+        self.tower_fan_off_var = BooleanVar(self)
+        self.tower_fan_off_var.set(self.gui.tower_fan_off)
+
+        self.tower_fan_off_box = Checkbutton(self, variable=self.tower_fan_off_var)
+        self.tower_fan_off_box.grid(row=3, column=3, sticky=W, padx=5, pady=3)
+
     def set_debug(self):
         self.log.enable_debug(self.debug_var.get())
 
@@ -477,6 +488,8 @@ class GUI:
         except (ValueError, TypeError):
             self.purge_speed = 60
 
+        self.tower_fan_off = status.get("tower_fan_off") == "true"
+
         # OctoPrint values
         self.octoprint_url = status.get("octoprint_url")
         self.octoprint_api_key = status.get("octoprint_api_key")
@@ -537,6 +550,7 @@ def main():
         parser.add_argument("--raft_multi", help="Raft extrusion percentage, default 100", type=int, default=100)
         parser.add_argument("--purge_multi", help="Purge extrusion percentage, default 110", type=int, default=110)
         parser.add_argument("--purge_speed", help="Purge extrusion max speed, default 60", type=int, default=60)
+        parser.add_argument("--tower_fan_off", help="Turn off fan while printing tower", action="store_true")
         parser.add_argument("--opurl", help="OctoPrint url for gcode upload", type=str)
         parser.add_argument("--opkey", help="OctoPrint API key for gcode upload", type=str)
         parser.add_argument("--opfolder", help="OctoPrint upload folder", type=str, default="")
@@ -552,6 +566,7 @@ def main():
         settings.raft_multi = args.raft_multi
         settings.purge_multi = args.purge_multi
         settings.purge_speed = args.purge_speed
+        settings.tower_fan_off = args.tower_fan_off
 
         if args.brim_count:
             settings.brim = args.brim_count
