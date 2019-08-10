@@ -127,6 +127,15 @@ class PrePrime:
         """
         yield None, b" PRIME START"
         z_pos = round(0.2 + self.settings.z_offset, 5)
+
+        # turn linear advance off, if set
+        if self.settings.linear_advance != 0:
+            yield gcode.gen_lin_advance(0), b" turn off linear advance"
+
+        # turn pressure advance off, if set
+        if self.settings.pressure_advance:
+            yield gcode.gen_pressure_advance(self.settings.pressure_advance[0], 0), b" turn off pressure advance"
+
         # Reverse order
         for tool in self.tools[::-1]:
             # get extruder object from tool number
@@ -170,6 +179,14 @@ class PrePrime:
             self.warnings_shown = True
 
             self.last_extruder = extruder
+
+        # turn linear advance back on, if set
+        if self.settings.linear_advance != 0:
+            yield gcode.gen_lin_advance(self.settings.linear_advance), b" turn on linear advance"
+
+        # turn pressure advance back on, if set
+        if self.settings.pressure_advance:
+            yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         yield None, b"PRIME END"
 
