@@ -424,8 +424,9 @@ class GCodeFile:
                             self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
                         else:
                             # disable fan
-                            if fan_speed:
+                            if fan_speed and self.settings.tower_fan_off:
                                 index += self.insert_line(index, gcode.gen_fan_off_gcode(), b"disable fan")
+
                             # add tool change g-code
                             # first check if retract is needed
                             retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
@@ -447,7 +448,7 @@ class GCodeFile:
                             z_move_needed = True
                             head_check_needed = True
 
-                            if fan_speed:
+                            if fan_speed and self.settings.tower_fan_off:
                                 index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
                         continue
                     elif cmd.action == ActionPoint.INFILL:

@@ -916,10 +916,9 @@ class SwitchTower:
 
         # calculate new purge line gap based on line count differences
         purge_gap = self.purge_line_width
-        line_diff = self.purge_lines - whole_lines
-        if line_diff:
-            if whole_lines > 1:
-                purge_gap += line_diff/(whole_lines - 1) * purge_gap
+        line_diff = lines - whole_lines
+        if line_diff and whole_lines > 1:
+            purge_gap += line_diff/(whole_lines - 1) * purge_gap
 
         # adjust purge feed multiplier
         purge_multi = self.settings.purge_multi/100 * lines / whole_lines
