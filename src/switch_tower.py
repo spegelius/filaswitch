@@ -561,7 +561,7 @@ class SwitchTower:
         for length, speed in zip(rr_long_lengths, rr_long_speeds):
             if rr_wipe:
                 yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), rr_wipe_length, speed,
-                                               layer_h, e_length=-length, e_speed=True), b" long retract with wipe"
+                                               layer_h, extruder=old_e, e_length=-length, e_speed=True), b" long retract with wipe"
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" long retract"
                 
@@ -920,8 +920,8 @@ class SwitchTower:
 
         # calculate new purge line gap based on line count differences
         purge_gap = self.purge_line_width
-        line_diff = self.purge_lines - whole_lines
-        if line_diff:
+        line_diff = lines - whole_lines
+        if line_diff and whole_lines > 1:
             purge_gap += line_diff/(whole_lines - 1) * purge_gap
 
         # adjust purge feed multiplier
@@ -1148,7 +1148,6 @@ class SwitchTower:
 
         tower_z = layer.z
         layer_h = round(layer.z - self.slots[self.slot]['last_z'], 5)
-        print("INFILL:", layer_h)
         for s in range(self.infill_slots):
             self.slots[self.slot + s]['last_z'] = round(tower_z, 5)
 
