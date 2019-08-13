@@ -25,7 +25,8 @@ from slicer_prusa_slic3r import PrusaSlic3rCodeFile
 
 from logger import Logger
 
-from settings import Settings, LINE_COUNT_DEFAULT, AUTO, TOWER_POSITIONS, LINES, BRIM_SIZE, BRIM_DEFAULT, BRIM_AUTO
+from settings import Settings, LINE_COUNT_DEFAULT, AUTO, TOWER_POSITIONS, LINES, BRIM_SIZE, BRIM_DEFAULT, BRIM_AUTO,\
+    INFILL_STYLES, INFILL_ZIGZAG
 
 import utils
 
@@ -157,6 +158,7 @@ class TopFrame(Frame):
         status["purge_speed"] = self.gui.adv_frame.purge_speed_var.get()
         status["debug"] = "true" if self.gui.adv_frame.debug_var.get() else "false"
         status["tower_fan_off"] = "true" if self.gui.adv_frame.tower_fan_off_var.get() else "false"
+        status["infill_style"] = self.gui.adv_frame.infill_style_var.get()
         brim_var = self.gui.adv_frame.brim_size_var.get()
         if brim_var == BRIM_AUTO:
             status["brim_size"] = BRIM_DEFAULT
@@ -198,6 +200,7 @@ class TopFrame(Frame):
                 settings.purge_multi = int(self.gui.adv_frame.purge_multi_var.get())
                 settings.purge_speed = int(self.gui.adv_frame.purge_speed_var.get())
                 settings.tower_fan_off = self.gui.adv_frame.tower_fan_off_var.get()
+                settings.infill_style = self.gui.adv_frame.infill_style_var.get()
                 brim_val = self.gui.adv_frame.brim_size_var.get()
 
                 if brim_val == BRIM_AUTO:
@@ -304,6 +307,8 @@ class AdvancedFrame(Frame):
         self.purge_speed_label = Label(self, text="Purge extrusion max speed (mm/s)")\
             .grid(row=2, column=2, sticky=W, padx=5, pady=3)
         self.tower_fan_off_label = Label(self, text="Fan off during tower").grid(row=3, column=2, sticky=W, padx=5, pady=3)
+        self.infill_style_label = Label(self, text="Tower infill layer style").grid(row=4, column=2, sticky=W, padx=5,
+                                                                                 pady=3)
 
         # position
         self.position_var = StringVar(self)
@@ -406,6 +411,17 @@ class AdvancedFrame(Frame):
         self.tower_fan_off_box = Checkbutton(self, variable=self.tower_fan_off_var)
         self.tower_fan_off_box.grid(row=3, column=3, sticky=W, padx=5, pady=3)
 
+        # infill type
+        self.infill_style_var = StringVar(self)
+
+        if self.gui.infill_style and self.gui.infill_style in INFILL_STYLES:
+            self.infill_style_var.set(self.gui.infill_style)
+        else:
+            self.infill_style_var.set(INFILL_ZIGZAG)
+
+        self.infill_type_option = OptionMenu(self, self.infill_style_var, self.infill_style_var.get(), *INFILL_STYLES)
+        self.infill_type_option.grid(row=4, column=3, sticky=W, padx=5, pady=3)
+
     def set_debug(self):
         self.log.enable_debug(self.debug_var.get())
 
@@ -490,6 +506,8 @@ class GUI:
 
         self.tower_fan_off = status.get("tower_fan_off") == "true"
 
+        self.infill_style = status.get("infill_style")
+
         # OctoPrint values
         self.octoprint_url = status.get("octoprint_url")
         self.octoprint_api_key = status.get("octoprint_api_key")
@@ -551,6 +569,7 @@ def main():
         parser.add_argument("--purge_multi", help="Purge extrusion percentage, default 110", type=int, default=110)
         parser.add_argument("--purge_speed", help="Purge extrusion max speed, default 60", type=int, default=60)
         parser.add_argument("--tower_fan_off", help="Turn off fan while printing tower", action="store_true")
+        parser.add_argument("--infill_style", help="Tower infill style", choices=INFILL_STYLES, default=INFILL_ZIGZAG)
         parser.add_argument("--opurl", help="OctoPrint url for gcode upload", type=str)
         parser.add_argument("--opkey", help="OctoPrint API key for gcode upload", type=str)
         parser.add_argument("--opfolder", help="OctoPrint upload folder", type=str, default="")
@@ -567,6 +586,7 @@ def main():
         settings.purge_multi = args.purge_multi
         settings.purge_speed = args.purge_speed
         settings.tower_fan_off = args.tower_fan_off
+        settings.infill_style = args.infill_style
 
         if args.brim_count:
             settings.brim = args.brim_count
