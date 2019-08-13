@@ -57,11 +57,13 @@ class SwitchTower:
         self.purge_length = self.width + self.purge_length_diff
 
         self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
+        # purge gap default is bit wider that the purge width so that the tower isn't too stuffed
+        self.purge_gap_default = self.purge_line_width * 1.1
 
         # actual purge line count is 2x (forth and back) the setting scaled with 0.2/min_z_h
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
-        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_line_width + 0.2
+        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_gap_default + 0.2
 
         self.wall_width = self.width + 2.4
         self.wall_height = self.height + 1.0
@@ -916,10 +918,10 @@ class SwitchTower:
 
         # calculate new line counts (fractional, whole) based on layer height feed rate
         lines = purge_e / (utils.extrusion_feed_rate(self.purge_line_width, layer_h, 1.75) * self.purge_length * 2)
-        whole_lines = int(lines)
+        whole_lines = math.floor(lines)
 
         # calculate new purge line gap based on line count differences
-        purge_gap = self.purge_line_width
+        purge_gap = self.purge_gap_default
         line_diff = lines - whole_lines
         if line_diff and whole_lines > 1:
             purge_gap += line_diff/(whole_lines - 1) * purge_gap
