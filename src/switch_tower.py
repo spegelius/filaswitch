@@ -65,7 +65,8 @@ class SwitchTower:
 
         self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_gap_default + 0.2
 
-        self.wall_width = self.width + 2.4
+        self.wall_gap = 2 + self.settings.extrusion_width
+        self.wall_width = self.width + self.wall_gap
         self.wall_height = self.height + 1.0
 
         # calculate total purge length
@@ -838,12 +839,12 @@ class SwitchTower:
         else:
             h = self.wall_height
 
-        y_pos = (self.wall_height + 0.4) * self.slot
+        y_pos = (self.wall_height + self.settings.extrusion_width) * self.slot
 
         if x_direction == self.E:
-            x_offset = -1.7
+            x_offset = -self.wall_gap/2 - 1/2
         else:
-            x_offset = self.wall_width - 1.7
+            x_offset = self.wall_width - self.wall_gap/2 - 1/2
 
         if y_direction == self.N:
             y_offset = h - 0.5 + y_pos
@@ -870,7 +871,7 @@ class SwitchTower:
         y_dir = gcode.opposite_dir(y_direction)
 
         if infill:
-            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width
         else:
             h = self.wall_height
 
@@ -969,12 +970,14 @@ class SwitchTower:
         if z_hop:
             yield z_hop
 
-        y_pos = (self.wall_height + 0.4) * self.slot
+        y_pos = (self.wall_height + self.settings.extrusion_width) * self.slot
         if self.slots[self.slot]['horizontal_dir'] == self.E:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.5, 0.2 + y_pos)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.5,
+                                                    self.settings.extrusion_width/2 + y_pos)
         else:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x,
-                                                    self.start_pos_y, self.width-0.5, -0.2 + y_pos + self.height)
+                                                    self.start_pos_y, self.width-0.5,
+                                                    -self.settings.extrusion_width/2 + y_pos + self.height)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         tower_z = layer.z
@@ -1155,7 +1158,7 @@ class SwitchTower:
 
         # infill settings
         infill_x = (self.wall_width-2)/len(self.infill_speeds)
-        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4 - 0.3
+        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width - 0.3
         infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
 
