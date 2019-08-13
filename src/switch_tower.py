@@ -2,7 +2,7 @@ import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
 from layer import Layer, ACT_SWITCH
-from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM
+from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM, INFILL_ZIGZAG, INFILL_BLOCKY
 
 import utils
 
@@ -133,6 +133,9 @@ class SwitchTower:
                               self.settings.default_speed,
                               self.settings.default_speed,
                               self.settings.default_speed]
+
+        self.infill_functions = {INFILL_ZIGZAG: self.get_infill_lines_zigzag,
+                                 INFILL_BLOCKY: self.get_infill_lines_blocky}
 
     def initialize_slots(self):
         """
@@ -1129,7 +1132,8 @@ class SwitchTower:
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
 
-    def get_infill_lines(self, current_z, z_pos, e_pos, extruder):
+
+    def get_infill_lines_zigzag(self, current_z, z_pos, e_pos, extruder):
         """
         G-code for switch tower infill
         :param current_z: current layer z
@@ -1226,6 +1230,90 @@ class SwitchTower:
         # flip the flop
         self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
 
+    def get_infill_lines_blocky(self, current_z, z_pos, e_pos, extruder):
+        """
+        G-code for switch tower infill
+        :param current_z: current layer z
+        :param z_pos: head z position
+        :param e_pos: extruder position
+        :param extruder: active extruder
+        :return: list of cmd, comment tuples
+        """
+
+        # TODO: move this to global state
+        self.e_pos = e_pos
+
+        self.get_slot(current_z, extruder.tool, False)
+
+            # calculate layer height
+        layer_h = current_z - self.slots[self.slot]['last_z']
+        if layer_h <= 0.0:
+            # no reason to print infill. Actually no reason to be here...
+            return
+
+        self.log.debug("Adding purge tower infill")
+        yield None, b" TOWER INFILL START"
+
+        # handle retraction
+        yield self._get_retraction(extruder)
+
+        # handle z-hop
+        z_hop = self._get_z_hop(z_pos, extruder)
+        if z_hop:
+            yield z_hop
+
+        tower_z = layer_h + self.slots[self.slot]['last_z']
+        for s in range(self.infill_slots):
+            self.slots[self.slot + s]['last_z'] = round(tower_z, 5)
+
+        # infill settings
+        infill_x = (self.wall_width - 2) / len(self.infill_speeds)
+        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width
+
+        flip = self.slots[self.slot]['flipflop_infill']
+        if flip:
+            horizontal_dir = self.E
+        else:
+            horizontal_dir = self.W
+        vertical_dir = self.S
+
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
+        if z_hop:
+            yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        yield gcode.gen_relative_positioning(), b" relative positioning"
+
+
+        # infill 'lip' for better purge base
+        yield gcode.gen_direction_move(horizontal_dir, 1, self.settings.travel_xy_speed, layer_h), b" infill position"
+        yield self._get_prime(extruder)
+        yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), infill_y, self.settings.default_speed, layer_h,
+                                       extruder=extruder), b" infill lip"
+
+        for speed in self.infill_speeds:
+            yield gcode.gen_direction_move(horizontal_dir, infill_x, speed, layer_h,
+                                           extruder=extruder), b" infill"
+            yield gcode.gen_direction_move(vertical_dir, infill_y, speed, layer_h,
+                                           extruder=extruder), b" infill"
+
+            vertical_dir = gcode.opposite_dir(vertical_dir)
+
+        yield gcode.gen_direction_move(vertical_dir, infill_y, self.infill_speeds[-1], layer_h,
+                                       extruder=extruder, last_line=True), b" infill lip"
+
+        yield extruder.get_retract_gcode()
+        self.e_pos = -extruder.retract
+        if extruder.wipe:
+            yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer_h), b" wipe"
+
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
+        yield self._get_z_hop(current_z, extruder)
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
+        yield None, b" TOWER INFILL END"
+
+        # flip the flop
+        self.slots[self.slot]['flipflop_infill'] = not self.slots[self.slot]['flipflop_infill']
+
     def check_infill(self, current_z, z_pos, e_pos, extruder):
         """
         Checks if tower z is too low versus layer and adds infill if needed
@@ -1262,5 +1350,5 @@ class SwitchTower:
                 self.raft_done = True
         if count:
             self.infill_slots = count
-            for l in self.get_infill_lines(current_z, z_pos, e_pos, extruder):
+            for l in self.infill_functions[self.settings.infill_style](current_z, z_pos, e_pos, extruder):
                 yield l

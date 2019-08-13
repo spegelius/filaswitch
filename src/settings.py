@@ -17,6 +17,10 @@ BRIM_SIZE = [2, 3, 4, 5, 6, 7, 8, 9, 10]
 BRIM_DEFAULT = 3
 BRIM_AUTO = "Auto"
 
+INFILL_ZIGZAG = "ZigZag"
+INFILL_BLOCKY = "Blocky"
+INFILL_STYLES = [INFILL_ZIGZAG, INFILL_BLOCKY]
+
 
 class Settings:
 
@@ -54,6 +58,7 @@ class Settings:
         self._force_raft = None
         self._tower_force = []
         self._tower_fan_off = None
+        self._infill_style = INFILL_ZIGZAG
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -236,6 +241,16 @@ class Settings:
     @tower_fan_off.setter
     def tower_fan_off(self, value: bool):
         self._tower_fan_off = value
+
+    @property
+    def infill_style(self):
+        return self._infill_style
+
+    @infill_style.setter
+    def infill_style(self, value):
+        if value not in INFILL_STYLES:
+            raise ValueError("Unknown infill style {}".format(value))
+        self._infill_style = value
 
     @property
     def extrusion_width(self):
