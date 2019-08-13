@@ -59,13 +59,16 @@ class SwitchTower:
         self.purge_length = self.width + self.purge_length_diff
 
         self.purge_line_width = self.settings.extrusion_width * self.settings.purge_multi/100
+        # purge gap default is bit wider that the purge width so that the tower isn't too stuffed
+        self.purge_gap_default = self.purge_line_width * 1.1
 
         # actual purge line count is 2x (forth and back) the setting scaled with 0.2/min_z_h
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
-        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_line_width + 0.2
+        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_gap_default + 0.2
 
-        self.wall_width = self.width + 2.4
+        self.wall_gap = 2 + self.settings.extrusion_width
+        self.wall_width = self.width + self.wall_gap
         self.wall_height = self.height + 1.0
 
         # calculate total purge length
@@ -83,8 +86,9 @@ class SwitchTower:
 
         self.brim_done = False
         self.raft_done = False
-        self.raft_width = self.width + 2 * self.brim_width - 1
-        self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
+        self.raft_width = self.wall_width + 2 * self.brim_width
+        self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width + (self.max_slots - 1) * \
+                           self.settings.extrusion_width
         self.raft_layer_height = None
         self.angle = 0
 
@@ -379,8 +383,8 @@ class SwitchTower:
         # get raft position
         x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y,
                                                 -self.brim_width, -self.brim_width)
-        self.raft_pos_x = x
-        self.raft_pos_y = y
+        self.raft_pos_x = x -self.wall_gap/2 - 1/2
+        self.raft_pos_y = y -0.5
 
         # init slots after tower rotation is done
         self.initialize_slots()
@@ -723,7 +727,7 @@ class SwitchTower:
         """
         self.log.debug("Raft begin")
         if slot_count:
-            height = self.wall_height * slot_count + 0.3
+            height = self.wall_height * slot_count + (slot_count - 1) * self.settings.extrusion_width + 2 * 0.3
         else:
             return
 
@@ -836,16 +840,16 @@ class SwitchTower:
         :return: g-code line
         """
         if infill:
-            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width
         else:
             h = self.wall_height
 
-        y_pos = (self.wall_height + 0.4) * self.slot
+        y_pos = (self.wall_height + self.settings.extrusion_width) * self.slot
 
         if x_direction == self.E:
-            x_offset = -1.7
+            x_offset = -self.wall_gap/2 - 1/2
         else:
-            x_offset = self.wall_width - 1.7
+            x_offset = self.wall_width - self.wall_gap/2 - 1/2
 
         if y_direction == self.N:
             y_offset = h - 0.5 + y_pos
@@ -872,7 +876,7 @@ class SwitchTower:
         y_dir = gcode.opposite_dir(y_direction)
 
         if infill:
-            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width
         else:
             h = self.wall_height
 
@@ -912,10 +916,10 @@ class SwitchTower:
 
         # calculate new line counts (fractional, whole) based on layer height feed rate
         lines = purge_e / (utils.extrusion_feed_rate(self.purge_line_width, layer_h, 1.75) * self.purge_length * 2)
-        whole_lines = int(lines)
+        whole_lines = math.floor(lines)
 
         # calculate new purge line gap based on line count differences
-        purge_gap = self.purge_line_width
+        purge_gap = self.purge_gap_default
         line_diff = lines - whole_lines
         if line_diff and whole_lines > 1:
             purge_gap += line_diff/(whole_lines - 1) * purge_gap
@@ -970,12 +974,14 @@ class SwitchTower:
         if z_hop:
             yield z_hop
 
-        y_pos = (self.wall_height + 0.4) * self.slot
+        y_pos = (self.wall_height + self.settings.extrusion_width) * self.slot
         if self.slots[self.slot]['horizontal_dir'] == self.E:
-            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.5, 0.2 + y_pos)
+            x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y, -0.5,
+                                                    self.settings.extrusion_width/2 + y_pos)
         else:
             x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x,
-                                                    self.start_pos_y, self.width-0.5, -0.2 + y_pos + self.height)
+                                                    self.start_pos_y, self.width-0.5,
+                                                    -self.settings.extrusion_width/2 + y_pos + self.height)
         yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to purge zone"
 
         self.slots[self.slot]['last_z'] = round(current_z, 5)
@@ -1161,7 +1167,7 @@ class SwitchTower:
 
         # infill settings
         infill_x = (self.wall_width-2)/len(self.infill_speeds)
-        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4 - 0.3
+        infill_y = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width - 0.3
         infill_angle = math.degrees(math.atan(infill_y/infill_x))
         infill_path_length = gcode.calculate_path_length((0,0), (infill_x, infill_y))
 
