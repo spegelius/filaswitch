@@ -84,8 +84,9 @@ class SwitchTower:
 
         self.brim_done = False
         self.raft_done = False
-        self.raft_width = self.width + 2 * self.brim_width - 1
-        self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width - 0.5
+        self.raft_width = self.wall_width + 2 * self.brim_width
+        self.raft_height = self.wall_height * self.max_slots + 2 * self.brim_width + (self.max_slots - 1) * \
+                           self.settings.extrusion_width
         self.raft_layer_height = None
         self.angle = 0
 
@@ -380,8 +381,8 @@ class SwitchTower:
         # get raft position
         x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y,
                                                 -self.brim_width, -self.brim_width)
-        self.raft_pos_x = x
-        self.raft_pos_y = y
+        self.raft_pos_x = x -self.wall_gap/2 - 1/2
+        self.raft_pos_y = y -0.5
 
         # init slots after tower rotation is done
         self.initialize_slots()
@@ -721,7 +722,7 @@ class SwitchTower:
         """
 
         if slot_count:
-            height = self.wall_height * slot_count + 0.3
+            height = self.wall_height * slot_count + (slot_count - 1) * self.settings.extrusion_width + 2 * 0.3
         else:
             return
 
@@ -835,7 +836,7 @@ class SwitchTower:
         :return: g-code line
         """
         if infill:
-            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * 0.4
+            h = self.wall_height * self.infill_slots + (self.infill_slots - 1) * self.settings.extrusion_width
         else:
             h = self.wall_height
 
