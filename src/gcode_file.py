@@ -697,13 +697,14 @@ class GCodeFile:
                 # print move defines the actual z-height for tool
                 if current_z not in self._layers:
                     self._layers[current_z] = []
-                    self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
-                    layer_nr += 1
-                    if len(self._layers) > 1:
-                        # add infill action with previous layer height
-                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
-                        index += 1
-                    last_up_z_index = None
+                    if last_up_z_index is not None:
+                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
+                        layer_nr += 1
+                        if len(self._layers) > 1:
+                            # add infill action with previous layer height
+                            self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
+                            index += 1
+                        last_up_z_index = None
                 last_print_z = current_z
 
                 # add tool to layer list if flag is set
