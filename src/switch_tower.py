@@ -93,6 +93,9 @@ class SwitchTower:
         self.start_pos_x = None
         self.start_pos_y = None
 
+        self.brim_pos_x = None
+        self.brim_pos_y = None
+
         self.raft_pos_x = None
         self.raft_pos_y = None
 
@@ -384,8 +387,11 @@ class SwitchTower:
         # get raft position
         x, y = gcode.get_coordinates_by_offsets(self.E, self.start_pos_x, self.start_pos_y,
                                                 -self.brim_width, -self.brim_width)
-        self.raft_pos_x = x -self.wall_gap/2 - 1/2
-        self.raft_pos_y = y -0.5
+        self.brim_pos_x, self.brim_pos_y = gcode.get_coordinates_by_offsets(self.E, x, y,
+                                                                            -self.wall_gap/2 - 1/2, -0.5)
+        self.raft_pos_x, self.raft_pos_y = gcode.get_coordinates_by_offsets(self.E, self.brim_pos_x, self.brim_pos_y,
+                                                                            self.brim_width + 0.5,
+                                                                            self.brim_width - 0.3)
 
         # init slots after tower rotation is done
         self.initialize_slots()
@@ -668,8 +674,10 @@ class SwitchTower:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
 
-        yield gcode.gen_head_move(self.raft_pos_x, self.raft_pos_y, self.settings.travel_xy_speed), b" move to raft zone"
-        yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset, self.settings.travel_z_speed), b" move z close"
+        yield gcode.gen_head_move(self.brim_pos_x, self.brim_pos_y,
+                                  self.settings.travel_xy_speed), b" move to brim zone"
+        yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset,
+                               self.settings.travel_z_speed), b" move z close"
 
         prime = self._get_prime(extruder)
         if prime:
@@ -738,9 +746,9 @@ class SwitchTower:
             z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
 
-        raft_pos_y = self.raft_pos_y + self.wall_height * (self.max_slots - slot_count)
-        yield gcode.gen_head_move(self.raft_pos_x + self.brim_width + 0.5, raft_pos_y + self.brim_width - 0.3,
-                                  self.settings.travel_xy_speed), b" move to raft zone"
+        x, y = gcode.get_coordinates_by_offsets(self.E, self.raft_pos_x, self.raft_pos_y,
+                                                0, self.wall_height * (self.max_slots - slot_count))
+        yield gcode.gen_head_move(x, y, self.settings.travel_xy_speed), b" move to raft zone"
         yield gcode.gen_z_move(self.raft_layer_height + self.settings.z_offset,
                                self.settings.travel_z_speed), b" move z close"
 
