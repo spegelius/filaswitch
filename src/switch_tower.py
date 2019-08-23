@@ -34,7 +34,7 @@ class SwitchTower:
         self.log = logger
         self.towers = towers
 
-        min_layer_h = self.towers.get_min_layer_h()
+        self.min_layer_h = self.towers.get_min_layer_h()
 
         self.slot = 0
         self.slots = {}
@@ -42,7 +42,7 @@ class SwitchTower:
 
         # Hackish way to expand purge area by using 0.2 mm layer as the base value.
         # Tower needs more space with smaller layer heights...
-        scale_factor = 0.2 / min_layer_h
+        scale_factor = 0.2 / self.min_layer_h
 
         self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
         pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
@@ -72,9 +72,9 @@ class SwitchTower:
         self.wall_height = self.height + 1.0
 
         # calculate total purge length
-        extrusion_rate = utils.extrusion_feed_rate(self.purge_line_width, min_layer_h, 1.75)
+        extrusion_rate = utils.extrusion_feed_rate(self.purge_line_width, self.min_layer_h, 1.75)
         self.purge_e_length = extrusion_rate * self.purge_length * self.purge_lines * 2
-        self.purge_e_length += utils.extrusion_feed_rate(self.settings.extrusion_width, min_layer_h, 1.75) *\
+        self.purge_e_length += utils.extrusion_feed_rate(self.settings.extrusion_width, self.min_layer_h, 1.75) *\
                                (self.wall_height + self.wall_width) * 2
         self.log.info("Total purge length with {} purge lines is {}".format(self.settings.purge_lines,
                                                                             self.purge_e_length))
@@ -921,6 +921,11 @@ class SwitchTower:
         lines = purge_e / (utils.extrusion_feed_rate(self.purge_line_width, layer_h, 1.75) * self.purge_length * 2)
         whole_lines = math.floor(lines)
 
+        if not whole_lines:
+            whole_lines = 1
+        if whole_lines/self.purge_lines < 0.5:
+            whole_lines = int(self.purge_lines/2)
+
         # calculate new purge line gap based on line count differences
         purge_gap = self.purge_gap_default
         line_diff = lines - whole_lines
@@ -964,8 +969,8 @@ class SwitchTower:
 
         # calculate layer height
         layer_h = round(current_z - self.slots[self.slot]['last_z'], 5)
-        if layer_h <= 0.0:
-            layer_h = self.towers.get_min_layer_h()
+        if layer_h < self.min_layer_h:
+            layer_h = self.min_layer_h
 
         initial_horizontal_dir = self.slots[self.slot]['horizontal_dir']
 
@@ -1105,7 +1110,6 @@ class SwitchTower:
             yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
-
         for line in self._get_wall_gcode(new_e, layer_h, self.settings.default_speed,
                                          self.slots[self.slot]['horizontal_dir'],
                                          self.slots[self.slot]['vertical_dir']):
@@ -1123,7 +1127,7 @@ class SwitchTower:
         yield self._get_z_hop(current_z, old_e)
         yield None, b" TOWER END"
         
-        #readjust motor current
+        # readjust motor current
         motor_current = self.settings.get_hw_config_int_value("motor.current.run")
         if motor_current:
             yield gcode.gen_motor_current('E',motor_current), b" adjust current"
@@ -1131,7 +1135,6 @@ class SwitchTower:
         # flip the directions
         self.slots[self.slot]['horizontal_dir'] = gcode.opposite_dir(initial_horizontal_dir)
         self.slots[self.slot]['vertical_dir'] = gcode.opposite_dir(self.slots[self.slot]['vertical_dir'])
-
 
     def get_infill_lines_zigzag(self, current_z, z_pos, e_pos, extruder):
         """
@@ -1148,9 +1151,9 @@ class SwitchTower:
 
         self.get_slot(current_z, extruder.tool, False)
 
-            # calculate layer height
+        # calculate layer height
         layer_h = current_z - self.slots[self.slot]['last_z']
-        if layer_h <= 0.0:
+        if layer_h <= 0.1:
             # no reason to print infill. Actually no reason to be here...
             return
 
@@ -1245,7 +1248,7 @@ class SwitchTower:
 
         self.get_slot(current_z, extruder.tool, False)
 
-            # calculate layer height
+        # calculate layer height
         layer_h = current_z - self.slots[self.slot]['last_z']
         if layer_h <= 0.0:
             # no reason to print infill. Actually no reason to be here...
@@ -1281,7 +1284,6 @@ class SwitchTower:
         if z_hop:
             yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         yield gcode.gen_relative_positioning(), b" relative positioning"
-
 
         # infill 'lip' for better purge base
         yield gcode.gen_direction_move(horizontal_dir, 1, self.settings.travel_xy_speed, layer_h), b" infill position"

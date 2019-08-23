@@ -35,9 +35,9 @@ class Tower:
     """
     Class for storing tool change tower data
     """
-    def __init__(self):
+    def __init__(self, min_z):
         self.z = {}
-        self._min_z = None
+        self._min_z = min_z
         self.max_z_h = None
 
     def add(self, z, _type):
@@ -64,8 +64,9 @@ class Tower:
 
 class Towers:
 
-    def __init__(self):
+    def __init__(self, min_z):
         self.towers = {}
+        self.min_z = min_z
 
     def add_tower(self, _id, tower):
         self.towers[_id] = tower
@@ -87,7 +88,7 @@ class Towers:
         for t in self.towers:
             if self.towers[t].min_z < min_layer_h:
                 min_layer_h = self.towers[t].min_z
-        return min_layer_h
+        return self.min_z
 
     def fill_gaps(self, max_infill_h, layers):
         # find gaps in z list and fill them with infill (-1). Use approximate layer h
@@ -266,6 +267,7 @@ class GCodeFile:
         """
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
+            print(self.extruders)
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders)
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
@@ -762,16 +764,23 @@ class GCodeFile:
             pass
 
     def parse_gcode_pass2(self):
-
         # create tower instances
-        t_max = 0
-        self.towers = Towers()
+
+        min_z = None
+        prev_z = 0
+        for z in self._layers:
+            z_h = round(z - prev_z, 5)
+            if min_z is None or z_h < min_z:
+                min_z = z_h
+            prev_z = z
+
+        self.towers = Towers(min_z)
         for z in self._layers:
             t_id = 0
             for tool in self._layers[z]:
                 tower = self.towers.get_tower_by_id(t_id)
                 if not tower:
-                    tower = Tower()
+                    tower = Tower(min_z)
                 tower.add(z, tool)
                 self.towers.add_tower(t_id, tower)
                 t_id += 1
