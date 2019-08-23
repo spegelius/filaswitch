@@ -53,7 +53,7 @@ class Extruder:
             rate_max = self.feed_rate_max * (self.nozzle/0.4)
 
         if rate > rate_max:
-            raise ValueError("Feed rate too high ({:.4}, layer h {}, max allowed {})! Aborting."
+            raise ValueError("Feed rate too high ({:.4}, layer h {:.4}, max allowed {:.4})! Aborting."
                              .format(rate, layer_height, rate_max))
         return move_length * rate
 
