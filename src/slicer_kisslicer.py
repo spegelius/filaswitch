@@ -109,8 +109,7 @@ class KISSlicerGCodeFile(GCodeFile):
             elif b" num_extruders = " in comment:
                 # ; num_extruders = 4
                 for t in range(int(comment.split(b' = ')[1])):
-                    if t not in self.extruders:
-                        self.extruders[t] = Extruder(t)
+                    if t in self.extruders:
                         self.extruders[t].temperature_nr = t
 
             elif b" nozzle_dia" in comment:
@@ -118,9 +117,8 @@ class KISSlicerGCodeFile(GCodeFile):
                 parts = comment.split(b" = ")
                 dia = float(parts[1])
                 t_num = int(parts[0].split(b"_")[2]) - 1
-                if t_num not in self.extruders:
-                    self.extruders[t_num] = Extruder(t_num)
-                self.extruders[t_num].nozzle = dia
+                if t_num  in self.extruders:
+                    self.extruders[t_num].nozzle = dia
 
             elif b" first_layer_speed_mm_per_s =" in comment:
                 # ; first_layer_speed_mm_per_s = 25
