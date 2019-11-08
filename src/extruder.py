@@ -14,7 +14,7 @@ class Extruder:
         self._extrusion_width = None
         self.retract = 0.0
         self.retract_speed = 0.0
-        self.z_hop = 0.0
+        self._z_hop = 0.0
         self.z_offset = 0.0
         self.feed_rate_max = 0.25  # don't go over this
         self.feed_rate_multiplier = 1  # slicer default feed multi
@@ -26,6 +26,14 @@ class Extruder:
         self.temperature_nr = None
         self.temperature_setpoints = {}
         self.minimum_extrusion = 0.01
+
+    @property
+    def z_hop(self):
+        return self._z_hop
+
+    @z_hop.setter
+    def z_hop(self, z_hop):
+        self._z_hop = z_hop
 
     @property
     def extrusion_width(self):
