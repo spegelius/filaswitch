@@ -64,9 +64,10 @@ class Tower:
 
 class Towers:
 
-    def __init__(self, min_z):
+    def __init__(self, min_z, infill_checks):
         self.towers = {}
         self.min_z = min_z
+        self.infill_checks = infill_checks
 
     def add_tower(self, _id, tower):
         self.towers[_id] = tower
@@ -93,12 +94,12 @@ class Towers:
     def fill_gaps(self, max_infill_h, layers):
         # find gaps in z list and fill them with infill (-1). Use approximate layer h
 
-        all_z_list = sorted(layers.keys())
+        all_z_list = sorted(self.infill_checks)
 
         def find_z(start_z):
             zses = []
             for z in all_z_list:
-                if z > start_z and z - start_z < max_infill_h:
+                if z > start_z and z - start_z <= max_infill_h + 0.01:
                     zses.append(z)
             if zses:
                 return max(zses)
@@ -118,17 +119,12 @@ class Towers:
                 gap = round(z - prev_z - max_infill_h, 5)
                 if gap >= max_infill_h:
                     current_z = prev_z
-                    while gap > 0:
+                    while gap > 0.01:
                         new_z = find_z(current_z)
                         if not new_z:
-                            if max_infill_h > gap:
-                                new_z = current_z + gap
-                            else:
-                                new_z = current_z + max_infill_h
-                        gap -= new_z - current_z
+                            break
+                        gap -= round(new_z - current_z, 5)
                         self.towers[tower].add(new_z, -1)
-                        if new_z not in all_z_list:
-                            z_list.append(new_z)
                         current_z = new_z
                 prev_z = z
 
@@ -175,6 +171,7 @@ class GCodeFile:
         self.filtered_layers = []
         self.pr_index = None
         self.e_pos = 0
+        self.infill_checks = []
 
         self.lines = None
 
@@ -267,13 +264,12 @@ class GCodeFile:
         """
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
-            print(self.extruders)
             self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders)
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
                     self.insert_line(index, cmd, comment)
                     index += 1
-            self.active_e = self.preprime.last_extruder
+            self.active_e = self.extruders[self.preprime.last_tool]
         else:
             self.log.info("No pre-prime run")
             self.active_e = self.extruders[0]
@@ -397,7 +393,6 @@ class GCodeFile:
         fan_speed = 0
 
         z_pos = 0  # head position
-        current_z = 0  # actual print position, i.e. layer z
 
         index = self.start_gcode_end
 
@@ -438,7 +433,7 @@ class GCodeFile:
 
                             new_e = self.extruders[new_tool]
 
-                            for line in self.switch_tower.get_tower_lines(current_z, z_pos, self.e_pos, self.active_e,
+                            for line in self.switch_tower.get_tower_lines(current_z, self.e_pos, self.active_e,
                                                                           new_e, layer_nr):
                                 if line:
                                     index += self.insert_line(index, line[0], line[1])
@@ -456,7 +451,7 @@ class GCodeFile:
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
                         prev_index = index
-                        for line in self.switch_tower.check_infill(cmd.data, z_pos, self.e_pos, self.active_e):
+                        for line in self.switch_tower.check_infill(cmd.data, self.e_pos, self.active_e):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
                         if index > prev_index:
@@ -659,7 +654,7 @@ class GCodeFile:
             elif gcode.is_z_move(cmd):
                 prev_z = current_z
                 current_z = round(gcode.last_match[0], 5)
-                if current_z - prev_z > 0:
+                if round(current_z - prev_z, 5) > 0:
                     # if z move is up, store index
                     last_up_z_index = index
                 if gcode.last_match[1]:
@@ -668,8 +663,9 @@ class GCodeFile:
 
             # get extruder position
             elif gcode.is_extruder_move(cmd):
-                e_pos = self._get_retract_position(e_pos, gcode.last_match[0])
                 e_speed = gcode.last_match[1]
+                if e_speed is not None:
+                    e_pos = self._get_retract_position(e_pos, gcode.last_match[0])
 
             # head move. Check z position and store extruder position to retract list
             elif gcode.is_head_move(cmd):
@@ -677,12 +673,12 @@ class GCodeFile:
                 if gcode.last_match[2] is not None:
                     prev_z = current_z
                     current_z = round(gcode.last_match[2], 5)
-                    if current_z - prev_z > 0:
+                    if round(current_z - prev_z, 5) > 0:
                         last_up_z_index = index
                 current_x = gcode.last_match[0]
                 current_y = gcode.last_match[1]
                 if gcode.last_match[3]:
-                    self._travel_speeds.append(gcode.last_match[3])
+                    self._travel_speeds.append(round(gcode.last_match[3]))
 
                 # add negative e position list and reset e position
                 if e_pos < 0:
@@ -694,17 +690,30 @@ class GCodeFile:
                 head_move_index = index
 
             # extrusion i.e. print move
-            elif gcode.is_extrusion_move(cmd):
+            if gcode.is_extrusion_move(cmd):
+                # check z argument
+
+                if gcode.last_match[2] is not None:
+                    prev_z = current_z
+                    current_z = round(gcode.last_match[2], 5)
+                    if round(current_z - prev_z, 5) > 0:
+                        # if z move is up, store index
+                        last_up_z_index = index
+                        # TODO: parse z speed
 
                 # print move defines the actual z-height for tool
                 if current_z not in self._layers:
+
                     self._layers[current_z] = []
-                    self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
-                    layer_nr += 1
-                    if len(self._layers) > 1:
-                        # add infill action with previous layer height
-                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
+                    if last_up_z_index is not None:
+                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
                         index += 1
+                        layer_nr += 1
+                        if len(self._layers) > 1:
+                            # add infill action with previous layer height
+                            self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
+                            self.infill_checks.append(last_print_z)
+                            index += 1
                     last_up_z_index = None
                 last_print_z = current_z
 
@@ -768,13 +777,16 @@ class GCodeFile:
 
         min_z = None
         prev_z = 0
-        for z in self._layers:
+        for z in sorted(self._layers):
             z_h = round(z - prev_z, 5)
             if min_z is None or z_h < min_z:
                 min_z = z_h
             prev_z = z
 
-        self.towers = Towers(min_z)
+        if min_z < 0.1:
+            min_z = 0.1
+
+        self.towers = Towers(min_z, self.infill_checks)
         for z in self._layers:
             t_id = 0
             for tool in self._layers[z]:

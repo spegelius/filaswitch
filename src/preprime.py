@@ -33,7 +33,7 @@ class PrePrime:
         self.warnings_shown = False
 
         # index of the extruder that's primed last
-        self.last_extruder = None
+        self.last_tool = None
 
     def get_prime_gcode(self, extruder):
         """
@@ -180,7 +180,7 @@ class PrePrime:
             self.xstart = self.xstart + self.width + 1
             self.warnings_shown = True
 
-            self.last_extruder = extruder
+            self.last_tool = tool
 
         # turn linear advance back on, if set
         if self.settings.linear_advance != 0:
