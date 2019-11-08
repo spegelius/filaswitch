@@ -63,6 +63,8 @@ class TestGcode(unittest.TestCase):
         self.assertEqual(None, self.test_object.is_extrusion_move(b"G1 X80.349 Y81.849 E0"))
         self.assertEqual((80.349, 81.849, None, 5, 2000),
                          self.test_object.is_extrusion_move(b"G1 X80.349 Y81.849 E5 F2000"))
+        self.assertEqual((45.488, 56.304, 0.225, 1, 9000),
+                        self.test_object.is_extrusion_move(b"G1 X45.488 Y56.304 Z0.225 E1 F9000"))
 
     def test_is_head_move(self):
         self.assertEqual((65.82, 76.532, 5.7, 1500), self.test_object.is_head_move(b"G1 X65.82 Y76.532 Z5.7 E0 F1500"))
@@ -71,6 +73,7 @@ class TestGcode(unittest.TestCase):
         self.assertEqual((65.82, None, None, 1500), self.test_object.is_head_move(b"G1 X65.82 F1500"))
         self.assertEqual((65.82, 76.532, None, 1500), self.test_object.is_head_move(b"G1 F1500 X65.82 Y76.532"))
         self.assertEqual((0.0, 10.0, 0.5, 5400.0), self.test_object.is_head_move(b"G0 F5400 X0.00 Y10 Z0.5"))
+        self.assertEqual((45.488, 56.304, 0.225, 9000), self.test_object.is_head_move(b"G1 X45.488 Y56.304 Z0.225 E0 F9000"))
 
     def test_is_lin_advance(self):
         self.assertEqual(100, self.test_object.is_lin_advance(b"M900 K100"))
