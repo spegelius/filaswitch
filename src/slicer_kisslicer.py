@@ -139,7 +139,9 @@ class KISSlicerGCodeFile(GCodeFile):
             elif b" *** Material Settings for Extruder" in comment:
                 # ; *** Material Settings for Extruder 2 ***
                 m = ext_re.match(comment)
-                current_tool = int(m.groups()[0]) - 1
+                tool = int(m.groups()[0]) - 1
+                if tool in self.extruders:
+                    current_tool = tool
 
             elif current_tool is not None and b" destring_length =" in comment:
                 # ; destring_length = 3
