@@ -484,19 +484,19 @@ class SwitchTower:
             else:
                 yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
 
-        if pre_retract_pause:
-            if rr_wipe:
-                speed = (self.width*2-10)/pre_retract_pause*1000*60
-                yield gcode.gen_direction_move(horizontal_dir, self.width - pre_retract_wipe_length, speed,
-                                               layer_h), b" pre-retract initial pause wipe"
-                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
-                                               layer_h), b" pre-retract initial pause wipe"
-            else:
-                yield gcode.gen_pause(pre_retract_pause), b" pre-retract initial pause"
-        elif rr_wipe:
-            # reset nozzle position after wipe
-            yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), pre_retract_wipe_length,
-                                           self.settings.travel_xy_speed, layer_h), b" nozzle pos reset"
+            if pre_retract_pause:
+                if rr_wipe:
+                    speed = (self.width*2-10)/pre_retract_pause*1000*60
+                    yield gcode.gen_direction_move(horizontal_dir, self.width - pre_retract_wipe_length, speed,
+                                                   layer_h), b" pre-retract initial pause wipe"
+                    yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), self.width, speed,
+                                                   layer_h), b" pre-retract initial pause wipe"
+                else:
+                    yield gcode.gen_pause(pre_retract_pause), b" pre-retract initial pause"
+            if not pre_retract_pause and rr_wipe:
+                # reset nozzle position after wipe
+                yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), pre_retract_wipe_length,
+                                               self.settings.travel_xy_speed, layer_h), b" nozzle pos reset"
 
         if pre_retract:
             # prime nozzle for the pre-purge after pre-retract
