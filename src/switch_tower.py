@@ -935,9 +935,9 @@ class SwitchTower:
 
         # calculate new purge line gap based on line count differences
         purge_gap = self.purge_gap_default
-        line_diff = lines - whole_lines
+        line_diff = self.purge_lines - whole_lines
         if line_diff and whole_lines > 1:
-            purge_gap += line_diff/(whole_lines - 1) * purge_gap
+            purge_gap = self.purge_lines / (whole_lines) * purge_gap
 
         # adjust purge feed multiplier
         purge_multi = self.settings.purge_multi/100 * lines / whole_lines
@@ -1291,13 +1291,10 @@ class SwitchTower:
 
             vertical_dir = gcode.opposite_dir(vertical_dir)
 
-        yield gcode.gen_direction_move(vertical_dir, infill_y, self.infill_speeds[-1], layer_h,
-                                       extruder=extruder, last_line=True), b" infill lip"
-
         yield extruder.get_retract_gcode()
         self.e_pos = -extruder.retract
         if extruder.wipe:
-            yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer_h), b" wipe"
+            yield gcode.gen_direction_move(vertical_dir, extruder.wipe, 2000, layer_h), b" wipe"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
