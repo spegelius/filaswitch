@@ -496,7 +496,7 @@ class SwitchTower:
         elif rr_wipe:
             # reset nozzle position after wipe
             yield gcode.gen_direction_move(gcode.opposite_dir(horizontal_dir), pre_retract_wipe_length,
-                                           self.settings.travel_xy_speed, layer_h)
+                                           self.settings.travel_xy_speed, layer_h), b" nozzle pos reset"
 
         if pre_retract:
             # prime nozzle for the pre-purge after pre-retract
