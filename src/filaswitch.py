@@ -40,7 +40,7 @@ status = utils.load_status(status_file)
 # TODO: merge status to settings
 settings = Settings()
 
-version = "0.21.0"
+version = "0.22.0"
 
 
 def detect_file_type(gcode_file, log):
