@@ -85,7 +85,7 @@ rapid.retract.long[0].length: -15
 rapid.retract.long[0].speed: 1500
 rapid.retract.long[1].length: 35
 rapid.retract.long[1].speed: 1500
-rapid.retract.long[2].length: 145
+rapid.retract.long[2].length: 155
 rapid.retract.long[2].speed: 2000
 rapid.retract.long[3].length: 5
 rapid.retract.long[3].speed: 1500
@@ -114,7 +114,7 @@ rapid.retract.long[3].speed: 1500
 
 feed[0].length: 10
 feed[0].speed: 1500
-feed[1].length: 145
+feed[1].length: 155
 feed[1].speed: 2000
 feed[2].length: 20
 feed[2].speed: 1500
