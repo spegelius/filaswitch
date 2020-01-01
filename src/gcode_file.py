@@ -99,7 +99,7 @@ class Towers:
         def find_z(start_z):
             zses = []
             for z in all_z_list:
-                if z > start_z and z - start_z <= max_infill_h + 0.01:
+                if z > start_z and z - start_z <= max_infill_h + 0.05:
                     zses.append(z)
             if zses:
                 return max(zses)
