@@ -117,7 +117,7 @@ class KISSlicerGCodeFile(GCodeFile):
                 parts = comment.split(b" = ")
                 dia = float(parts[1])
                 t_num = int(parts[0].split(b"_")[2]) - 1
-                if t_num  in self.extruders:
+                if t_num in self.extruders:
                     self.extruders[t_num].nozzle = dia
 
             elif b" first_layer_speed_mm_per_s =" in comment:
@@ -142,6 +142,8 @@ class KISSlicerGCodeFile(GCodeFile):
                 tool = int(m.groups()[0]) - 1
                 if tool in self.extruders:
                     current_tool = tool
+                else:
+                    current_tool = None
 
             elif current_tool is not None and b" destring_length =" in comment:
                 # ; destring_length = 3
