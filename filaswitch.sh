@@ -12,7 +12,7 @@ if [ ! -z "$2" ] && [ -e "$2" ]; then
 elif [ -z "$1" ]; then
   python3 $DIR/src/filaswitch.py
 else
-  python3 $DIR/src/filaswitch.py ${@}
+  python3 $DIR/src/filaswitch.py "${@}"
 fi
 
 
