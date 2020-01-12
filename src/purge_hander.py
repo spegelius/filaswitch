@@ -2,14 +2,15 @@ import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
 from layer import Layer, ACT_SWITCH
-from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM, INFILL_ZIGZAG, INFILL_BLOCKY
+from settings import Settings, AUTO, RIGHT, LEFT, TOP, BOTTOM, INFILL_ZIGZAG, INFILL_BLOCKY, \
+    PURGE_HANDLING_BUCKET, PURGE_HANDLING_TOWER
 
 import utils
 
 gcode = GCode()
 
 
-class SwitchTower:
+class PurgeHandler:
 
     def __init__(self, logger, settings: Settings, towers):
         """
@@ -34,6 +35,13 @@ class SwitchTower:
         self.log = logger
         self.towers = towers
 
+        if self.settings.get_hw_config_value("purge.handling") == "bucket":
+            self.purge_handling = PURGE_HANDLING_BUCKET
+            self.get_purge_lines = self._get_purge_bucket_lines
+        else:
+            self.purge_handling = PURGE_HANDLING_TOWER
+            self.get_purge_lines = self._get_tower_lines
+
         self.min_layer_h = self.towers.get_min_layer_h()
 
         self.slot = 0
@@ -44,15 +52,18 @@ class SwitchTower:
         # Tower needs more space with smaller layer heights...
         scale_factor = 0.2 / self.min_layer_h
 
-        self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
-        pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
+        if self.purge_handling == PURGE_HANDLING_BUCKET:
+            self.width = 60
+        else:
+            self.width = self.settings.get_hw_config_float_value("prepurge.sweep.length")
+            pre_purge_lines = self.settings.get_hw_config_float_value("prepurge.sweep.count")
 
-        self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor * 1.1
-        self.pre_purge_jitter = self.pre_purge_sweep_gap - self.settings.get_hw_config_float_value("prepurge.sweep.gap")
-        if self.pre_purge_jitter < 0:
-            self.pre_purge_jitter = 0
+            self.pre_purge_sweep_gap = self.settings.get_hw_config_float_value("prepurge.sweep.gap") * scale_factor * 1.1
+            self.pre_purge_jitter = self.pre_purge_sweep_gap - self.settings.get_hw_config_float_value("prepurge.sweep.gap")
+            if self.pre_purge_jitter < 0:
+                self.pre_purge_jitter = 0
 
-        self.pre_purge_height = pre_purge_lines * self.pre_purge_sweep_gap + self.pre_purge_jitter
+            self.pre_purge_height = pre_purge_lines * self.pre_purge_sweep_gap + self.pre_purge_jitter
 
         # post purge line config
         self.purge_length_diff = 1
@@ -65,7 +76,10 @@ class SwitchTower:
         # actual purge line count is 2x (forth and back) the setting scaled with 0.2/min_z_h
         self.purge_lines = int(self.settings.purge_lines * scale_factor)
 
-        self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_gap_default + 0.2
+        if self.purge_handling == PURGE_HANDLING_BUCKET:
+            self.height = 1
+        else:
+            self.height = self.pre_purge_height + (self.purge_lines * 2 - 1) * self.purge_gap_default + 0.2
 
         self.wall_gap = 2 + self.settings.extrusion_width
         self.wall_width = self.width + self.wall_gap
@@ -80,7 +94,8 @@ class SwitchTower:
                                                                             self.purge_e_length))
 
         extrusion_speed = (extrusion_rate * self.purge_length) / (self.purge_length / self.settings.purge_speed)
-        self.log.info("Purge extrusion speed is {} mm/s".format(extrusion_speed))
+        self.purge_e_speed = extrusion_speed * 60
+        self.log.info("Purge extrusion speed is {:0.2f} mm/s, {:0.2f} mm/min".format(extrusion_speed, self.purge_e_speed))
 
         self.brim_width = self.settings.brim * self.settings.extrusion_width
 
@@ -368,6 +383,9 @@ class SwitchTower:
         :return:
         """
 
+        if self.purge_handling == PURGE_HANDLING_BUCKET:
+            return
+
         self.x_mid = (x_max + x_min) / 2
         self.y_mid = (y_max + y_min) / 2
 
@@ -438,6 +456,76 @@ class SwitchTower:
                 yield gcode.gen_temperature_nowait_tool(temperature, extruder.tool, g10=self.g10), None
             else:
                 yield gcode.gen_temperature_nowait(temperature), None
+
+    def get_pre_switch_gcode_bucket(self):
+        """
+        Generates pre tool switch g-code
+        :param old_e: active extruder
+        :param new_e: new extruder
+        :param layer_h: current layer height
+        :return:
+        """
+
+        e_length = self.settings.get_hw_config_float_value("prepurge.extrusion.length")
+
+        purge_speed = self.settings.get_hw_config_float_value("prepurge.extrusion.speed")
+        motor_current = self.settings.get_hw_config_int_value("motor.current.load")
+
+        try:
+            pre_retract = self.settings.get_hw_config_int_value("prepurge.initial.retract")
+            pre_retract_speed = self.settings.get_hw_config_int_value("prepurge.initial.retract.speed")
+            pre_retract_pause = self.settings.get_hw_config_int_value("prepurge.initial.pause")
+        except TypeError:
+            pre_retract = None
+            pre_retract_speed = None
+            pre_retract_pause = None
+
+        if motor_current:
+            yield gcode.gen_motor_current('E', motor_current), b" adjust current"
+
+        # pre-purge section
+        if pre_retract:
+            yield gcode.gen_extruder_move(-pre_retract, pre_retract_speed), b" prepurge initial retract"
+            if pre_retract_pause:
+                yield gcode.gen_pause(pre_retract_pause), b" pre-retract initial pause"
+
+        # for purge
+        if pre_retract:
+            # prime nozzle for the pre-purge after pre-retract
+            yield gcode.gen_extruder_move(pre_retract, purge_speed), b" prepurge initial prime"
+
+        # purge
+        yield gcode.gen_extruder_move(e_length, purge_speed), b" prepurge/ramming"
+
+        # rapid retract section
+        rr_lengths = self.settings.get_hw_config_array("rapid.retract.initial[].length", float)
+        rr_speeds = self.settings.get_hw_config_array("rapid.retract.initial[].speed", float)
+
+        # sanity check
+        if len(rr_lengths) != len(rr_speeds):
+            raise ValueError("not equal amount of rapid.retract.initial length and speed parameters. Check hwcfg")
+        if len(rr_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
+
+        for length, speed in zip(rr_lengths, rr_speeds):
+            yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
+
+        pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
+        if pause:
+            yield gcode.gen_pause(pause), b" cooling period"
+
+        rr_long_lengths = self.settings.get_hw_config_array("rapid.retract.long[].length", float)
+        rr_long_speeds = self.settings.get_hw_config_array("rapid.retract.long[].speed", float)
+
+        if len(rr_long_lengths) != len(rr_long_speeds):
+            raise ValueError("Not equal amount of rapid.retract.long length and speed parameters. Check hwcfg")
+        if len(rr_long_lengths) == 0:
+            if not self.warnings_shown:
+                self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
+
+        for length, speed in zip(rr_long_lengths, rr_long_speeds):
+            yield gcode.gen_extruder_move(-length, speed), b" long retract"
 
     def get_pre_switch_gcode(self, old_e, new_e, layer_h):
         """
@@ -600,7 +688,36 @@ class SwitchTower:
 
         # update slot horizontal dir
         self.slots[self.slot]['horizontal_dir'] = horizontal_dir
-                
+
+    def get_post_switch_gcode_bucket(self):
+        """
+        Generate gcode for actions after tool change
+        :param extruder: extruder
+        :param layer_h: current layer height
+        :return:
+        """
+
+        # feed new filament
+        values = []
+        i = 0
+
+        while True:
+            try:
+                feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                values.append((feed_len, feed_speed))
+                i += 1
+            except TypeError:
+                if i == 0 and not self.warnings_shown:
+                    self.log.warning("No feed[N].length or .speed found. Please check the HW-config")
+                break
+
+        for feed_len, feed_speed in values:
+            yield gcode.gen_extruder_move(feed_len, feed_speed), b" feed"
+
+        # no need to show the warnings again
+        self.warnings_shown = True
+
     def get_post_switch_gcode(self, extruder, layer_h):
         """
         Generate gcode for actions after tool change
@@ -795,6 +912,13 @@ class SwitchTower:
         :param extruder: current extruder
         :return: G-code for z-hop or None
         """
+        # jsut hop when doing bucket
+        if self.purge_handling == PURGE_HANDLING_BUCKET:
+            if extruder.z_hop:
+                new_z_hop = z_pos + extruder.z_hop
+                return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
+
+        # calculate needed z-hop based on tower height
         max_z = 0
         for s in self.slots:
             if s > self.slot:
@@ -944,9 +1068,100 @@ class SwitchTower:
 
         return purge_gap, purge_multi, whole_lines
 
-    def get_tower_lines(self, current_z, e_pos, old_e, new_e, layer_nr):
+    def _get_purge_bucket_lines(self, current_z, e_pos, old_e, new_e, layer_nr):
         """
-        G-code for switch tower
+        G-code for purge bucket
+        :param current_z: current layer z
+        :param e_pos: extruder position
+        :param old_e: old extruder
+        :param new_e: new extruder
+        :param layer_nr: layer number
+        :return: list of cmd, comment tuples
+        """
+        # TODO: move this to global state
+        self.e_pos = e_pos
+        yield None, b" PURGE START"
+
+        # handle retraction
+        yield self._get_retraction(old_e)
+
+        # handle z-hop
+        z_hop = self._get_z_hop(current_z, old_e)
+        if z_hop:
+            yield z_hop
+
+        # move to purge bucket
+        lines = self.settings.get_hw_config_array("purge.bucket.pre.line[]", str)
+        if not lines:
+            raise ValueError("no purge.bucket.pre.line[] lines defined, cannot move to bucket")
+        for line in lines:
+            yield line.encode(), b" move to purge bucket"
+
+        # temperature handling
+        new_temp = new_e.get_temperature(layer_nr)
+        old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer_nr))
+        self.temperatures[new_e.tool] = new_temp
+        if new_temp == old_temp:
+            new_temp = None
+
+        # Pre-switch temp handling. Lower temp by 10 C before purge
+        temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
+        pre_temp = old_e.get_temperature(1) + temp_diff
+        for line in self.get_temperature_gcode(pre_temp, old_e):
+            yield line
+
+        if self.g10 or self.tool_use_id:
+            # set also new e temp since it needs to stay the same after filament change
+            for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
+                yield line
+
+        # pre-switch purge
+        for line in self.get_pre_switch_gcode_bucket():
+            yield line
+
+        if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
+            yield b"G4 S0", b" wait"
+
+        yield gcode.gen_tool_change(new_e.tool), b" change tool"
+
+        if self.settings.get_hw_config_bool_value("tool.reset_feed"):
+            yield b"M220 S100", b" reset feedrate"
+
+        if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
+            yield b"G4 S0", b" wait"
+
+        # feed new filament
+        for line in self.get_post_switch_gcode_bucket():
+            yield line
+
+        # purge
+        yield gcode.gen_extruder_move(self.purge_e_length - 10, self.purge_e_speed), b" purge"
+        yield gcode.gen_extruder_move(10, 80), b" slow purge"
+
+        # retract
+        yield new_e.get_retract_gcode()
+        self.e_pos = -new_e.retract
+
+        # end movements
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        lines = self.settings.get_hw_config_array("purge.bucket.post.line[]", str)
+        if not lines:
+            raise ValueError("no purge.bucket.post.line[] lines defined, cannot move from bucket")
+        for line in lines:
+            yield line.encode(), b" move from purge bucket"
+
+        yield gcode.gen_relative_e(), b" relative E"
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
+        yield None, b" PURGE END"
+
+        # readjust motor current
+        motor_current = self.settings.get_hw_config_int_value("motor.current.run")
+        if motor_current:
+            yield gcode.gen_motor_current('E', motor_current), b" adjust current"
+
+    def _get_tower_lines(self, current_z, e_pos, old_e, new_e, layer_nr):
+        """
+        G-code for purge tower
         :param current_z: current layer z
         :param e_pos: extruder position
         :param old_e: old extruder
@@ -1327,6 +1542,8 @@ class SwitchTower:
         """
         # TODO: rethink whole line thing. Maybe Writer object?
 
+        if self.purge_handling == PURGE_HANDLING_BUCKET:
+            return
         self.e_pos = e_pos
         if not self.brim_done:
             for line in self.get_brim_lines(current_z, extruder):

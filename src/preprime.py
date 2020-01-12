@@ -1,7 +1,7 @@
 from collections import OrderedDict
 
 from gcode import GCode, E,N
-from settings import Settings
+from settings import Settings, PURGE_HANDLING_BUCKET, PURGE_HANDLING_TOWER
 
 gcode = GCode()
 
@@ -23,11 +23,11 @@ class PrePrime:
         self.start_pos_x = None
         self.start_pos_y = None
 
-        self.width =settings.get_hw_config_float_value("prerun.prime.length")
-        self.elength = settings.get_hw_config_float_value("prerun.prime.extrusion.length")
+        self.width = settings.get_hw_config_float_value("prerun.prime.length")
+        self.e_length = settings.get_hw_config_float_value("prerun.prime.extrusion.length")
         self.speed = settings.get_hw_config_int_value("prerun.prime.speed")
         self.gap = settings.get_hw_config_float_value("prerun.prime.gap")
-        self.purgecount = settings.get_hw_config_int_value("prerun.prime.purge.count")
+        self.purge_count = settings.get_hw_config_int_value("prerun.prime.purge.count")
         self.xstart = settings.get_hw_config_float_value("prerun.prime.xstart")
         self.ystart = settings.get_hw_config_float_value("prerun.prime.ystart")
         self.warnings_shown = False
@@ -35,21 +35,29 @@ class PrePrime:
         # index of the extruder that's primed last
         self.last_tool = None
 
+        if self.settings.get_hw_config_value("purge.handling") == "bucket":
+            self.purge_handling = PURGE_HANDLING_BUCKET
+        else:
+            self.purge_handling = PURGE_HANDLING_TOWER
+
     def get_prime_gcode(self, extruder):
         """
 
         """
-        e_length = self.settings.get_hw_config_float_value("prerun.prime.extrusion.length")
-
         sweep_speed = self.settings.get_hw_config_float_value("prerun.prime.speed")
         sweep_gap = self.settings.get_hw_config_float_value("prerun.prime.gap")
-        sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
+        purge_count = self.settings.get_hw_config_int_value("prerun.prime.purge.count")
+        sweep_e_speed = self.e_length / (self.width / (sweep_speed/60)) * 60
 
-        for _ in range(self.settings.get_hw_config_int_value("prerun.prime.purge.count")):
-            yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, 0.2, extruder=extruder,
-                                           e_length=e_length), b" purge trail"
-            yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed, 0.2), b" Y shift"
-            self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
+        if self.purge_handling == PURGE_HANDLING_TOWER:
+            sweep_gap_speed = self.settings.get_hw_config_float_value("prepurge.sweep.gap.speed")
+            for _ in range(self.settings.get_hw_config_int_value("prerun.prime.purge.count")):
+                yield gcode.gen_direction_move(self.horizontal_dir, self.width, sweep_speed, 0.2, extruder=extruder,
+                                               e_length=self.e_length), b" purge trail"
+                yield gcode.gen_direction_move(self.vertical_dir, sweep_gap, sweep_gap_speed, 0.2), b" Y shift"
+                self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
+        else:
+            yield gcode.gen_extruder_move(self.e_length * purge_count, sweep_e_speed), b" prime purge"
 
     def get_retract_gcode(self, extruder):
         i = 0
@@ -80,21 +88,21 @@ class PrePrime:
                     self.log.warning("No rapid.retract.long[N].length or .speed found. Please check the HW-config")
                 break
 
-        # cooling retracts, also serves as wipe
-
-        i = 0
-        while True:
-            try:
-                rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
-                rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
-                yield gcode.gen_direction_move(self.horizontal_dir, self.width, rr_cool_speed, 0.2, extruder=extruder,
-                                               e_length=rr_cool_len), b" cooling"
-                self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No cooling steps. That's OK.")
-                break
+        if self.purge_handling == PURGE_HANDLING_TOWER:
+            # cooling retracts, also serves as wipe
+            i = 0
+            while True:
+                try:
+                    rr_cool_len = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].length".format(i))
+                    rr_cool_speed = self.settings.get_hw_config_float_value("rapid.retract.cool[{}].speed".format(i))
+                    yield gcode.gen_direction_move(self.horizontal_dir, self.width, rr_cool_speed, 0.2, extruder=extruder,
+                                                   e_length=rr_cool_len), b" cooling"
+                    self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
+                    i += 1
+                except TypeError:
+                    if i == 0 and not self.warnings_shown:
+                        self.log.warning("No cooling steps. That's OK.")
+                    break
 
         # account for retract mismatch in preprime, caused by slower initial purge
         finetune = self.settings.get_hw_config_value("prerun.finetune.length")
@@ -107,18 +115,30 @@ class PrePrime:
         
         i = 0
         # initial load using standard feed length and speed
-        while True:
-            try:
-                feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
-                feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
-                yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, 0.2, extruder=extruder,
-                                               e_length=feed_len, e_speed=True), b" prime move"
-                self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
-                i += 1
-            except TypeError:
-                if i == 0 and not self.warnings_shown:
-                    self.log.warning("No prime move steps. That's OK.")
-                break
+        if self.purge_handling == PURGE_HANDLING_TOWER:
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    yield gcode.gen_direction_move(self.horizontal_dir, self.width, feed_speed, 0.2, extruder=extruder,
+                                                   e_length=feed_len, e_speed=True), b" prime move"
+                    self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
+                    i += 1
+                except TypeError:
+                    if i == 0 and not self.warnings_shown:
+                        self.log.warning("No prime move steps. That's OK.")
+                    break
+        else:
+            while True:
+                try:
+                    feed_len = self.settings.get_hw_config_float_value("feed[{}].length".format(i))
+                    feed_speed = self.settings.get_hw_config_float_value("feed[{}].speed".format(i))
+                    yield gcode.gen_extruder_move(feed_len, feed_speed), b" prime feed"
+                    i += 1
+                except TypeError:
+                    if i == 0 and not self.warnings_shown:
+                        self.log.warning("No prime move steps. That's OK.")
+                    break
 
     def get_prime_lines(self):
         """
@@ -147,10 +167,19 @@ class PrePrime:
             yield gcode.gen_tool_change(tool), b" change tool"
 
             # move to start position
-            yield (gcode.gen_head_move(self.xstart, self.ystart, self.speed), b" move off print")
+            if self.purge_handling == PURGE_HANDLING_TOWER:
+                yield (gcode.gen_head_move(self.xstart, self.ystart, self.speed), b" move off print")
+            else:
+                # move to purge bucket
+                lines = self.settings.get_hw_config_array("purge.bucket.pre.line[]", str)
+                if not lines:
+                    raise ValueError("no purge.bucket.pre.line[] lines defined, cannot move to bucket")
+                for line in lines:
+                    yield line.encode(), b" move to purge bucket"
 
             # move z close
-            yield gcode.gen_z_move(z_pos, self.settings.travel_z_speed), b" move z close"
+            if self.purge_handling == PURGE_HANDLING_TOWER:
+                yield gcode.gen_z_move(z_pos, self.settings.travel_z_speed), b" move z close"
 
             # relative movement
             yield gcode.gen_relative_positioning(), b" relative positioning"
@@ -168,12 +197,22 @@ class PrePrime:
                 for line in self.get_retract_gcode(extruder):
                     yield line
 
-            if extruder.z_hop:
+            # absolute movements
+            yield gcode.gen_absolute_positioning(), b" absolute positioning"
+
+            if self.purge_handling == PURGE_HANDLING_BUCKET:
+                # bucket end movements
+                yield gcode.gen_absolute_positioning(), b" absolute positioning"
+                lines = self.settings.get_hw_config_array("purge.bucket.post.line[]", str)
+                if not lines:
+                    raise ValueError("no purge.bucket.post.line[] lines defined, cannot move from bucket")
+                for line in lines:
+                    yield line.encode(), b" move from purge bucket"
+
+            if extruder.z_hop and self.purge_handling == PURGE_HANDLING_TOWER:
                 # z-hop
                 yield gcode.gen_z_move(z_pos + extruder.z_hop, self.settings.travel_z_speed), b" z-hop"
 
-            # absolute movement
-            yield gcode.gen_absolute_positioning(), b" absolute positioning"
             yield gcode.gen_relative_e(), b" relative E"
             yield gcode.gen_extruder_reset(), b" reset extruder"
 

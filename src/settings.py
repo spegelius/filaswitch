@@ -21,6 +21,9 @@ INFILL_ZIGZAG = "ZigZag"
 INFILL_BLOCKY = "Blocky"
 INFILL_STYLES = [INFILL_ZIGZAG, INFILL_BLOCKY]
 
+PURGE_HANDLING_TOWER = 0
+PURGE_HANDLING_BUCKET = 1
+
 
 class Settings:
 
@@ -369,6 +372,8 @@ class Settings:
         while True:
             try:
                 val = getter(_key.format(i))
+                if val is None:
+                    break
                 values.append(val)
                 i += 1
             except TypeError:

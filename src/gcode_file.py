@@ -9,7 +9,7 @@ import utils
 from extruder import Extruder
 from gcode import GCode
 
-from switch_tower import SwitchTower
+from purge_hander import PurgeHandler
 from preprime import PrePrime
 from settings import Settings
 
@@ -167,7 +167,7 @@ class GCodeFile:
         self.gcode_file = None
 
         self.extruders = OrderedDict()
-        self.switch_tower = None
+        self.purge_handler = None
         self.filtered_layers = []
         self.pr_index = None
         self.e_pos = 0
@@ -375,8 +375,8 @@ class GCodeFile:
         :return:
         """
 
-        self.switch_tower = SwitchTower(self.log, self.settings, self.towers)
-        self.switch_tower.find_tower_position(self.x_max, self.x_min, self.y_max, self.y_min)
+        self.purge_handler = PurgeHandler(self.log, self.settings, self.towers)
+        self.purge_handler.find_tower_position(self.x_max, self.x_min, self.y_max, self.y_min)
 
         self.e_pos = 0
         # flag to indicate if z-move is needed after tower g-code
@@ -433,8 +433,8 @@ class GCodeFile:
 
                             new_e = self.extruders[new_tool]
 
-                            for line in self.switch_tower.get_tower_lines(current_z, self.e_pos, self.active_e,
-                                                                          new_e, layer_nr):
+                            for line in self.purge_handler.get_purge_lines(current_z, self.e_pos, self.active_e,
+                                                                           new_e, layer_nr):
                                 if line:
                                     index += self.insert_line(index, line[0], line[1])
                             prime_needed = True
@@ -451,7 +451,7 @@ class GCodeFile:
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
                         prev_index = index
-                        for line in self.switch_tower.check_infill(cmd.data, self.e_pos, self.active_e):
+                        for line in self.purge_handler.check_infill(cmd.data, self.e_pos, self.active_e):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
                         if index > prev_index:
