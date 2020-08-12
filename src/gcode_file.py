@@ -426,7 +426,7 @@ class GCodeFile:
 
                             # add tool change g-code
                             # first check if retract is needed
-                            retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
+                            retract = self.active_e.get_retract_gcode(change=-self.e_pos, comment=b" pre-tower retract")
                             if retract:
                                 index += self.insert_line(index, *retract)
                                 self.e_pos = -self.active_e.retract
@@ -499,7 +499,7 @@ class GCodeFile:
                         # reset prime flag when printing starts after tower
                         prime_needed = False
                         if self.e_pos < -self.active_e.minimum_extrusion:
-                            prime_change_len = -(self.e_pos + self.active_e.retract)
+                            prime_change_len = self.e_pos + self.active_e.retract
                             index += self.insert_line(index, *self.active_e.get_prime_gcode(change=prime_change_len))
 
                             self.e_pos = 0

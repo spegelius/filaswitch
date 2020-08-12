@@ -67,18 +67,17 @@ class Extruder:
 
     def get_retract_gcode(self, change=0.0, comment=b" retract"):
         """
-        Get retraction g-code line. Optionally add negative change-length to reduce the retract
-        :param change: minus this of the length
+        Get retraction g-code line. Optionally add change-length to the retract length
+        :param change: change length
         :param comment: gcode comment (default 'retract')
         :return: retraction byte string
         """
-        if change != 0 and abs(change) >= self.retract or change > 0:
+        retract = self.retract + change
+        if retract <= 0:
             return None
-        if change > -0.05:
-            change = 0
-        if self.retract + change <= self.minimum_extrusion:
+        if retract <= self.minimum_extrusion:
             return None
-        return gcode.gen_extruder_move(-(self.retract+change), self.retract_speed), comment
+        return gcode.gen_extruder_move(-retract, self.retract_speed), comment
 
     def get_prime_gcode(self, change=0.0, comment=b" prime"):
         """

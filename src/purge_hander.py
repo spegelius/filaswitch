@@ -35,6 +35,11 @@ class PurgeHandler:
         self.log = logger
         self.towers = towers
 
+        try:
+            self.bucket_retract_extra = settings.get_hw_config_float_value("purge.bucket.retract.extra")
+        except TypeError:
+            self.bucket_retract_extra = 0.0
+
         if self.settings.get_hw_config_value("purge.handling") == "bucket":
             self.purge_handling = PURGE_HANDLING_BUCKET
             self.get_purge_lines = self._get_purge_bucket_lines
@@ -963,7 +968,7 @@ class PurgeHandler:
         if self.e_pos < 0 and not utils.is_float_zero(self.e_pos, 3):
             prime = extruder.retract + self.e_pos
             self.e_pos = 0
-            return extruder.get_prime_gcode(change=prime, comment=b" tower prime")
+            return extruder.get_prime_gcode(change=-prime, comment=b" tower prime")
 
     def _get_wall_position_gcode(self, x_direction, y_direction, infill=False):
         """
@@ -1139,7 +1144,8 @@ class PurgeHandler:
         yield gcode.gen_extruder_move(10, 80), b" slow purge"
 
         # retract
-        yield new_e.get_retract_gcode()
+        yield gcode.gen_pause(3000), b" ooze pause"
+        yield new_e.get_retract_gcode(change=self.bucket_retract_extra)
         self.e_pos = -new_e.retract
 
         # end movements

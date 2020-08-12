@@ -31,6 +31,10 @@ class PrePrime:
         self.xstart = settings.get_hw_config_float_value("prerun.prime.xstart")
         self.ystart = settings.get_hw_config_float_value("prerun.prime.ystart")
         self.warnings_shown = False
+        try:
+            self.bucket_retract_extra = settings.get_hw_config_float_value("purge.bucket.retract.extra")
+        except TypeError:
+            self.bucket_retract_extra = 0.0
 
         # index of the extruder that's primed last
         self.last_tool = None
@@ -59,7 +63,7 @@ class PrePrime:
         else:
             yield gcode.gen_extruder_move(self.e_length * purge_count, sweep_e_speed), b" prime purge"
 
-    def get_retract_gcode(self, extruder):
+    def get_rapid_retract_gcode(self, extruder):
         i = 0
         while True:
             try:
@@ -194,8 +198,11 @@ class PrePrime:
 
             # Do retraction if not on the last extruder
             if tool != tools[0]:
-                for line in self.get_retract_gcode(extruder):
+                for line in self.get_rapid_retract_gcode(extruder):
                     yield line
+            else:
+                # retract on last extruder
+                yield extruder.get_retract_gcode(change=self.bucket_retract_extra)
 
             # absolute movements
             yield gcode.gen_absolute_positioning(), b" absolute positioning"
