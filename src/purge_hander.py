@@ -1109,9 +1109,9 @@ class PurgeHandler:
         if new_temp == old_temp:
             new_temp = None
 
-        # Pre-switch temp handling. Lower temp by 10 C before purge
+        # Pre-switch temp handling. Lower temp by setting value before purge
         temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
-        pre_temp = old_e.get_temperature(1) + temp_diff
+        pre_temp = old_e.get_temperature(layer_nr) + temp_diff
         for line in self.get_temperature_gcode(pre_temp, old_e):
             yield line
 
@@ -1119,6 +1119,9 @@ class PurgeHandler:
             # set also new e temp since it needs to stay the same after filament change
             for line in self.get_temperature_gcode(pre_temp, new_e, wait=not utils.is_float_zero(temp_diff, 2)):
                 yield line
+
+        # prime
+        yield self._get_prime(old_e)
 
         # pre-switch purge
         for line in self.get_pre_switch_gcode_bucket():
@@ -1138,6 +1141,13 @@ class PurgeHandler:
         # feed new filament
         for line in self.get_post_switch_gcode_bucket():
             yield line
+
+        # restore temperatures
+        for line in self.get_temperature_gcode(new_e.get_temperature(layer_nr), new_e):
+            yield line
+        if self.g10 or self.tool_use_id:
+            for line in self.get_temperature_gcode(old_e.get_temperature(layer_nr), old_e):
+                yield line
 
         # purge
         yield gcode.gen_extruder_move(self.purge_e_length - 10, self.purge_e_speed), b" purge"
@@ -1241,7 +1251,7 @@ class PurgeHandler:
         if new_temp == old_temp:
             new_temp = None
 
-        # Pre-switch temp handling. Lower temp by 10 C before purge
+        # Pre-switch temp handling. Lower temp by setting value before purge
         temp_diff = self.settings.get_hw_config_float_value("prepurge.temperature.change")
         pre_temp = old_e.get_temperature(1) + temp_diff
         for line in self.get_temperature_gcode(pre_temp, old_e):
