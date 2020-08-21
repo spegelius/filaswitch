@@ -1048,7 +1048,7 @@ class PurgeHandler:
         x_dir = gcode.opposite_dir(x_dir)
         y_dir = gcode.opposite_dir(y_dir)
 
-        yield gcode.gen_direction_move(x_dir, self.wall_width, last_speed, layer_h, extruder=extruder), b" wall"
+        yield gcode.gen_direction_move(x_dir, self.wall_width, wall_speed, layer_h, extruder=extruder), b" wall"
         yield gcode.gen_direction_move(y_dir, last_y, last_speed, layer_h, extruder=extruder, last_line=True), b" wall"
 
     def get_slot(self, layer_z, tool, tool_change):
@@ -1369,7 +1369,7 @@ class PurgeHandler:
             yield gcode.gen_pressure_advance(*self.settings.pressure_advance), b" turn on pressure advance"
 
         # wall gcode
-        for line in self._get_wall_gcode(new_e, layer_h, self.settings.default_speed,
+        for line in self._get_wall_gcode(new_e, layer_h, 800,
                                          self.slots[self.slot]['horizontal_dir'],
                                          self.slots[self.slot]['vertical_dir']):
             yield line
