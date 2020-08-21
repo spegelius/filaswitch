@@ -634,7 +634,7 @@ class GCodeFile:
             # find linear advance/pressure advance commands
             elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
                 self.settings.linear_advance = gcode.last_match
-            elif gcode.is_pressure_advance(cmd) and gcode.last_match != 0:
+            elif gcode.is_pressure_advance(cmd) and gcode.last_match[1] != 0:
                 self.settings.pressure_advance = gcode.last_match
 
             if in_start_gcode:
