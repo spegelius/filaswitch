@@ -89,13 +89,14 @@ class Simplify3dGCodeFile(GCodeFile):
             if not t in self.extruders:
                 continue
             name = self.extruder_name[i]
-            ext = Extruder(t, name=name)
+            ext = self.extruders[t]
+            ext.name = name
             ext.nozzle = self.extruder_diameter[i]
             if self.extruder_use_retract[i]:
                 ext.retract = self.extruder_retract_dist[i]
                 ext.retract_speed = self.extruder_retract_speed[i]
             ext.z_hop = self.extruder_zhop[i]
-            if self.extruder_use_coasting[i]:
+            if self.extruder_use_coasting[i] and ext.coasting == 0.0:
                 ext.coasting = self.extruder_coasting[i]
             if self.extruder_use_wipe[i]:
                 ext.wipe = self.extruder_wipe[i]
