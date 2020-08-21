@@ -598,12 +598,15 @@ class PurgeHandler:
             speed = e_length / (self.width / (sweep_speed/60)) * 60
             yield gcode.gen_extruder_move(pre_retract, speed), b" prepurge initial prime"
 
-        for _ in range(self.settings.get_hw_config_int_value("prepurge.sweep.count")):
+        sweeps = self.settings.get_hw_config_int_value("prepurge.sweep.count")
+        for i in range(sweeps):
             yield gcode.gen_direction_move(horizontal_dir, self.width, sweep_speed, layer_h,
                                            extruder=old_e, e_length=e_length), b" purge trail"
-            yield gcode.gen_direction_move(vertical_dir, self.pre_purge_sweep_gap, sweep_gap_speed,
-                                           layer_h), b" Y shift"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
+            # in wipe mode, save last vertical move to wipe
+            if i < sweeps - 1 or not rr_wipe:
+                yield gcode.gen_direction_move(vertical_dir, self.pre_purge_sweep_gap, sweep_gap_speed,
+                                               layer_h), b" Y shift"
 
         # rapid retract section
         rr_lengths = self.settings.get_hw_config_array("rapid.retract.initial[].length", float)
@@ -611,19 +614,35 @@ class PurgeHandler:
         rr_wipe_length = 8
         rr_total_wipe = 0
 
-        # sanity check
+        # sanity check. TODO: move to settings hwcfg parsing
         if len(rr_lengths) != len(rr_speeds):
             raise ValueError("not equal amount of rapid.retract.initial length and speed parameters. Check hwcfg")
         if len(rr_lengths) == 0:
             if not self.warnings_shown:
                 self.log.warning("No rapid.retract.initial[N].length or .speed found. Please check the HW-config")
 
-        for length, speed in zip(rr_lengths, rr_speeds):
+        for i, values in enumerate(zip(rr_lengths, rr_speeds)):
+            length, speed = values
             if rr_wipe:
+                # last vertical move with wipe
+                if i == 0:
+                    if length < 2:
+                        yr_len = length
+                    else:
+                        yr_len = 2
+
+                    yield gcode.gen_direction_move(vertical_dir, self.pre_purge_sweep_gap, speed, layer_h,
+                                                   extruder=old_e, e_speed=True,
+                                                   e_length=-yr_len), b" Y shift + rapid retract with wipe"
+                    length -= yr_len
+                if not length:
+                    continue
                 if rr_total_wipe + rr_wipe_length < self.width:
                     yield gcode.gen_direction_move(horizontal_dir, rr_wipe_length, speed, layer_h, extruder=old_e,
                                                    e_speed=True, e_length=-length), b" rapid retract with wipe"
                     rr_total_wipe += rr_wipe_length
+                else:
+                    yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
 
@@ -659,6 +678,7 @@ class PurgeHandler:
         rr_long_lengths = self.settings.get_hw_config_array("rapid.retract.long[].length", float)
         rr_long_speeds = self.settings.get_hw_config_array("rapid.retract.long[].speed", float)
 
+        #  TODO: move to settings hwcfg parsing
         if len(rr_long_lengths) != len(rr_long_speeds):
             raise ValueError("Not equal amount of rapid.retract.long length and speed parameters. Check hwcfg")
         if len(rr_long_lengths) == 0:
@@ -678,6 +698,7 @@ class PurgeHandler:
         rr_cool_lengths = self.settings.get_hw_config_array("rapid.retract.cool[].length", float)
         rr_cool_speeds = self.settings.get_hw_config_array("rapid.retract.cool[].speed", float)
 
+        #  TODO: move to settings hwcfg parsing
         if len(rr_cool_lengths) != len(rr_cool_speeds):
             raise ValueError("not equal amount of rapid.retract.cool length and speed parameters. Check hwcfg")
         if len(rr_cool_lengths) == 0:
