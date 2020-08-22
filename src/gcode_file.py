@@ -486,8 +486,15 @@ class GCodeFile:
                         # store extruder position
                         self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[0])
                 elif gcode.is_extrusion_move(cmd):
-                    # add prime if needed
                     current_z = z_pos
+
+                    # add z move if needed
+                    if z_move_needed:
+                        index += self.insert_line(index, gcode.gen_z_move(current_z,
+                                                                          self.settings.travel_z_speed))
+                        z_move_needed = False
+
+                    # add prime if needed
                     if prime_needed:
                         if not prime_ok:
                             # if not in position, add move before prime
@@ -500,18 +507,13 @@ class GCodeFile:
                         prime_needed = False
                         if self.e_pos < -self.active_e.minimum_extrusion:
                             prime_change_len = self.e_pos + self.active_e.retract
-                            index += self.insert_line(index, *self.active_e.get_prime_gcode(change=prime_change_len))
+                            index += self.insert_line(index, *self.active_e.get_prime_gcode(change=prime_change_len,
+                                                                                            comment=b" post tower prime"))
 
                             self.e_pos = 0
 
                     # store extruder position
                     self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[3])
-
-                    # add z move if needed
-                    if z_move_needed:
-                        index += self.insert_line(index, gcode.gen_z_move(current_z,
-                                                                          self.settings.travel_z_speed))
-                        z_move_needed = False
 
                     last_pos = gcode.last_match
 
