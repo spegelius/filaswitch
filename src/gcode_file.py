@@ -469,8 +469,13 @@ class GCodeFile:
                         layer_nr = cmd.data
                         continue
                 elif gcode.is_z_move(cmd):
-                    z_pos = round(gcode.last_match[0], 5)
-                    z_move_needed = False
+                    # need head move before z move
+                    if head_check_needed:
+                        self.lines.pop(index)
+                        index -= 1
+                    else:
+                        z_pos = round(gcode.last_match[0], 5)
+                        z_move_needed = False
                 elif gcode.is_fan_speed(cmd):
                     fan_speed = gcode.last_match
                 elif gcode.is_extruder_move(cmd):
