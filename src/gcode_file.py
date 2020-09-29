@@ -426,7 +426,7 @@ class GCodeFile:
 
                             # add tool change g-code
                             # first check if retract is needed
-                            retract = self.active_e.get_retract_gcode(change=-self.e_pos, comment=b" pre-tower retract")
+                            retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
                             if retract:
                                 index += self.insert_line(index, *retract)
                                 self.e_pos = -self.active_e.retract
