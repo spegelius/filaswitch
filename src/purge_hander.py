@@ -1354,6 +1354,12 @@ class PurgeHandler:
         # wall_e = new_e.get_feed_length((self.wall_width + self.wall_height) * 2, layer.height)
         # print("Purge E: {}".format(e_len + wall_e))
 
+        # pressure equalization moves
+        yield gcode.gen_direction_move(self.slots[self.slot]['horizontal_dir'], self.purge_length,
+                                       self.settings.travel_xy_speed, layer_h), b" pressure equalization"
+        yield gcode.gen_direction_move(gcode.opposite_dir(self.slots[self.slot]['horizontal_dir']), self.purge_length,
+                                       self.settings.travel_xy_speed, layer_h), b" pressure equalization"
+
         # move to purge zone wall start position
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield self._get_wall_position_gcode(self.slots[self.slot]['horizontal_dir'],
@@ -1547,11 +1553,11 @@ class PurgeHandler:
         yield gcode.gen_direction_move(gcode.opposite_dir(vertical_dir), infill_y, self.settings.default_speed, layer_h,
                                        extruder=extruder), b" infill lip"
 
-        for speed in self.infill_speeds:
+        for index, speed in enumerate(self.infill_speeds):
             yield gcode.gen_direction_move(horizontal_dir, infill_x, speed, layer_h,
                                            extruder=extruder), b" infill"
             yield gcode.gen_direction_move(vertical_dir, infill_y, speed, layer_h,
-                                           extruder=extruder), b" infill"
+                                           extruder=extruder, last_line=index==len(self.infill_speeds) - 1), b" infill"
 
             vertical_dir = gcode.opposite_dir(vertical_dir)
 
