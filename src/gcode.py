@@ -601,14 +601,14 @@ class GCode:
         :return: tuple with new x-y coordinates
         """
 
-        if start_x == 0 and start_y == 0:
+        if offset_x == 0 and offset_y == 0:
             return start_x, start_y
         elif offset_x == 0:
-            return start_x, start_y + offset_y
+            length = abs(offset_y)
         elif offset_y == 0:
-            return start_x + offset_x, start_y
-
-        length = math.sqrt(offset_x ** 2 + offset_y ** 2)
+            length = abs(offset_x)
+        else:
+            length = math.sqrt(offset_x ** 2 + offset_y ** 2)
 
         if offset_x < 0 <= offset_y:
             angle = math.atan(abs(offset_x) / abs(offset_y))
@@ -620,8 +620,13 @@ class GCode:
             angle = math.atan(abs(offset_x) / abs(offset_y))
             new_angle = math.degrees(angle) + direction + 270
         else:
-            angle = math.atan(abs(offset_y) / abs(offset_x))
-            new_angle = math.degrees(angle) + direction
+            if offset_x == 0:
+                new_angle = 90 + direction
+            elif offset_y == 0:
+                new_angle = 0 + direction
+            else:
+                angle = math.atan(abs(offset_y) / abs(offset_x))
+                new_angle = math.degrees(angle) + direction
 
         x, y = self._get_coordinates(new_angle, length)
         return start_x + x, start_y + y
