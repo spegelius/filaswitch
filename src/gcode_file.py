@@ -272,7 +272,7 @@ class GCodeFile:
             self.active_e = self.extruders[self.preprime.last_tool]
         else:
             self.log.info("No pre-prime run")
-            self.active_e = self.extruders[0]
+            self.active_e = list(self.extruders.values())[0]
         return index
 
     def open_file(self, gcode_file):
