@@ -55,7 +55,9 @@ class Simplify3dGCodeFile(GCodeFile):
             self.find_model_limits()
             self.add_tool_change_gcode()
         else:
-            self.log.info("No tool changes detected, skipping tool change g-code additions")
+            self.log.info(
+                "No tool changes detected, skipping tool change g-code additions"
+            )
         self.print_summary()
         return self.save_new_file()
 
@@ -70,7 +72,11 @@ class Simplify3dGCodeFile(GCodeFile):
                 # parse version
                 try:
                     m = self.VERSION_RE.match(comment)
-                    self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
+                    self.version = (
+                        int(m.groups()[0]),
+                        int(m.groups()[1]),
+                        int(m.groups()[2]),
+                    )
                 except Exception as e:
                     self.log.exception("Version parsing exception: %s" % e)
         if self.version is None:
@@ -118,7 +124,9 @@ class Simplify3dGCodeFile(GCodeFile):
             for j in range(self.temperature_setpoints[i]):
                 if ext:
                     layer_nr = self.temperature_setpoint_layers[temp_setpoint_index] - 1
-                    ext.temperature_setpoints[layer_nr] = self.temperature_setpoint_temps[temp_setpoint_index]
+                    ext.temperature_setpoints[
+                        layer_nr
+                    ] = self.temperature_setpoint_temps[temp_setpoint_index]
                 temp_setpoint_index += 1
 
         # find proper setpoint temp
@@ -131,7 +139,9 @@ class Simplify3dGCodeFile(GCodeFile):
 
         # if not found, bad config
         if not last_setpoints:
-            raise ValueError("Could not find valid temperature settings for extruder(s). Please check S3D profile")
+            raise ValueError(
+                "Could not find valid temperature settings for extruder(s). Please check S3D profile"
+            )
 
         warning = False
         for e in self.extruders:
@@ -149,7 +159,9 @@ class Simplify3dGCodeFile(GCodeFile):
         #    print(self.extruders[e].temperature_nr, self.extruders[e].temperature_setpoints)
 
         if warning:
-            self.log.info("Not all extruders have valid temperature definitions, using previous extruder values. Please check profile temperature settings")
+            self.log.info(
+                "Not all extruders have valid temperature definitions, using previous extruder values. Please check profile temperature settings"
+            )
 
     def parse_header(self):
         """
@@ -266,22 +278,32 @@ class Simplify3dGCodeFile(GCodeFile):
                 brim_lines = int(comment.split(b",")[-1])
             elif b"toolChangeRetractionDistance" in comment:
                 if comment.split(b",")[1] != b"0":
-                    self.log.warning("'toolChangeRetractionDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D.")
+                    self.log.warning(
+                        "'toolChangeRetractionDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D."
+                    )
             elif b"toolChangeExtraRestartDistance" in comment:
                 if comment.split(b",")[1] != b"0":
-                    self.log.warning("'toolChangeExtraRestartDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D.")
+                    self.log.warning(
+                        "'toolChangeExtraRestartDistance' is not 0. This might cause quality problems. Check 'Other'-tab in S3D."
+                    )
 
         if not self.relative_e:
-            raise ValueError("Relative E distances not enabled! Filaswitch won't work without relative E distances")
+            raise ValueError(
+                "Relative E distances not enabled! Filaswitch won't work without relative E distances"
+            )
         if not self.version:
-            self.log.warning("Could not detect Simplify3D version. Use at your own risk")
+            self.log.warning(
+                "Could not detect Simplify3D version. Use at your own risk"
+            )
         else:
             self.log.info("Simplify3D version %d.%d.%d" % self.version)
 
         self.settings.outer_perimeter_speed *= self.settings.default_speed
         self.settings.first_layer_speed *= self.settings.default_speed
 
-        self.settings.extrusion_width = sum(self.extruder_widths) / len(self.extruder_widths)
+        self.settings.extrusion_width = sum(self.extruder_widths) / len(
+            self.extruder_widths
+        )
 
         if self.settings.brim_auto and skirt and brim:
             self.settings.brim = brim_lines
@@ -294,7 +316,7 @@ class Simplify3dGCodeFile(GCodeFile):
         if not self.retract_while_wiping:
             # not needed
             return
-        if not self.version == (3,1,1):
+        if not self.version == (3, 1, 1):
             return
 
         self.log.info("Fixing S3D 3.1.1 bug with 'Retract during wipe'-feature")
@@ -321,13 +343,18 @@ class Simplify3dGCodeFile(GCodeFile):
                         wipe_speed = gcode.last_match[4]
                     else:
                         wipe_speed = last_move_speed or self.settings.default_speed
-                    wipe_indexes.append((index, gcode.last_match[0], gcode.last_match[1], wipe_speed))
+                    wipe_indexes.append(
+                        (index, gcode.last_match[0], gcode.last_match[1], wipe_speed)
+                    )
             elif gcode.is_head_move(cmd) and wipe_on:
                 # retract/wipe ended
                 last_move_speed = gcode.last_match[2]
                 wipe_on = False
                 for index, x, y, speed in wipe_indexes:
-                    self.lines[index] = (gcode.gen_head_move(x, y, speed), b"fixed wipe")
+                    self.lines[index] = (
+                        gcode.gen_head_move(x, y, speed),
+                        b"fixed wipe",
+                    )
                 first_wipe = wipe_indexes[0][0]
                 wipe_layer.insert_line(first_wipe, *extruder.get_retract_gcode())
                 wipe_indexes = []
@@ -338,6 +365,7 @@ class Simplify3dGCodeFile(GCodeFile):
 
 if __name__ == "__main__":
     import logger
+
     logger = logger.Logger(".")
     s = Simplify3dGCodeFile(logger, PEEK)
     print(s.check_layer_change(b" layer 1, Z = 1", None))

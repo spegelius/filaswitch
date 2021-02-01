@@ -11,7 +11,6 @@ ACTIONS = [ACT_SWITCH, ACT_INFILL, ACT_PASS]
 
 
 class Layer:
-
     def __init__(self, num, z, height):
         self.num = num
         self.z = z
@@ -123,7 +122,9 @@ class Layer:
                 if self.lines[self.line_index].startswith(b";"):
                     self.lines.pop(self.line_index)
                     continue
-                self.lines[self.line_index] = self.lines[self.line_index].split(b";")[0].strip()
+                self.lines[self.line_index] = (
+                    self.lines[self.line_index].split(b";")[0].strip()
+                )
                 self.line_index += 1
             except IndexError:
                 return
@@ -163,7 +164,9 @@ class Layer:
                                 speeds.append(gcode.last_match[3])
                             position = gcode.last_match[0], gcode.last_match[1]
                         if prev_position and position:
-                            length = gcode.calculate_path_length(prev_position, position)
+                            length = gcode.calculate_path_length(
+                                prev_position, position
+                            )
                             _e_pos = gcode.last_match[3]
                             if _e_pos > 0 and length > 0.05:
                                 feed_rate = gcode.calculate_feed_rate(length, _e_pos)
@@ -173,8 +176,8 @@ class Layer:
                     if gcode.is_head_move(cmd):
                         prev_position = (gcode.last_match[0], gcode.last_match[1])
             if speeds:
-                self.outer_perimeter_speed = sum(speeds)/len(speeds)
-                self.outer_perimeter_feedrate = sum(feed_rates)/len(feed_rates)
+                self.outer_perimeter_speed = sum(speeds) / len(speeds)
+                self.outer_perimeter_feedrate = sum(feed_rates) / len(feed_rates)
 
         return self.outer_perimeter_speed
 
@@ -183,7 +186,6 @@ class Layer:
 
 
 class FirstLayer(Layer):
-
     def __init__(self, num, z, height):
         super().__init__(num, z, height)
         self.start_gcode_end = 0
@@ -199,7 +201,7 @@ class FirstLayer(Layer):
         Check if layer has tool changes
         :return: true or false
         """
-        for cmd, _ in self.lines[self.start_gcode_end:]:
+        for cmd, _ in self.lines[self.start_gcode_end :]:
             if cmd and gcode.is_tool_change(cmd) is not None:
                 self.tool_change_count += 1
         return self.tool_change_count

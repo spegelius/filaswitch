@@ -12,7 +12,7 @@ gcode = GCode()
 def open_file(gcode_file):
     """ Read given g-code file into list """
     try:
-        gf = open(gcode_file, 'rb')
+        gf = open(gcode_file, "rb")
     except Exception as e:
         print("Cannot open file %s" % gcode_file)
         return 1
@@ -31,7 +31,7 @@ def color_mixing(lines):
         if b"BEGIN_LAYER_OBJECT" in line:
             layer_count += 1
 
-    mixing_interval = layer_count/100
+    mixing_interval = layer_count / 100
     print(mixing_interval)
 
     # add mixing ratios
@@ -43,7 +43,9 @@ def color_mixing(lines):
             line = lines[index]
             if b"BEGIN_LAYER_OBJECT" in line:
                 if layer_count == mixing_interval - 1:
-                    mixing_cmd = ("M165 A{} B{} ; change mixing ratio".format(ratio, 100-ratio)).encode()
+                    mixing_cmd = (
+                        "M165 A{} B{} ; change mixing ratio".format(ratio, 100 - ratio)
+                    ).encode()
                     print(mixing_cmd)
                     lines.insert(index, mixing_cmd)
                     ratio += 1
@@ -66,7 +68,7 @@ def save_new_file(filename, lines):
 
     _dir, f_name = os.path.split(filename)
     name, ext = os.path.splitext(f_name)
-    new_file = os.path.join(_dir,  name + "_mixed" + ext)
+    new_file = os.path.join(_dir, name + "_mixed" + ext)
     try:
         with open(new_file, "wb") as nf:
             result = b"\r\n".join([gcode.format_to_string(cmd, None) for cmd in lines])

@@ -9,7 +9,7 @@ def is_windows():
     """
     Check if OS is Windows
     """
-    win = ['nt']
+    win = ["nt"]
     if os.name in win:
         return True
     return False
@@ -23,7 +23,7 @@ def load_status(status_file):
     """
     try:
         status = {}
-        with open(status_file, 'r') as sf:
+        with open(status_file, "r") as sf:
             for line in sf.readlines():
                 line = line.strip()
                 if line.startswith("#"):
@@ -36,7 +36,7 @@ def load_status(status_file):
         return {}
     except Exception as e:
         print(e)
-        raise IOError("Cannot open file %s" %status_file)
+        raise IOError("Cannot open file %s" % status_file)
     return status
 
 
@@ -51,8 +51,8 @@ def save_status_file(status_file: str, status: dict):
         if os.path.exists(status_file):
             os.remove(status_file)
 
-        with open(status_file, 'w') as sf:
-            sf.writelines(["%s:%s\n" %(key, val) for key, val in status.items()])
+        with open(status_file, "w") as sf:
+            sf.writelines(["%s:%s\n" % (key, val) for key, val in status.items()])
     except Exception as e:
         print(e)
         raise
@@ -65,7 +65,7 @@ def is_float_zero(value: float, accuracy: int):
     :param accuracy: decimals to use for the check
     :return: true or false
     """
-    limit = 0.1**accuracy
+    limit = 0.1 ** accuracy
     if value == 0.0:
         return True
     elif 0 < value < limit:
@@ -83,9 +83,9 @@ def extrusion_feed_rate(extrusion_w, layer_h, filament_d):
     :param: filament_d: filament diameter
     :return:
     """
-    f_vol = math.pi*(filament_d/2)*(filament_d/2)
+    f_vol = math.pi * (filament_d / 2) * (filament_d / 2)
     e_vol = layer_h * extrusion_w
-    return e_vol/f_vol
+    return e_vol / f_vol
 
 
 def http_or_https(url: str):
@@ -100,7 +100,7 @@ def http_or_https(url: str):
 
 
 ## {{{ http://code.activestate.com/recipes/511478/ (r1)
-def percentile(N, percent, key=lambda x:x):
+def percentile(N, percent, key=lambda x: x):
     """
     Find the percentile of a list of values.
 
@@ -112,14 +112,15 @@ def percentile(N, percent, key=lambda x:x):
     """
     if not N:
         return None
-    k = (len(N)-1) * percent
+    k = (len(N) - 1) * percent
     f = math.floor(k)
     c = math.ceil(k)
     if f == c:
         return key(N[int(k)])
-    d0 = key(N[int(f)]) * (c-k)
-    d1 = key(N[int(c)]) * (k-f)
-    return d0+d1
+    d0 = key(N[int(f)]) * (c - k)
+    d1 = key(N[int(c)]) * (k - f)
+    return d0 + d1
+
 
 # median is 50th percentile.
 median = functools.partial(percentile, percent=0.5)

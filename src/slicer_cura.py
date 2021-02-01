@@ -29,7 +29,9 @@ class CuraGCodeFile(GCodeFile):
             self.find_model_limits()
             self.add_tool_change_gcode()
         else:
-            self.log.info("No tool changes detected, skipping tool change g-code additions")
+            self.log.info(
+                "No tool changes detected, skipping tool change g-code additions"
+            )
         self.print_summary()
         return self.save_new_file()
 
@@ -44,7 +46,11 @@ class CuraGCodeFile(GCodeFile):
                 # parse version
                 try:
                     m = self.VERSION_RE.match(comment)
-                    self.version = (int(m.groups()[0]), int(m.groups()[1]), int(m.groups()[2]))
+                    self.version = (
+                        int(m.groups()[0]),
+                        int(m.groups()[1]),
+                        int(m.groups()[2]),
+                    )
                 except Exception as e:
                     self.log.exception("Version parsing exception: %s" % e)
         if self.version is None:

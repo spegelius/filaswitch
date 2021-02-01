@@ -12,7 +12,7 @@ gcode = GCode()
 def open_file(gcode_file):
     """ Read given g-code file into list """
     try:
-        gf = open(gcode_file, 'rb')
+        gf = open(gcode_file, "rb")
     except Exception as e:
         print("Cannot open file %s" % gcode_file)
         return 1
@@ -52,7 +52,7 @@ def debug_wipes(lines, show_lines=False):
             try:
                 last_speed = gcode.last_match[4]
             except Exception as e:
-                #print(e)
+                # print(e)
                 pass
 
             if prev_position:
@@ -69,12 +69,15 @@ def debug_wipes(lines, show_lines=False):
                     feed_rate = gcode.calculate_feed_rate(length, _e_pos)
                     feed_rates.append(feed_rate)
                     if show_lines:
-                        print("#%d %s %.2f %.5f %s" % (lnr, move_type, length, feed_rate, cmd))
+                        print(
+                            "#%d %s %.2f %.5f %s"
+                            % (lnr, move_type, length, feed_rate, cmd)
+                        )
                     if feed_rate > 0.1 or feed_rate < -0.1:
                         speed = 0
                         if last_speed:
-                            rate = length/(last_speed/60)
-                            speed = 1/rate*_e_pos
+                            rate = length / (last_speed / 60)
+                            speed = 1 / rate * _e_pos
                         print("#%d %.5f %.2f" % (lnr, feed_rate, speed))
             prev_position = pos
         elif gcode.is_head_move(cmd):
@@ -136,9 +139,10 @@ def debug_outer_perimeter(lines):
     print(max(feed_rates))
     outer_perimeter_speed = sum(speeds) / len(speeds)
     # print(sum(feed_rates)/len(feed_rates))
-    #pprint.pprint(feed_rates)
+    # pprint.pprint(feed_rates)
     print("Median:", statistics.median(feed_rates))
     print("Mean:", statistics.mean(feed_rates))
+
 
 if __name__ == "__main__":
     debug = False
@@ -149,4 +153,4 @@ if __name__ == "__main__":
 
     lines = open_file(g_file)
     debug_wipes(lines)
-    #debug_outer_perimeter(lines)
+    # debug_outer_perimeter(lines)

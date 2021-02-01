@@ -1,4 +1,3 @@
-
 import os
 import utils
 
@@ -95,9 +94,9 @@ class Settings:
         return self._tower_force
 
     @tower_force.setter
-    def tower_force(self,value: str):
-        self._tower_force = [int(x) for x in value.split(',')]
-      
+    def tower_force(self, value: str):
+        self._tower_force = [int(x) for x in value.split(",")]
+
     @property
     def raft_multi(self):
         return self._raft_multi
@@ -119,7 +118,9 @@ class Settings:
     @property
     def travel_xy_speed(self):
         if not self._travel_xy_speed:
-            self._travel_xy_speed = self.get_hw_config_int_value("machine.xy.travel.speed")
+            self._travel_xy_speed = self.get_hw_config_int_value(
+                "machine.xy.travel.speed"
+            )
         return self._travel_xy_speed
 
     @travel_xy_speed.setter
@@ -129,7 +130,9 @@ class Settings:
     @property
     def travel_z_speed(self):
         if not self._travel_z_speed:
-            self._travel_z_speed = self.get_hw_config_int_value("machine.z.travel.speed")
+            self._travel_z_speed = self.get_hw_config_int_value(
+                "machine.z.travel.speed"
+            )
         return self._travel_z_speed
 
     @travel_z_speed.setter
@@ -149,7 +152,7 @@ class Settings:
     @property
     def first_layer_speed(self):
         if not self._first_layer_speed:
-            self._first_layer_speed = self.default_speed/2
+            self._first_layer_speed = self.default_speed / 2
         return self._first_layer_speed
 
     @first_layer_speed.setter
@@ -190,7 +193,9 @@ class Settings:
     @property
     def origin_offset_x(self):
         if not self._origin_offset_x:
-            self._origin_offset_x = self.get_hw_config_float_value("machine.origin.offset_x")
+            self._origin_offset_x = self.get_hw_config_float_value(
+                "machine.origin.offset_x"
+            )
         return self._origin_offset_x
 
     @origin_offset_x.setter
@@ -200,7 +205,9 @@ class Settings:
     @property
     def origin_offset_y(self):
         if not self._origin_offset_y:
-            self._origin_offset_y = self.get_hw_config_float_value("machine.origin.offset_y")
+            self._origin_offset_y = self.get_hw_config_float_value(
+                "machine.origin.offset_y"
+            )
         return self._origin_offset_y
 
     @origin_offset_y.setter
@@ -258,7 +265,9 @@ class Settings:
     @property
     def extrusion_width(self):
         if not self._extrusion_width:
-            self._extrusion_width = self.get_hw_config_float_value("tool.nozzle.diameter")
+            self._extrusion_width = self.get_hw_config_float_value(
+                "tool.nozzle.diameter"
+            )
         return self._extrusion_width
 
     @extrusion_width.setter

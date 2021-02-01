@@ -24,8 +24,12 @@ class ActionPoint:
     LAYER_CHANGE = 3
 
     def __init__(self, action, data):
-        if action != ActionPoint.TOOL_CHANGE and action != ActionPoint.INFILL and action != ActionPoint.PREPRIME \
-                and action != ActionPoint.LAYER_CHANGE:
+        if (
+            action != ActionPoint.TOOL_CHANGE
+            and action != ActionPoint.INFILL
+            and action != ActionPoint.PREPRIME
+            and action != ActionPoint.LAYER_CHANGE
+        ):
             raise ValueError("Bad actionpoint")
         self.action = action
         self.data = data
@@ -35,6 +39,7 @@ class Tower:
     """
     Class for storing tool change tower data
     """
+
     def __init__(self, min_z):
         self.z = {}
         self._min_z = min_z
@@ -63,7 +68,6 @@ class Tower:
 
 
 class Towers:
-
     def __init__(self, min_z, infill_checks):
         self.towers = {}
         self.min_z = min_z
@@ -264,7 +268,9 @@ class GCodeFile:
         """
         if self.settings.get_hw_config_value("prerun.prime") == "True":
             self.log.debug("Preprime enabled")
-            self.preprime = PrePrime(self.log, self.settings, self.max_slots, self.extruders)
+            self.preprime = PrePrime(
+                self.log, self.settings, self.max_slots, self.extruders
+            )
             for cmd, comment in self.preprime.get_prime_lines():
                 if cmd is not None or comment is not None:
                     self.insert_line(index, cmd, comment)
@@ -284,13 +290,15 @@ class GCodeFile:
         self.gcode_file = gcode_file
         # open file
         try:
-            gf = open(gcode_file, 'rb')
+            gf = open(gcode_file, "rb")
         except Exception as e:
             self.log.exception("Cannot open file %s" % gcode_file)
             return 1
 
         # remove extra EOL and empty lines, convert to cmd, comment tuple
-        self.lines = [gcode.read_gcode_line(l.strip()) for l in gf.readlines() if l.strip()]
+        self.lines = [
+            gcode.read_gcode_line(l.strip()) for l in gf.readlines() if l.strip()
+        ]
         gf.close()
 
     def read_all_lines(self):
@@ -308,7 +316,7 @@ class GCodeFile:
         """
         _dir, f_name = os.path.split(self.gcode_file)
         name, ext = os.path.splitext(f_name)
-        new_file = os.path.join(_dir,  name + "_fs" + ext)
+        new_file = os.path.join(_dir, name + "_fs" + ext)
         try:
             with open(new_file, "wb") as nf:
                 result = b"\r\n".join(self.read_all_lines())
@@ -351,7 +359,10 @@ class GCodeFile:
         self.y_max = max(y)
         self.x_min = min(x)
         self.y_min = min(y)
-        self.log.debug("Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s" % (self.x_max, self.y_max, self.x_min, self.y_min))
+        self.log.debug(
+            "Xmax: %s, Ymax: %s, Xmin: %s, Ymin: %s"
+            % (self.x_max, self.y_max, self.x_min, self.y_min)
+        )
 
     @staticmethod
     def _get_retract_position(pos, new_pos):
@@ -376,7 +387,9 @@ class GCodeFile:
         """
 
         self.purge_handler = PurgeHandler(self.log, self.settings, self.towers)
-        self.purge_handler.find_tower_position(self.x_max, self.x_min, self.y_max, self.y_min)
+        self.purge_handler.find_tower_position(
+            self.x_max, self.x_min, self.y_max, self.y_min
+        )
 
         self.e_pos = 0
         # flag to indicate if z-move is needed after tower g-code
@@ -418,23 +431,30 @@ class GCodeFile:
 
                         # check if tool change is needed
                         if self.active_e is not None and self.active_e.tool == new_tool:
-                            self.log.debug("Redundant tool change {}, skipping...".format(new_tool))
+                            self.log.debug(
+                                "Redundant tool change {}, skipping...".format(new_tool)
+                            )
                         else:
                             # disable fan
                             if fan_speed and self.settings.tower_fan_off:
-                                index += self.insert_line(index, gcode.gen_fan_off_gcode(), b"disable fan")
+                                index += self.insert_line(
+                                    index, gcode.gen_fan_off_gcode(), b"disable fan"
+                                )
 
                             # add tool change g-code
                             # first check if retract is needed
-                            retract = self.active_e.get_retract_gcode(change=self.e_pos, comment=b" pre-tower retract")
+                            retract = self.active_e.get_retract_gcode(
+                                change=self.e_pos, comment=b" pre-tower retract"
+                            )
                             if retract:
                                 index += self.insert_line(index, *retract)
                                 self.e_pos = -self.active_e.retract
 
                             new_e = self.extruders[new_tool]
 
-                            for line in self.purge_handler.get_purge_lines(current_z, self.e_pos, self.active_e,
-                                                                           new_e, layer_nr):
+                            for line in self.purge_handler.get_purge_lines(
+                                current_z, self.e_pos, self.active_e, new_e, layer_nr
+                            ):
                                 if line:
                                     index += self.insert_line(index, line[0], line[1])
                             prime_needed = True
@@ -446,12 +466,18 @@ class GCodeFile:
                             head_check_needed = True
 
                             if fan_speed and self.settings.tower_fan_off:
-                                index += self.insert_line(index, gcode.gen_fan_speed_gcode(fan_speed), b"restore fan")
+                                index += self.insert_line(
+                                    index,
+                                    gcode.gen_fan_speed_gcode(fan_speed),
+                                    b"restore fan",
+                                )
                         continue
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
                         prev_index = index
-                        for line in self.purge_handler.check_infill(cmd.data, self.e_pos, self.active_e):
+                        for line in self.purge_handler.check_infill(
+                            cmd.data, self.e_pos, self.active_e
+                        ):
                             if line:
                                 index += self.insert_line(index, line[0], line[1])
                         if index > prev_index:
@@ -489,14 +515,18 @@ class GCodeFile:
                         index -= 1
                     else:
                         # store extruder position
-                        self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[0])
+                        self.e_pos = self._get_retract_position(
+                            self.e_pos, gcode.last_match[0]
+                        )
                 elif gcode.is_extrusion_move(cmd):
                     current_z = z_pos
 
                     # add z move if needed
                     if z_move_needed:
-                        index += self.insert_line(index, gcode.gen_z_move(current_z,
-                                                                          self.settings.travel_z_speed))
+                        index += self.insert_line(
+                            index,
+                            gcode.gen_z_move(current_z, self.settings.travel_z_speed),
+                        )
                         z_move_needed = False
 
                     # add prime if needed
@@ -505,20 +535,32 @@ class GCodeFile:
                             # if not in position, add move before prime
                             x = last_pos[0]
                             y = last_pos[1]
-                            index += self.insert_line(index, gcode.gen_head_move(x, y, self.settings.travel_xy_speed),
-                                                      b' update position')
+                            index += self.insert_line(
+                                index,
+                                gcode.gen_head_move(
+                                    x, y, self.settings.travel_xy_speed
+                                ),
+                                b" update position",
+                            )
                             head_check_needed = False
                         # reset prime flag when printing starts after tower
                         prime_needed = False
                         if self.e_pos < -self.active_e.minimum_extrusion:
                             prime_change_len = self.e_pos + self.active_e.retract
-                            index += self.insert_line(index, *self.active_e.get_prime_gcode(change=prime_change_len,
-                                                                                            comment=b" post tower prime"))
+                            index += self.insert_line(
+                                index,
+                                *self.active_e.get_prime_gcode(
+                                    change=prime_change_len,
+                                    comment=b" post tower prime",
+                                )
+                            )
 
                             self.e_pos = 0
 
                     # store extruder position
-                    self.e_pos = self._get_retract_position(self.e_pos, gcode.last_match[3])
+                    self.e_pos = self._get_retract_position(
+                        self.e_pos, gcode.last_match[3]
+                    )
 
                     last_pos = gcode.last_match
 
@@ -534,10 +576,26 @@ class GCodeFile:
                     # check that head move is sane after tool change
                     if head_check_needed:
                         head_check_needed = False
-                        if not gcode.last_match[3] or gcode.last_match[3] < self.settings.travel_xy_speed or last_pos[2]:
-                            self.lines[index] = gcode.gen_head_move(gcode.last_match[0], gcode.last_match[1], self.settings.travel_xy_speed), b" fixed travel"
+                        if (
+                            not gcode.last_match[3]
+                            or gcode.last_match[3] < self.settings.travel_xy_speed
+                            or last_pos[2]
+                        ):
+                            self.lines[index] = (
+                                gcode.gen_head_move(
+                                    gcode.last_match[0],
+                                    gcode.last_match[1],
+                                    self.settings.travel_xy_speed,
+                                ),
+                                b" fixed travel",
+                            )
                             if last_pos[2]:
-                                index += self.insert_line(index+1, gcode.gen_z_move(last_pos[2], self.settings.travel_z_speed))
+                                index += self.insert_line(
+                                    index + 1,
+                                    gcode.gen_z_move(
+                                        last_pos[2], self.settings.travel_z_speed
+                                    ),
+                                )
 
             except IndexError:
                 break
@@ -624,8 +682,12 @@ class GCodeFile:
                 in_start_gcode = False
 
             # temperature parsing
-            if gcode.is_temp_nowait(cmd) or gcode.is_temp_nowait_tool(cmd) or \
-                    gcode.is_temp_wait(cmd) or gcode.is_temp_wait_tool(cmd):
+            if (
+                gcode.is_temp_nowait(cmd)
+                or gcode.is_temp_nowait_tool(cmd)
+                or gcode.is_temp_wait(cmd)
+                or gcode.is_temp_wait_tool(cmd)
+            ):
                 if gcode.last_match[0] == 0:
                     # remove temperature changes to 0 during print. Cura does these, not good for single nozzle setups
                     self.lines.pop(index)
@@ -713,12 +775,18 @@ class GCodeFile:
 
                     self._layers[current_z] = []
                     if last_up_z_index is not None:
-                        self.insert_line(last_up_z_index, ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr))
+                        self.insert_line(
+                            last_up_z_index,
+                            ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr),
+                        )
                         index += 1
                         layer_nr += 1
                         if len(self._layers) > 1:
                             # add infill action with previous layer height
-                            self.insert_line(last_up_z_index, ActionPoint(ActionPoint.INFILL, last_print_z))
+                            self.insert_line(
+                                last_up_z_index,
+                                ActionPoint(ActionPoint.INFILL, last_print_z),
+                            )
                             self.infill_checks.append(last_print_z)
                             index += 1
                     last_up_z_index = None
@@ -729,16 +797,27 @@ class GCodeFile:
                     if current_tool not in self.extruders:
                         # add new extruder instance, if one doesn't exist already
                         self.extruders[current_tool] = Extruder(current_tool)
-                        self.extruders[current_tool].nozzle = self.settings.get_hw_config_float_value(
-                            "tool.nozzle.diameter")
-                        self.extruders[current_tool].z_hop = self.settings.get_hw_config_float_value(
-                            "tool.tower.zhop")
+                        self.extruders[
+                            current_tool
+                        ].nozzle = self.settings.get_hw_config_float_value(
+                            "tool.nozzle.diameter"
+                        )
+                        self.extruders[
+                            current_tool
+                        ].z_hop = self.settings.get_hw_config_float_value(
+                            "tool.tower.zhop"
+                        )
 
                     # replace line with z and tool, if not the first extruder
                     if len(self.extruders.keys()) > 1:
                         self._layers[last_print_z].append(current_tool)
                         self.tool_switch_heights[current_tool] = last_print_z
-                        self.lines[tool_index] = ActionPoint(ActionPoint.TOOL_CHANGE, (last_print_z, current_tool)), None
+                        self.lines[tool_index] = (
+                            ActionPoint(
+                                ActionPoint.TOOL_CHANGE, (last_print_z, current_tool)
+                            ),
+                            None,
+                        )
                     add_tool = False
 
                 e_pos = self._get_retract_position(e_pos, gcode.last_match[3])
@@ -750,11 +829,17 @@ class GCodeFile:
                 if gcode.last_match[1] is not None:
                     current_y = gcode.last_match[1]
 
-                if last_extrusion_x is not None and last_extrusion_y is not None and current_tool:
-                    path_len = gcode.calculate_path_length((last_extrusion_x, last_extrusion_y), (current_x, current_y))
+                if (
+                    last_extrusion_x is not None
+                    and last_extrusion_y is not None
+                    and current_tool
+                ):
+                    path_len = gcode.calculate_path_length(
+                        (last_extrusion_x, last_extrusion_y), (current_x, current_y)
+                    )
                     e_rate = gcode.calculate_feed_rate(path_len, gcode.last_match[3])
                     # e rate calculation not used currently
-                    #current_tool.e_rates.append(e_rate)
+                    # current_tool.e_rates.append(e_rate)
 
                 if gcode.last_match[0] is not None:
                     last_extrusion_x = gcode.last_match[0]
@@ -765,7 +850,9 @@ class GCodeFile:
             index += 1
 
         if self.start_gcode_end is None:
-            raise ValueError("Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config")
+            raise ValueError(
+                "Cannot find 'START SCRIPT END'-comment. Please add it to your Slicer's config"
+            )
 
         self.last_switch_height = max(self.tool_switch_heights.values())
         self._calculate_values()
@@ -806,7 +893,9 @@ class GCodeFile:
 
     def parse_gcode_pass3(self):
 
-        max_infill_h = round(self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5)
+        max_infill_h = round(
+            self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5
+        )
         self.towers.fill_gaps(max_infill_h, self._layers)
 
     def _calculate_values(self):
@@ -816,11 +905,22 @@ class GCodeFile:
         """
         for tool in self._retracts:
             if tool in self.extruders:
-                self.extruders[tool].retract = abs(utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[0]))
-                self.extruders[tool].retract_speed = utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[1])
-                if self.extruders[tool].retract > 15 or self.extruders[tool].retract_speed > 10000:
-                    raise ValueError("Deducing retract values returned bad values: {} length, {} speed".format(
-                        self.extruders[tool].retract, self.extruders[tool].retract_speed))
+                self.extruders[tool].retract = abs(
+                    utils.percentile(self._retracts[tool], 0.99, key=lambda x: x[0])
+                )
+                self.extruders[tool].retract_speed = utils.percentile(
+                    self._retracts[tool], 0.99, key=lambda x: x[1]
+                )
+                if (
+                    self.extruders[tool].retract > 15
+                    or self.extruders[tool].retract_speed > 10000
+                ):
+                    raise ValueError(
+                        "Deducing retract values returned bad values: {} length, {} speed".format(
+                            self.extruders[tool].retract,
+                            self.extruders[tool].retract_speed,
+                        )
+                    )
 
         for tool in self._temperatures:
             if tool in self.extruders:
@@ -830,7 +930,9 @@ class GCodeFile:
             self.settings.travel_z_speed = abs(utils.percentile(self._z_speeds, 0.99))
 
         if self._travel_speeds:
-            self.settings.travel_xy_speed = abs(utils.percentile(self._travel_speeds, 0.99))
+            self.settings.travel_xy_speed = abs(
+                utils.percentile(self._travel_speeds, 0.99)
+            )
 
     def parse_gcode(self):
         """

@@ -26,7 +26,7 @@ class GCode:
 
     SPEED_VAL_RE = re.compile(b".*\s+F(\d+\.*\d*)")
 
-    #SPEED_RE = re.compile(b"^G1\s+F(\d+\.*\d*)$")
+    # SPEED_RE = re.compile(b"^G1\s+F(\d+\.*\d*)$")
 
     EXTRUDER_POSITION_RE = re.compile(b"^G92\s+E0$")
     TOOL_RE = re.compile(b"T(\d)")
@@ -115,7 +115,12 @@ class GCode:
         """
         self.last_match = None
         m = self._parse_move_args(line)
-        if m and (m[0] is not None or m[1] is not None) and m[3] is not None and m[3] != 0:
+        if (
+            m
+            and (m[0] is not None or m[1] is not None)
+            and m[3] is not None
+            and m[3] != 0
+        ):
             self.last_match = m
         return self.last_match
 
@@ -551,9 +556,18 @@ class GCode:
         y = sine * length
         return x, y
 
-    def gen_direction_move(self, direction, length, speed, layer_h,
-                           extruder=None, feed_multi=1.0, e_length=None, last_line=False,
-                           e_speed=False):
+    def gen_direction_move(
+        self,
+        direction,
+        length,
+        speed,
+        layer_h,
+        extruder=None,
+        feed_multi=1.0,
+        e_length=None,
+        last_line=False,
+        e_speed=False,
+    ):
         """
         Generate g-code for head move to given direction. Relative distances
         :param direction: direction to move to (DIR_UP, DIR_DOWN, DIR_LEFT, DIR_RIGHT)
@@ -584,13 +598,19 @@ class GCode:
                 yield self.gen_head_move(x, y, speed)
             else:
                 if not e_length:
-                    e_length = extruder.get_feed_length(_length, layer_h, feed_multi=feed_multi)
+                    e_length = extruder.get_feed_length(
+                        _length, layer_h, feed_multi=feed_multi
+                    )
                 if e_speed:
-                    yield self.gen_extrusion_e_speed_move(x, y, speed, _length, e_length)
+                    yield self.gen_extrusion_e_speed_move(
+                        x, y, speed, _length, e_length
+                    )
                 else:
                     yield self.gen_extrusion_speed_move(x, y, speed, e_length)
 
-    def get_coordinates_by_offsets(self, direction, start_x, start_y, offset_x, offset_y):
+    def get_coordinates_by_offsets(
+        self, direction, start_x, start_y, offset_x, offset_y
+    ):
         """
         Calculate new x-y coordinates by given direction and offsets
         :param direction: direction to go

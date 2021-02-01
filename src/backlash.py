@@ -13,7 +13,7 @@ gcode = GCode()
 def open_file(gcode_file):
     """ Read given g-code file into list """
     try:
-        gf = open(gcode_file, 'rb')
+        gf = open(gcode_file, "rb")
     except Exception as e:
         print("Cannot open file %s" % gcode_file)
         return 1
@@ -35,6 +35,7 @@ def check_backlash(backlash, prev_pos, new_pos, prev_dir):
     if prev_dir != 0 and new_dir != prev_dir:
         return new_dir, (prev_pos + backlash) * new_dir
     return new_dir, None
+
 
 def adjust(lines, x, y, z):
 
@@ -72,8 +73,6 @@ def adjust(lines, x, y, z):
             y_dir, new_y_pos = check_backlash(y, prev_y, y_pos, y_dir)
             prev_y = y_pos
 
-
-
             new_lines.append((cmd, comment))
         # elif not skip and gcode.is_extrusion_move(cmd):
         #     new_x = gcode.last_match[0] + x
@@ -93,6 +92,7 @@ def adjust(lines, x, y, z):
 
     return new_lines
 
+
 def save_new_file(filename, lines):
     """
     Save g-code lines into new file
@@ -101,10 +101,12 @@ def save_new_file(filename, lines):
 
     _dir, f_name = os.path.split(filename)
     name, ext = os.path.splitext(f_name)
-    new_file = os.path.join(_dir,  name + "_backlash" + ext)
+    new_file = os.path.join(_dir, name + "_backlash" + ext)
     try:
         with open(new_file, "wb") as nf:
-            result = b"\r\n".join([gcode.format_to_string(cmd, comment) for cmd, comment in lines])
+            result = b"\r\n".join(
+                [gcode.format_to_string(cmd, comment) for cmd, comment in lines]
+            )
             nf.write(result)
             return new_file
     except Exception as e:
@@ -115,7 +117,9 @@ def save_new_file(filename, lines):
 if __name__ == "__main__":
     debug = False
     if len(sys.argv) < 5:
-        print("Need arguments: file to process, X backlash (mm), Y adjustment, Z backlash (mm). Use 0 if no backlash needed")
+        print(
+            "Need arguments: file to process, X backlash (mm), Y adjustment, Z backlash (mm). Use 0 if no backlash needed"
+        )
         exit(1)
     g_file = sys.argv[1]
 

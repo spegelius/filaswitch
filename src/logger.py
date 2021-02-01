@@ -4,11 +4,12 @@ import sys
 
 
 class Logger:
-
     def __init__(self, logdir, gui=None, debug=False):
         self.logdir = logdir
         self.gui = gui
-        self.fmt = logging.Formatter(fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+        self.fmt = logging.Formatter(
+            fmt="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+        )
         self.filehandler = logging.FileHandler(os.path.join(logdir, "filaswitch.log"))
         self.filehandler.setFormatter(self.fmt)
         self.streamhandler = logging.StreamHandler(stream=sys.stdout)
