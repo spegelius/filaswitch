@@ -815,6 +815,7 @@ class PurgeHandler:
                     ), b" rapid retract with wipe"
                     rr_total_wipe += rr_wipe_length
                 else:
+                    # no wipe left
                     yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" rapid retract"
@@ -839,8 +840,9 @@ class PurgeHandler:
 
         # check purge len diff
         if self.purge_length_diff:
+            direction = horizontal_dir if rr_wipe else gcode.opposite_dir(horizontal_dir)
             yield gcode.gen_direction_move(
-                gcode.opposite_dir(horizontal_dir),
+                direction,
                 self.purge_length_diff / 2,
                 self.settings.travel_xy_speed,
                 layer_h,
