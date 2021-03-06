@@ -102,7 +102,7 @@ rapid.retract.long[0].length: -20
 rapid.retract.long[0].speed: 1500
 rapid.retract.long[1].length: 35
 rapid.retract.long[1].speed: 1500
-rapid.retract.long[2].length: 155
+rapid.retract.long[2].length: 215
 rapid.retract.long[2].speed: 2000
 rapid.retract.long[3].length: 5
 rapid.retract.long[3].speed: 1500
@@ -115,7 +115,7 @@ rapid.retract.long[3].speed: 1500
 
 feed[0].length: 5
 feed[0].speed: 500
-feed[1].length: 165
+feed[1].length: 225
 feed[1].speed: 2000
 feed[2].length: 20
 feed[2].speed: 1500
@@ -123,4 +123,4 @@ feed[3].length: 5
 feed[3].speed: 300
 
 ## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
-post.tower.coast: 0.2
+post.tower.coast: 0
