@@ -18,7 +18,8 @@ BRIM_AUTO = "Auto"
 
 INFILL_ZIGZAG = "ZigZag"
 INFILL_BLOCKY = "Blocky"
-INFILL_STYLES = [INFILL_ZIGZAG, INFILL_BLOCKY]
+INFILL_NONE = "NoInfill"
+INFILL_STYLES = [INFILL_ZIGZAG, INFILL_BLOCKY, INFILL_NONE]
 
 PURGE_HANDLING_TOWER = 0
 PURGE_HANDLING_BUCKET = 1
@@ -61,6 +62,7 @@ class Settings:
         self._tower_force = []
         self._tower_fan_off = None
         self._infill_style = INFILL_ZIGZAG
+        self._sparse_layers = True
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -261,6 +263,7 @@ class Settings:
         if value not in INFILL_STYLES:
             raise ValueError("Unknown infill style {}".format(value))
         self._infill_style = value
+        self._sparse_layers = value != INFILL_NONE
 
     @property
     def extrusion_width(self):
@@ -283,6 +286,10 @@ class Settings:
     @force_raft.setter
     def force_raft(self, value: bool):
         self._force_raft = value
+
+    @property
+    def sparse_layers(self):
+        return self._sparse_layers
 
     @property
     def linear_advance(self):

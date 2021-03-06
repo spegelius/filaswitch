@@ -40,38 +40,48 @@ class Tower:
     Class for storing tool change tower data
     """
 
-    def __init__(self, min_z):
+    def __init__(self, min_z_h, max_z_h, sparse_layers=True):
+        # dict of z-positions and tower item types
         self.z = {}
-        self._min_z = min_z
-        self.max_z_h = None
+        self._sparse_layers = sparse_layers
+
+        # global min layer values
+        self._min_z_h = min_z_h if self._sparse_layers else max_z_h
+        self._max_z_h = max_z_h
 
     def add(self, z, _type):
         if z not in self.z:
             self.z[z] = _type
 
     def calculate_min_z(self):
+        """
+        Calculates min z height value for this tower
+        """
+        if not self._sparse_layers:
+            # if no sparse layers, use max layer h
+            return self._max_z_h
         prev_z = 0
         for z in sorted(self.z.keys()):
             z_h = round(z - prev_z, 5)
-            if self._min_z is None or z_h < self._min_z:
-                self._min_z = z_h
+            if self._min_z_h is None or z_h < self._min_z_h:
+                self._min_z_h = z_h
             prev_z = z
 
     @property
-    def min_z(self):
-        if not self._min_z:
+    def min_z_h(self):
+        if not self._min_z_h:
             self.calculate_min_z()
-        return self._min_z
+        return self._min_z_h
 
     def get_tool_change_z(self):
         return [z for z in self.z if self.z[z] >= 0]
 
 
 class Towers:
-    def __init__(self, min_z, infill_checks):
+    def __init__(self, infill_checks, max_layer_h):
         self.towers = {}
-        self.min_z = min_z
         self.infill_checks = infill_checks
+        self._max_layer_h = max_layer_h
 
     def add_tower(self, _id, tower):
         self.towers[_id] = tower
@@ -91,9 +101,13 @@ class Towers:
         # calculate min z h per tower
         min_layer_h = 10000
         for t in self.towers:
-            if self.towers[t].min_z < min_layer_h:
-                min_layer_h = self.towers[t].min_z
-        return self.min_z
+            if self.towers[t].min_z_h < min_layer_h:
+                min_layer_h = self.towers[t].min_z_h
+        return min_layer_h
+
+    @property
+    def max_layer_h(self):
+        return self._max_layer_h
 
     def fill_gaps(self, max_infill_h, layers):
         # find gaps in z list and fill them with infill (-1). Use approximate layer h
@@ -209,6 +223,11 @@ class GCodeFile:
         self.y_max = None
         self.x_min = None
         self.y_min = None
+
+        # max layer h to use in generated tower structures
+        self.max_layer_h = round(
+            self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5
+        )
 
     def parse_header(self):
         """
@@ -426,7 +445,7 @@ class GCodeFile:
 
                     if cmd.action == ActionPoint.TOOL_CHANGE:
                         # tool change
-                        current_z = cmd.data[0]
+                        z_pos = cmd.data[0]
                         new_tool = cmd.data[1]
 
                         # check if tool change is needed
@@ -453,7 +472,7 @@ class GCodeFile:
                             new_e = self.extruders[new_tool]
 
                             for line in self.purge_handler.get_purge_lines(
-                                current_z, self.e_pos, self.active_e, new_e, layer_nr
+                                    z_pos, self.e_pos, self.active_e, new_e, layer_nr
                             ):
                                 if line:
                                     index += self.insert_line(index, line[0], line[1])
@@ -492,7 +511,8 @@ class GCodeFile:
                         index = self.prerun_prime(index)
                         continue
                     elif cmd.action == ActionPoint.LAYER_CHANGE:
-                        layer_nr = cmd.data
+                        layer_nr = cmd.data[0]
+                        z_pos = cmd.data[1]
                         continue
                 elif gcode.is_z_move(cmd):
                     # need head move before z move
@@ -526,6 +546,7 @@ class GCodeFile:
                         index += self.insert_line(
                             index,
                             gcode.gen_z_move(current_z, self.settings.travel_z_speed),
+                            b" z move added"
                         )
                         z_move_needed = False
 
@@ -689,7 +710,8 @@ class GCodeFile:
                 or gcode.is_temp_wait_tool(cmd)
             ):
                 if gcode.last_match[0] == 0:
-                    # remove temperature changes to 0 during print. Cura does these, not good for single nozzle setups
+                    # remove temperature changes to 0 during print. Cura does
+                    # these, not good for single nozzle setups
                     self.lines.pop(index)
                     continue
                 try:
@@ -777,14 +799,14 @@ class GCodeFile:
                     if last_up_z_index is not None:
                         self.insert_line(
                             last_up_z_index,
-                            ActionPoint(ActionPoint.LAYER_CHANGE, layer_nr),
+                            ActionPoint(ActionPoint.LAYER_CHANGE, (layer_nr, current_z)),
                         )
                         index += 1
                         layer_nr += 1
-                        if len(self._layers) > 1:
+                        if len(self._layers) > 1 and self.settings.sparse_layers:
                             # add infill action with previous layer height
                             self.insert_line(
-                                last_up_z_index,
+                                last_up_z_index + 1,
                                 ActionPoint(ActionPoint.INFILL, last_print_z),
                             )
                             self.infill_checks.append(last_print_z)
@@ -868,35 +890,39 @@ class GCodeFile:
 
     def parse_gcode_pass2(self):
         # create tower instances
-
         min_z = None
         prev_z = 0
+
+        # calculate min z height
         for z in sorted(self._layers):
             z_h = round(z - prev_z, 5)
             if min_z is None or z_h < min_z:
                 min_z = z_h
             prev_z = z
 
+        # don't go lower than 0.1
         if min_z < 0.1:
             min_z = 0.1
 
-        self.towers = Towers(min_z, self.infill_checks)
+        # create tower instances
+        self.towers = Towers(self.infill_checks, self.max_layer_h)
         for z in self._layers:
             t_id = 0
             for tool in self._layers[z]:
                 tower = self.towers.get_tower_by_id(t_id)
                 if not tower:
-                    tower = Tower(min_z)
+                    tower = Tower(
+                        min_z,
+                        self.max_layer_h,
+                        sparse_layers=self.settings.sparse_layers,
+                    )
                 tower.add(z, tool)
                 self.towers.add_tower(t_id, tower)
                 t_id += 1
 
     def parse_gcode_pass3(self):
-
-        max_infill_h = round(
-            self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5
-        )
-        self.towers.fill_gaps(max_infill_h, self._layers)
+        if self.settings.sparse_layers:
+            self.towers.fill_gaps(self.max_layer_h, self._layers)
 
     def _calculate_values(self):
         """

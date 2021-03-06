@@ -460,9 +460,9 @@ class TestCuraGcodeFile(unittest.TestCase):
         for data in pass3_testmodel1_towers_Cura:
             self.assertEqual(data, gcode.towers.get_tower_by_id(index).z)
             index += 1
-        self.assertEqual(0.2, gcode.towers.get_tower_by_id(0).min_z)
-        self.assertEqual(0.2, gcode.towers.get_tower_by_id(1).min_z)
-        self.assertEqual(0.2, gcode.towers.get_tower_by_id(2).min_z)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(0).min_z_h)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(1).min_z_h)
+        self.assertEqual(0.2, gcode.towers.get_tower_by_id(2).min_z_h)
 
     def test_find_model_limits(self):
         gcode = CuraGCodeFile(self.logger, self.settings)
@@ -498,7 +498,7 @@ class TestTowers(unittest.TestCase):
             tower.add(k, v)
 
         self.assertEqual(test_data, tower.z)
-        self.assertEqual(0.1, tower.min_z)
+        self.assertEqual(0.1, tower.min_z_h)
 
     def test_towers_get_tower_count(self):
         self.assertEqual(3, self.towers.get_tower_count(0.3))

@@ -59,6 +59,7 @@ class PurgeHandler:
             self.get_purge_lines = self._get_tower_lines
 
         self.min_layer_h = self.towers.get_min_layer_h()
+        self.log.debug("Tower min layer h: ()".format(self.min_layer_h))
 
         self.slot = 0
         self.slots = {}
@@ -193,6 +194,7 @@ class PurgeHandler:
         self.temperatures = {}
         self.warnings_shown = False
 
+        self.current_z = 0
         self.e_pos = 0
 
         # temp settings
@@ -840,7 +842,9 @@ class PurgeHandler:
 
         # check purge len diff
         if self.purge_length_diff:
-            direction = horizontal_dir if rr_wipe else gcode.opposite_dir(horizontal_dir)
+            direction = (
+                horizontal_dir if rr_wipe else gcode.opposite_dir(horizontal_dir)
+            )
             yield gcode.gen_direction_move(
                 direction,
                 self.purge_length_diff / 2,
@@ -1045,7 +1049,7 @@ class PurgeHandler:
         # no need to show the warnings again
         self.warnings_shown = True
 
-    def get_brim_lines(self, layer_h, extruder):
+    def get_brim_lines(self, current_z, layer_h, extruder):
         """
         G-code lines for the brim
         :param first_layer: first layer
@@ -1055,19 +1059,22 @@ class PurgeHandler:
         yield None, b" TOWER BRIM START"
 
         self.raft_layer_height = layer_h
+        raft_layer_z = self.raft_layer_height + self.settings.z_offset
         feed_multi = self.settings.raft_multi / 100
 
         if extruder.z_hop:
-            z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
+            z_hop = current_z + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
+            self.current_z = z_hop
 
         yield gcode.gen_head_move(
             self.brim_pos_x, self.brim_pos_y, self.settings.travel_xy_speed
         ), b" move to brim zone"
+
         yield gcode.gen_z_move(
-            self.raft_layer_height + self.settings.z_offset,
-            self.settings.travel_z_speed,
+            raft_layer_z, self.settings.travel_z_speed
         ), b" move z close"
+        self.current_z = raft_layer_z
 
         prime = self._get_prime(extruder)
         if prime:
@@ -1161,9 +1168,10 @@ class PurgeHandler:
         yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER BRIM END"
 
-    def get_raft_lines(self, layer_h, extruder, slot_count):
+    def get_raft_lines(self, current_z, layer_h, extruder, slot_count):
         """
         G-code lines for the raft
+        :param current_z: current z position
         :param layer_h: layer_h
         :param extruder: first extruder object
         :param slot_count: slots needing raft
@@ -1182,11 +1190,13 @@ class PurgeHandler:
         yield None, b" TOWER RAFT START"
 
         self.raft_layer_height = layer_h
+        raft_layer_z = self.raft_layer_height + self.settings.z_offset
         feed_multi = self.settings.raft_multi / 100
 
         if extruder.z_hop:
-            z_hop = self.raft_layer_height + extruder.z_hop + self.settings.z_offset
+            z_hop = current_z + extruder.z_hop + self.settings.z_offset
             yield gcode.gen_z_move(z_hop, self.settings.travel_z_speed), b" z-hop"
+            self.current_z = z_hop
 
         x, y = gcode.get_coordinates_by_offsets(
             self.E,
@@ -1199,9 +1209,9 @@ class PurgeHandler:
             x, y, self.settings.travel_xy_speed
         ), b" move to raft zone"
         yield gcode.gen_z_move(
-            self.raft_layer_height + self.settings.z_offset,
-            self.settings.travel_z_speed,
+            raft_layer_z, self.settings.travel_z_speed
         ), b" move z close"
+        self.current_z = raft_layer_z
 
         prime = self._get_prime(extruder)
         if prime:
@@ -1254,19 +1264,18 @@ class PurgeHandler:
                 self.slots[slot]["last_z"] + self.raft_layer_height
             )
 
-    def _get_z_hop(self, z_pos, extruder):
+    def _get_z_hop(self):
         """
         Get g-code for z-hop
-        :param z_pos: current z position
-        :param extruder: current extruder
         :return: G-code for z-hop or None
         """
-        # jsut hop when doing bucket
+        # just hop when doing bucket
+        tower_z_hop = self.settings.get_hw_config_float_value("tool.tower.zhop")
         if self.purge_handling == PURGE_HANDLING_BUCKET:
-            if extruder.z_hop:
-                new_z_hop = z_pos + extruder.z_hop
+            if tower_z_hop > 0:
+                self.current_z += tower_z_hop
                 return (
-                    gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed),
+                    gcode.gen_z_move(self.current_z, self.settings.travel_z_speed),
                     b" z-hop",
                 )
 
@@ -1278,15 +1287,16 @@ class PurgeHandler:
             elif self.slots[s]["last_z"] > max_z:
                 max_z = self.slots[s]["last_z"]
 
-        current_z = round(z_pos + self.settings.z_offset, 5)
+        current_z = round(self.current_z + self.settings.z_offset, 5)
         if current_z >= max_z:
             new_z_hop = current_z
         else:
             new_z_hop = max_z
 
-        if extruder.z_hop:
-            new_z_hop += extruder.z_hop
+        if tower_z_hop:
+            new_z_hop += tower_z_hop
         if new_z_hop > current_z:
+            self.current_z = new_z_hop
             return gcode.gen_z_move(new_z_hop, self.settings.travel_z_speed), b" z-hop"
 
     def _get_retraction(self, extruder):
@@ -1458,6 +1468,7 @@ class PurgeHandler:
         :return: list of cmd, comment tuples
         """
         # TODO: move this to global state
+        self.current_z = current_z
         self.e_pos = e_pos
         yield None, b" PURGE START"
 
@@ -1465,7 +1476,7 @@ class PurgeHandler:
         yield self._get_retraction(old_e)
 
         # handle z-hop
-        z_hop = self._get_z_hop(current_z, old_e)
+        z_hop = self._get_z_hop()
         if z_hop:
             yield z_hop
 
@@ -1561,39 +1572,45 @@ class PurgeHandler:
         if motor_current:
             yield gcode.gen_motor_current("E", motor_current), b" adjust current"
 
-    def _get_tower_lines(self, current_z, e_pos, old_e, new_e, layer_nr):
+    def _get_tower_lines(self, layer_z, e_pos, old_e, new_e, layer_nr):
         """
         G-code for purge tower
-        :param current_z: current layer z
+        :param layer_z: current layer z
         :param e_pos: extruder position
         :param old_e: old extruder
         :param new_e: new extruder
         :param layer_nr: layer number
         :return: list of cmd, comment tuples
         """
+        self.current_z = layer_z
 
         # TODO: move this to global state
         self.e_pos = e_pos
 
+        self.get_slot(layer_z, new_e.tool, True)
+
+        # calculate layer height
+        if self.settings.sparse_layers:
+            layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
+        else:
+            layer_h = self.towers.max_layer_h
+        if layer_h < self.min_layer_h:
+            layer_h = self.min_layer_h
+        tower_z = round(layer_h + self.slots[self.slot]["last_z"], 5)
+
         # add brim if not added
         if not self.brim_done:
-            for line in self.get_brim_lines(current_z, old_e):
+            for line in self.get_brim_lines(self.current_z, layer_h, old_e):
                 yield line
             self.brim_done = True
             if self.settings.force_raft and not self.raft_done:
-                for line in self.get_raft_lines(current_z, old_e, self.max_slots):
+                for line in self.get_raft_lines(
+                    self.current_z, layer_h, old_e, self.max_slots
+                ):
                     yield line
                 self.raft_done = True
 
         yield None, b" TOWER START"
-
-        self.get_slot(current_z, new_e.tool, True)
-
-        # calculate layer height
-        layer_h = round(current_z - self.slots[self.slot]["last_z"], 5)
-        if layer_h < self.min_layer_h:
-            layer_h = self.min_layer_h
-        tower_z = round(layer_h + self.slots[self.slot]["last_z"], 5)
 
         self.log.debug(
             "Adding purge tower, z: {}, layer_h: {}".format(tower_z, layer_h)
@@ -1605,7 +1622,7 @@ class PurgeHandler:
         yield self._get_retraction(old_e)
 
         # handle z-hop
-        z_hop = self._get_z_hop(current_z, old_e)
+        z_hop = self._get_z_hop()
         if z_hop:
             yield z_hop
 
@@ -1633,6 +1650,7 @@ class PurgeHandler:
         self.slots[self.slot]["last_z"] = tower_z
 
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        self.current_z = tower_z
 
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
@@ -1813,7 +1831,10 @@ class PurgeHandler:
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
         yield gcode.gen_extruder_reset(), b" reset extruder position"
-        yield self._get_z_hop(current_z, old_e)
+
+        # restore correct model z position
+        self.current_z = layer_z
+        yield self._get_z_hop()
         yield None, b" TOWER END"
 
         # readjust motor current
@@ -1829,10 +1850,10 @@ class PurgeHandler:
             self.slots[self.slot]["vertical_dir"]
         )
 
-    def get_infill_lines_zigzag(self, current_z, e_pos, extruder):
+    def get_infill_lines_zigzag(self, layer_z, e_pos, extruder):
         """
         G-code for switch tower infill
-        :param current_z: current layer z
+        :param layer_z: current layer z
         :param z_pos: head z position
         :param e_pos: extruder position
         :param extruder: active extruder
@@ -1840,12 +1861,13 @@ class PurgeHandler:
         """
 
         # TODO: move this to global state
+        self.current_z = layer_z
         self.e_pos = e_pos
 
-        self.get_slot(current_z, extruder.tool, False)
+        self.get_slot(layer_z, extruder.tool, False)
 
         # calculate layer height
-        layer_h = round(current_z - self.slots[self.slot]["last_z"], 5)
+        layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
         if layer_h <= 0.1:
             # no reason to print infill. Actually no reason to be here...
             return
@@ -1860,7 +1882,7 @@ class PurgeHandler:
         yield self._get_retraction(extruder)
 
         # handle z-hop
-        z_hop = self._get_z_hop(current_z, extruder)
+        z_hop = self._get_z_hop()
         if z_hop:
             yield z_hop
 
@@ -1889,6 +1911,7 @@ class PurgeHandler:
 
         yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        self.current_z = tower_z
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         yield self._get_prime(extruder)
@@ -1947,7 +1970,7 @@ class PurgeHandler:
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
-        yield self._get_z_hop(current_z, extruder)
+        yield self._get_z_hop()
         yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
@@ -1956,22 +1979,23 @@ class PurgeHandler:
             "flipflop_infill"
         ]
 
-    def get_infill_lines_blocky(self, current_z, e_pos, extruder):
+    def get_infill_lines_blocky(self, layer_z, e_pos, extruder):
         """
         G-code for switch tower infill
-        :param current_z: current layer z
+        :param layer_z: current layer z
         :param e_pos: extruder position
         :param extruder: active extruder
         :return: list of cmd, comment tuples
         """
 
         # TODO: move this to global state
+        self.current_z = layer_z
         self.e_pos = e_pos
 
-        self.get_slot(current_z, extruder.tool, False)
+        self.get_slot(layer_z, extruder.tool, False)
 
         # calculate layer height
-        layer_h = round(current_z - self.slots[self.slot]["last_z"], 5)
+        layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
         if layer_h <= 0.1:
             # no reason to print infill. Actually no reason to be here...
             return
@@ -1986,7 +2010,7 @@ class PurgeHandler:
         yield self._get_retraction(extruder)
 
         # handle z-hop
-        z_hop = self._get_z_hop(current_z, extruder)
+        z_hop = self._get_z_hop()
         if z_hop:
             yield z_hop
 
@@ -2009,6 +2033,7 @@ class PurgeHandler:
 
         yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        self.current_z = tower_z
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # infill 'lip' for better purge base
@@ -2048,7 +2073,7 @@ class PurgeHandler:
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
-        yield self._get_z_hop(current_z, extruder)
+        yield self._get_z_hop()
         yield gcode.gen_extruder_reset(), b" reset extruder position"
         yield None, b" TOWER INFILL END"
 
@@ -2057,7 +2082,7 @@ class PurgeHandler:
             "flipflop_infill"
         ]
 
-    def check_infill(self, current_z, e_pos, extruder):
+    def check_infill(self, layer_z, e_pos, extruder):
         """
         Checks if tower z is too low versus layer and adds infill if needed
         :param current_z: current layer z
@@ -2069,17 +2094,23 @@ class PurgeHandler:
 
         if self.purge_handling == PURGE_HANDLING_BUCKET:
             return
+
+        self.current_z = layer_z
         self.e_pos = e_pos
+
+        # add brim if needed
         if not self.brim_done:
-            for line in self.get_brim_lines(current_z, extruder):
+            for line in self.get_brim_lines(
+                self.current_z, self.towers.max_layer_h, extruder
+            ):
                 yield line
             self.brim_done = True
 
         # find slots that need work
         count = 0
         zero_count = 0
-        for s in range(self.towers.get_tower_count(current_z)):
-            z = round(current_z + self.settings.z_offset, 5)
+        for s in range(self.towers.get_tower_count(layer_z)):
+            z = round(layer_z + self.settings.z_offset, 5)
             z_diff = round(z - self.slots[s]["last_z"], 5)
             if z_diff >= self.towers.get_min_layer_h() - 0.05:
                 if self.slots[s]["last_z"] == 0:
@@ -2088,12 +2119,14 @@ class PurgeHandler:
                     count += 1
         if zero_count:
             if not self.raft_done:
-                for line in self.get_raft_lines(current_z, extruder, zero_count):
+                for line in self.get_raft_lines(
+                    self.current_z, self.towers.max_layer_h, extruder, zero_count
+                ):
                     yield line
                 self.raft_done = True
         if count:
             self.infill_slots = count
             for l in self.infill_functions[self.settings.infill_style](
-                current_z, e_pos, extruder
+                layer_z, e_pos, extruder
             ):
                 yield l

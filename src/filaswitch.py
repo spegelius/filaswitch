@@ -241,6 +241,7 @@ class TopFrame(Frame):
             try:
                 self.ou_button.config(state=DISABLED)
                 self.os_button.config(state=DISABLED)
+
                 settings.hw_config = self.hw_var.get()
                 settings.purge_lines = int(self.gui.adv_frame.lines_var.get())
                 settings.tower_position = self.gui.adv_frame.position_var.get()
@@ -250,6 +251,7 @@ class TopFrame(Frame):
                 settings.purge_speed = int(self.gui.adv_frame.purge_speed_var.get())
                 settings.tower_fan_off = self.gui.adv_frame.tower_fan_off_var.get()
                 settings.infill_style = self.gui.adv_frame.infill_style_var.get()
+
                 brim_val = self.gui.adv_frame.brim_size_var.get()
 
                 if brim_val == BRIM_AUTO:
@@ -359,6 +361,7 @@ class AdvancedFrame(Frame):
         Creates Advanced options GUI elements
         :return:
         """
+        # Labels, first column
         self.position_label = Label(self, text="Purge tower position").grid(
             row=0, column=0, sticky=W, padx=5, pady=3
         )
@@ -374,6 +377,8 @@ class AdvancedFrame(Frame):
         self.debug_label = Label(self, text="Enable debug prints").grid(
             row=4, column=0, sticky=W, padx=5, pady=3
         )
+
+        # Labels, 2nd column
         self.brim_label = Label(self, text="Tower brim loops").grid(
             row=0, column=2, sticky=W, padx=5, pady=3
         )
@@ -670,12 +675,14 @@ def main():
         )
         parser.add_argument(
             "--force_raft",
-            help="Set to True to force a tower raft",
-            type=bool,
-            default=False,
+            help="Forces printing tower raft",
+            action="store_true",
         )
         parser.add_argument(
-            "--tower_force", help="start position of tower", type=str, default="0,0"
+            "--tower_force",
+            help="start position of tower, given as x,y",
+            type=str,
+            default="0,0",
         )
         parser.add_argument(
             "--brim_count", help="Number of brim loops", type=int, default=0
