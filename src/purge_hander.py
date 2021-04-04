@@ -48,7 +48,7 @@ class PurgeHandler:
             self.bucket_retract_extra = settings.get_hw_config_float_value(
                 "purge.bucket.retract.extra"
             )
-        except TypeError:
+        except ValueError:
             self.bucket_retract_extra = 0.0
 
         if self.settings.get_hw_config_value("purge.handling") == "bucket":
@@ -575,7 +575,7 @@ class PurgeHandler:
             pre_retract_pause = self.settings.get_hw_config_int_value(
                 "prepurge.initial.pause"
             )
-        except TypeError:
+        except ValueError:
             pre_retract = None
             pre_retract_speed = None
             pre_retract_pause = None
@@ -676,7 +676,7 @@ class PurgeHandler:
             pre_retract_pause = self.settings.get_hw_config_int_value(
                 "prepurge.initial.pause"
             )
-        except TypeError:
+        except ValueError:
             pre_retract = None
             pre_retract_speed = None
             pre_retract_pause = None
@@ -953,7 +953,7 @@ class PurgeHandler:
                 )
                 values.append((feed_len, feed_speed))
                 i += 1
-            except TypeError:
+            except ValueError:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning(
                         "No feed[N].length or .speed found. Please check the HW-config"
@@ -1001,7 +1001,7 @@ class PurgeHandler:
                     ), b" prime move"
                     horizontal_dir = gcode.opposite_dir(horizontal_dir)
                     i += 1
-                except TypeError:
+                except ValueError:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning("No prime move steps. That's OK.")
                     break
@@ -1018,7 +1018,7 @@ class PurgeHandler:
                     )
                     values.append((feed_len, feed_speed))
                     i += 1
-                except TypeError:
+                except ValueError:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning(
                             "No feed[N].length or .speed found. Please check the HW-config"

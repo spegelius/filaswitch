@@ -36,7 +36,7 @@ class PrePrime:
             self.bucket_retract_extra = settings.get_hw_config_float_value(
                 "purge.bucket.retract.extra"
             )
-        except TypeError:
+        except ValueError:
             self.bucket_retract_extra = 0.0
 
         # index of the extruder that's primed last
@@ -90,7 +90,7 @@ class PrePrime:
                 )
                 yield gcode.gen_extruder_move(-rr_len, rr_speed), b" rapid retract"
                 i += 1
-            except TypeError:
+            except ValueError:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning(
                         "No rapid.retract.initial[N].length or .speed found. Please check the HW-config"
@@ -114,7 +114,7 @@ class PrePrime:
                     -rr_long_len, rr_long_speed
                 ), b" long retract"
                 i += 1
-            except TypeError:
+            except ValueError:
                 if i == 0 and not self.warnings_shown:
                     self.log.warning(
                         "No rapid.retract.long[N].length or .speed found. Please check the HW-config"
@@ -142,7 +142,7 @@ class PrePrime:
                     ), b" cooling"
                     self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                     i += 1
-                except TypeError:
+                except ValueError:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning("No cooling steps. That's OK.")
                     break
@@ -178,7 +178,7 @@ class PrePrime:
                     ), b" prime move"
                     self.horizontal_dir = gcode.opposite_dir(self.horizontal_dir)
                     i += 1
-                except TypeError:
+                except ValueError:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning("No prime move steps. That's OK.")
                     break
@@ -193,7 +193,7 @@ class PrePrime:
                     )
                     yield gcode.gen_extruder_move(feed_len, feed_speed), b" prime feed"
                     i += 1
-                except TypeError:
+                except ValueError:
                     if i == 0 and not self.warnings_shown:
                         self.log.warning("No prime move steps. That's OK.")
                     break

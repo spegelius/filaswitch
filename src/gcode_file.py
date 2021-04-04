@@ -885,7 +885,7 @@ class GCodeFile:
             if coasting:
                 for e in self.extruders:
                     self.extruders[e].coasting += coasting
-        except TypeError:
+        except ValueError:
             pass
 
     def parse_gcode_pass2(self):

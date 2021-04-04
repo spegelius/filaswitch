@@ -353,14 +353,14 @@ class Settings:
         val = self.get_hw_config_value(key)
         try:
             return float(val)
-        except ValueError:
+        except (ValueError, TypeError):
             raise ValueError("Cannot parse float value for key '{}'".format(key))
 
     def get_hw_config_int_value(self, key):
         val = self.get_hw_config_value(key)
         try:
             return int(val)
-        except ValueError:
+        except (ValueError, TypeError):
             raise ValueError("Cannot parse int value for key '{}'".format(key))
 
     def get_hw_config_bool_value(self, key):
@@ -392,6 +392,6 @@ class Settings:
                     break
                 values.append(val)
                 i += 1
-            except TypeError:
+            except ValueError:
                 break
         return values
