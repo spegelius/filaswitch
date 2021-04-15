@@ -459,6 +459,7 @@ class GCodeFile:
                                 index += self.insert_line(
                                     index, gcode.gen_fan_off_gcode(), b"disable fan"
                                 )
+                                index += self.insert_line(index, gcode.gen_pause(200))
 
                             # add tool change g-code
                             # first check if retract is needed
@@ -490,22 +491,40 @@ class GCodeFile:
                                     gcode.gen_fan_speed_gcode(fan_speed),
                                     b"restore fan",
                                 )
+                                index += self.insert_line(index, gcode.gen_pause(200))
                         continue
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
-                        prev_index = index
-                        for line in self.purge_handler.check_infill(
+                        lines = self.purge_handler.check_infill(
                             cmd.data, self.e_pos, self.active_e
-                        ):
-                            if line:
-                                index += self.insert_line(index, line[0], line[1])
-                        if index > prev_index:
+                        )
+                        if lines:
+                            # disable fan
+                            if fan_speed and self.settings.tower_fan_off:
+                                index += self.insert_line(
+                                    index, gcode.gen_fan_off_gcode(), b"disable fan"
+                                )
+                                index += self.insert_line(index, gcode.gen_pause(200))
+
+                            for line in lines:
+                                if line:
+                                    index += self.insert_line(index, line[0], line[1])
+
                             z_move_needed = True
                             prime_needed = True
                             prime_ok = False
                             head_check_needed = True
                             # always full retract after infill
                             self.e_pos = -self.active_e.retract
+
+                            if fan_speed and self.settings.tower_fan_off:
+                                index += self.insert_line(
+                                    index,
+                                    gcode.gen_fan_speed_gcode(fan_speed),
+                                    b"restore fan",
+                                )
+                                index += self.insert_line(index, gcode.gen_pause(200))
+
                         continue
                     elif cmd.action == ActionPoint.PREPRIME:
                         index = self.prerun_prime(index)
