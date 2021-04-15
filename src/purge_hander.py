@@ -223,6 +223,12 @@ class PurgeHandler:
             INFILL_BLOCKY: self.get_infill_lines_blocky,
         }
 
+        # wall speed
+        if self.settings.purge_speed * 60 < self.settings.default_speed:
+            self.wall_speed = self.settings.purge_speed * 60
+        else:
+            self.wall_speed = self.settings.default_speed
+
     def initialize_slots(self):
         """
         Initialize tower slot data
@@ -1376,7 +1382,7 @@ class PurgeHandler:
         :param y_direction: current y direction
         :return: list of g-code lines
         """
-        wall_speed = self.settings.default_speed
+
 
         x_dir = x_direction
         y_dir = gcode.opposite_dir(y_direction)
@@ -1392,17 +1398,17 @@ class PurgeHandler:
         last_y = h - 0.3
 
         yield gcode.gen_direction_move(
-            x_dir, self.wall_width, wall_speed, layer_h, extruder=extruder
+            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder
         ), b" wall"
         yield gcode.gen_direction_move(
-            y_dir, h, wall_speed, layer_h, extruder=extruder
+            y_dir, h, self.wall_speed, layer_h, extruder=extruder
         ), b" wall"
 
         x_dir = gcode.opposite_dir(x_dir)
         y_dir = gcode.opposite_dir(y_dir)
 
         yield gcode.gen_direction_move(
-            x_dir, self.wall_width, wall_speed, layer_h, extruder=extruder
+            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder
         ), b" wall"
         yield gcode.gen_direction_move(
             y_dir, last_y, last_speed, layer_h, extruder=extruder, last_line=True
