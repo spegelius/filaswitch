@@ -184,7 +184,7 @@ class PurgeHandler:
             )
         )
 
-        # build volume mid points, populated in find tower-fuction
+        # build volume mid points, populated in find tower-function
         self.x_mid = None
         self.y_mid = None
 
@@ -319,7 +319,7 @@ class PurgeHandler:
                 elif self.start_pos_x > bed_x_max - self.total_width:
                     self.start_pos_x = bed_x_max - self.total_width
 
-                if self.start_pos_y < bed_x_max - self.total_height:
+                if self.start_pos_y < bed_y_max - self.total_height:
                     self.rotate_tower(0)
                     return position
 
