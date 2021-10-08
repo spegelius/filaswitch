@@ -822,6 +822,9 @@ class GCodeFile:
                         )
                         index += 1
                         layer_nr += 1
+                        if tool_index and tool_index > last_up_z_index:
+                            tool_index += 1
+
                         if len(self._layers) > 1 and self.settings.sparse_layers:
                             # add infill action with previous layer height
                             self.insert_line(
@@ -830,6 +833,9 @@ class GCodeFile:
                             )
                             self.infill_checks.append(last_print_z)
                             index += 1
+                            if tool_index and tool_index > last_up_z_index:
+                                tool_index += 1
+
                     last_up_z_index = None
                 last_print_z = current_z
 
