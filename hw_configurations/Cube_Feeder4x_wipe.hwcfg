@@ -37,7 +37,7 @@ motor.current.run: 0
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
 prepurge.initial.retract: 20
-prepurge.initial.retract.speed: 350
+prepurge.initial.retract.speed: 2000
 prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
@@ -77,16 +77,24 @@ prerun.finetune.length: 5
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 20
+rapid.retract.initial[0].length: 45
 rapid.retract.initial[0].speed: 1500
-rapid.retract.initial[1].length: 15
-rapid.retract.initial[1].speed: 1500
-rapid.retract.initial[2].length: 120
-rapid.retract.initial[2].speed: 1500
 rapid.retract.wipe: True
-rapid.retract.pause: 0
-rapid.retract.long[0].length: 5
-rapid.retract.long[0].speed: 1500
+rapid.retract.pause: 3500
+rapid.retract.long[0].length: -40
+rapid.retract.long[0].speed: 2000
+rapid.retract.long[1].length: 45
+rapid.retract.long[1].speed: 2000
+rapid.retract.long[2].length: -15
+rapid.retract.long[2].speed: 1000
+rapid.retract.long[3].length: 15
+rapid.retract.long[3].speed: 1000
+rapid.retract.long[4].length: -15
+rapid.retract.long[4].speed: 1000
+rapid.retract.long[5].length: 15
+rapid.retract.long[5].speed: 1000
+rapid.retract.long[6].length: 110
+rapid.retract.long[6].speed: 2000
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0

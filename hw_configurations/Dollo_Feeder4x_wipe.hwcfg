@@ -5,11 +5,11 @@
 tool.temperature.use_id:  True
 
 ## What command to use for controlling nozzle temperature. M104 and G10 supported
-tool.temperature.command: G10
+tool.temperature.command: M104
 
 ## Nozzle diameter. Used with slicers (Cura) that do not provide settings in gcode files.
 ## Overridden for S3D, Slic3r and KISS
-tool.nozzle.diameter: 0.4
+tool.nozzle.diameter: 0.6
 
 ## Z-hop when moving to and from the tower. Used with slicers (Cura) that do not provide settings in gcode files.
 ## Overridden for S3D, Slic3r and KISS
@@ -26,7 +26,7 @@ machine.origin.offset_x: 0
 machine.origin.offset_y: 0
 machine.default.speed: 2400
 
-## Extruder motor current values. Adjusts motor current using M907. Values are
+## Extruder motor current values. Adjusts motor current using M907. Values are 
 ## for load/unload and for normal operation.
 ## load = motor current for load/unload
 ## run = motor current for normal operation
@@ -36,8 +36,8 @@ motor.current.run: 0
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
-prepurge.initial.retract: 35
-prepurge.initial.retract.speed: 2000
+prepurge.initial.retract: 20
+prepurge.initial.retract.speed: 350
 prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
@@ -49,9 +49,9 @@ prepurge.initial.pause: 2500
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
 prepurge.sweep.length: 60
-prepurge.sweep.extrusion.length: 8
-prepurge.sweep.speed: 3600
-prepurge.sweep.count: 1
+prepurge.sweep.extrusion.length: 5.4
+prepurge.sweep.speed: 6000
+prepurge.sweep.count: 2
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
 
@@ -59,7 +59,7 @@ prepurge.sweep.gap.speed: 3000
 ## Change next line to True to enable
 prerun.prime: True
 prerun.prime.length: 40
-prerun.prime.extrusion.length: 2
+prerun.prime.extrusion.length: 1.8
 prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
 prerun.prime.xstart: 5.0
@@ -77,24 +77,14 @@ prerun.finetune.length: 5
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 45
-rapid.retract.initial[0].speed: 2000
+rapid.retract.initial[0].length: 40
+rapid.retract.initial[0].speed: 1500
+rapid.retract.initial[1].length: 50
+rapid.retract.initial[1].speed: 1800
 rapid.retract.wipe: True
-rapid.retract.pause: 3500
-rapid.retract.long[0].length: -40
-rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 45
-rapid.retract.long[1].speed: 2000
-rapid.retract.long[2].length: -15
-rapid.retract.long[2].speed: 1000
-rapid.retract.long[3].length: 15
-rapid.retract.long[3].speed: 1000
-rapid.retract.long[4].length: -15
-rapid.retract.long[4].speed: 1000
-rapid.retract.long[5].length: 15
-rapid.retract.long[5].speed: 1000
-rapid.retract.long[6].length: 205
-rapid.retract.long[6].speed: 2000
+rapid.retract.pause: 0
+rapid.retract.long[0].length: 150
+rapid.retract.long[0].speed: 1800
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0
@@ -104,13 +94,13 @@ rapid.retract.long[6].speed: 2000
 #rapid.retract.cool[1].length: -5
 #rapid.retract.cool[1].speed: 1600
 #rapid.retract.cool[2].length: 5
-#rapid.retract.cool[2].speed: 2000
+#rapid.retract.cool[2].speed: 1800
 #rapid.retract.cool[3].length: -5
-#rapid.retract.cool[3].speed: 2400
+#rapid.retract.cool[3].speed: 1800
 #rapid.retract.cool[4].length: 5
-#rapid.retract.cool[4].speed: 2400
+#rapid.retract.cool[4].speed: 1800
 #rapid.retract.cool[5].length: -3
-#rapid.retract.cool[5].speed: 2400
+#rapid.retract.cool[5].speed: 1800
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
@@ -118,14 +108,12 @@ rapid.retract.long[6].speed: 2000
 ## - ramp up the speed for the main length of the feed
 ## - slow down for the last bit for smoother insert
 
-feed[0].length: 5
-feed[0].speed: 500
-feed[1].length: 215
-feed[1].speed: 2000
+feed[0].length: 10
+feed[0].speed: 1500
+feed[1].length: 205
+feed[1].speed: 1800
 feed[2].length: 20
 feed[2].speed: 1500
-feed[3].length: 5
-feed[3].speed: 300
 
 ## Do X movement during feeding to prevent blobs
 ## Change next line to True to enable
@@ -137,4 +125,5 @@ prime.trail.extrusion.length: 5
 prime.trail.speed: 900
 
 ## Tower coasting length. Use to even out the extrusion after tower if there's over-extrusion seen.
-post.tower.coast: 0
+post.tower.coast: 0.2
+
