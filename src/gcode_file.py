@@ -707,6 +707,7 @@ class GCodeFile:
                     break
                 elif comment.strip() == b"START SCRIPT END":
                     self.start_gcode_end = index
+                    last_up_z_index = index
                     index += 1
                     self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
                 elif comment.strip() == b"START SCRIPT START":
