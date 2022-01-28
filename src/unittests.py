@@ -61,6 +61,7 @@ class TestGcode(unittest.TestCase):
             self.test_object.read_gcode_line(b"G1 E-3.00000 F4800.00000"),
         )
 
+
     def test_format_to_string(self):
         self.assertEqual(
             b"G1 X1 Y1 Z1 E1 F1000; test",
@@ -83,6 +84,7 @@ class TestGcode(unittest.TestCase):
         self.assertEqual(
             None, self.test_object.is_z_move(b"G1 X67.626 Y63.341 Z0.25 E0 F900")
         )
+        self.assertEqual((0.5, None), self.test_object.is_z_move(b"G1 Z.5"))
 
     def test_is_extrusion_move(self):
         self.assertEqual(

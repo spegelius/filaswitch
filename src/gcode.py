@@ -19,10 +19,10 @@ TYPE_DELTA = 1
 class GCode:
 
     MOVE_RE = re.compile(b"^G0\s+|^G1\s+")
-    X_COORD_RE = re.compile(b".*\s+X([-]*\d+\.*\d*)")
-    Y_COORD_RE = re.compile(b".*\s+Y([-]*\d+\.*\d*)")
-    E_COORD_RE = re.compile(b".*\s+E([-]*\d+\.*\d*)")
-    Z_COORD_RE = re.compile(b".*\s+Z([-]*\d+\.*\d*)")
+    X_COORD_RE = re.compile(b".*\s+X([-]*\d+\.*\d*)|.*\s+X([-]*\.\d+)")
+    Y_COORD_RE = re.compile(b".*\s+Y([-]*\d+\.*\d*)|.*\s+Y([-]*\.\d+)")
+    E_COORD_RE = re.compile(b".*\s+E([-]*\d+\.*\d*)|.*\s+E([-]*\.\d+)")
+    Z_COORD_RE = re.compile(b".*\s+Z([-]*\d+\.*\d*)|.*\s+Z([-]*\.\d+)")
 
     SPEED_VAL_RE = re.compile(b".*\s+F(\d+\.*\d*)")
 
@@ -124,11 +124,14 @@ class GCode:
             self.last_match = m
         return self.last_match
 
-    def _parse_move_args(self, line):
-
+    def is_move_command(self, line):
         self.last_match = None
         m = self.MOVE_RE.match(line)
-        if m:
+        return m is not None
+
+    def _parse_move_args(self, line):
+
+        if self.is_move_command(line):
             x = None
             y = None
             z = None
@@ -137,19 +140,31 @@ class GCode:
 
             m = self.X_COORD_RE.match(line)
             if m:
-                x = float(m.groups()[0])
+                if m.groups()[0] is not None:
+                    x = float(m.groups()[0])
+                else:
+                    x = float(m.groups()[1])
 
             m = self.Y_COORD_RE.match(line)
             if m:
-                y = float(m.groups()[0])
+                if m.groups()[0] is not None:
+                    y = float(m.groups()[0])
+                else:
+                    y = float(m.groups()[1])
 
             m = self.Z_COORD_RE.match(line)
             if m:
-                z = float(m.groups()[0])
+                if m.groups()[0] is not None:
+                    z = float(m.groups()[0])
+                else:
+                    z = float(m.groups()[1])
 
             m = self.E_COORD_RE.match(line)
             if m:
-                e = float(m.groups()[0])
+                if m.groups()[0] is not None:
+                    e = float(m.groups()[0])
+                else:
+                    e = float(m.groups()[1])
 
             m = self.SPEED_VAL_RE.match(line)
             if m:
