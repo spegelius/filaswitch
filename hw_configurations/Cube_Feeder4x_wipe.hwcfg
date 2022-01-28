@@ -48,7 +48,7 @@ prepurge.initial.pause: 2500
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
-prepurge.sweep.length: 60
+prepurge.sweep.length: 70
 prepurge.sweep.extrusion.length: 5.4
 prepurge.sweep.speed: 6000
 prepurge.sweep.count: 2
