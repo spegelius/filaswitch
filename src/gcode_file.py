@@ -176,9 +176,7 @@ class GCodeFile:
         """
         G-code file base class. Not to be used directly
         :param logger: Logger object
-        :param hw_config: system configuration (PEEK, PTFE, E3Dv6)
-        :param tower_position: purge tower postion setting
-        :param purge_lines: amount of post purge lines
+        :param settings: Settings-object
         """
         self.log = logger
         self.settings = {}
