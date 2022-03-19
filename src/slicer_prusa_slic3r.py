@@ -27,6 +27,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         self.parse_version()
         self.parse_gcode()
         self.parse_header()
+
         if len(self.extruders.keys()) > 1:
             self.find_model_limits()
             self.add_tool_change_gcode()
@@ -83,6 +84,14 @@ class PrusaSlic3rCodeFile(GCodeFile):
          Parse Prusa Slic3r header and stuff for print settings
         :return: none
         """
+
+        # first parse values that are dependencies
+        for cmd, comment in self.lines:
+            if cmd:
+                continue
+            elif b" perimeter_speed =" in comment:
+                # ; perimeter_speed = 40
+                self.settings.default_speed = float(comment.split(b" = ")[1])
 
         z_offset = 0
         brim = -1
@@ -195,10 +204,6 @@ class PrusaSlic3rCodeFile(GCodeFile):
                             ].wipe = 4  # TODO: figure a way to read wipe length
                     tool += 1
 
-            elif b" perimeter_speed =" in comment:
-                # ; perimeter_speed = 40
-                self.settings.default_speed = float(comment.split(b" = ")[1])
-
             elif b" external_perimeter_speed =" in comment:
                 # ; external_perimeter_speed = 30
                 self.settings.outer_perimeter_speed = self._parse_float_or_percentage(
@@ -260,6 +265,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
         else:
             self.log.info("Slic3r version %d.%d.%d" % self.version)
 
+        # final speeds
         self.settings.default_speed *= 60
         self.settings.first_layer_speed *= 60
         self.settings.outer_perimeter_speed *= 60
