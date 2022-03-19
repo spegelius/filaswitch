@@ -395,3 +395,7 @@ class Settings:
             except ValueError:
                 break
         return values
+
+    def debug(self):
+        for key in self.__dict__:
+            print(key, self.__dict__[key])
