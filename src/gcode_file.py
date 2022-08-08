@@ -457,7 +457,7 @@ class GCodeFile:
                                 index += self.insert_line(
                                     index, gcode.gen_fan_off_gcode(), b"disable fan"
                                 )
-                                index += self.insert_line(index, gcode.gen_pause(200))
+                                index += self.insert_line(index, gcode.gen_pause(10))
 
                             # add tool change g-code
                             # first check if retract is needed
@@ -489,7 +489,7 @@ class GCodeFile:
                                     gcode.gen_fan_speed_gcode(fan_speed),
                                     b"restore fan",
                                 )
-                                index += self.insert_line(index, gcode.gen_pause(200))
+                                index += self.insert_line(index, gcode.gen_pause(10))
                         continue
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
@@ -502,7 +502,7 @@ class GCodeFile:
                                 index += self.insert_line(
                                     index, gcode.gen_fan_off_gcode(), b"disable fan"
                                 )
-                                index += self.insert_line(index, gcode.gen_pause(200))
+                                index += self.insert_line(index, gcode.gen_pause(10))
 
                             for line in lines:
                                 if line:
@@ -521,7 +521,7 @@ class GCodeFile:
                                     gcode.gen_fan_speed_gcode(fan_speed),
                                     b"restore fan",
                                 )
-                                index += self.insert_line(index, gcode.gen_pause(200))
+                                index += self.insert_line(index, gcode.gen_pause(10))
 
                         continue
                     elif cmd.action == ActionPoint.PREPRIME:
