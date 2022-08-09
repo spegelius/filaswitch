@@ -293,6 +293,7 @@ class GCodeFile:
                     self.insert_line(index, cmd, comment)
                     index += 1
             self.active_e = self.extruders[self.preprime.last_tool]
+            self.e_pos = -self.active_e.retract
         else:
             self.log.info("No pre-prime run")
             self.active_e = list(self.extruders.values())[0]
@@ -550,6 +551,19 @@ class GCodeFile:
                         # no prime allowed before moving to position
                         self.lines.pop(index)
                         index -= 1
+                    elif self.e_pos < 0 and gcode.last_match[0] < 0:
+                        # don't retract if it goes over the max retract
+                        if gcode.last_match[0] + self.e_pos < -self.active_e.retract:
+                            self.lines.pop(index)
+                            index -= 1
+
+                        # in case of partial retraction, replace with the missing length
+                        retract_needed = self.e_pos + self.active_e.retract
+                        if retract_needed > 0.1:
+                            index += self.insert_line(
+                                index,
+                                *self.active_e.get_retract_gcode(change=-self.active_e.retract + retract_needed)
+                            )
                     else:
                         # store extruder position
                         self.e_pos = self._get_retract_position(
