@@ -1398,20 +1398,20 @@ class PurgeHandler:
         last_y = h - 0.3
 
         yield gcode.gen_direction_move(
-            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder
+            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder, feed_multi=1.05
         ), b" wall"
         yield gcode.gen_direction_move(
-            y_dir, h, self.wall_speed, layer_h, extruder=extruder
+            y_dir, h, self.wall_speed, layer_h, extruder=extruder, feed_multi=1.05
         ), b" wall"
 
         x_dir = gcode.opposite_dir(x_dir)
         y_dir = gcode.opposite_dir(y_dir)
 
         yield gcode.gen_direction_move(
-            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder
+            x_dir, self.wall_width, self.wall_speed, layer_h, extruder=extruder, feed_multi=1.05
         ), b" wall"
         yield gcode.gen_direction_move(
-            y_dir, last_y, last_speed, layer_h, extruder=extruder, last_line=True
+            y_dir, last_y, last_speed, layer_h, extruder=extruder, feed_multi=1.05, last_line=True
         ), b" wall"
 
     def get_slot(self, layer_z, tool, tool_change):
@@ -1435,7 +1435,7 @@ class PurgeHandler:
         """
         # calculate wall e length and subtract it from expected purge length
         wall_e_length = extruder.get_feed_length(
-            (self.wall_width + self.wall_height) * 2, layer_h
+            (self.wall_width + self.wall_height) * 2 * 1.05, layer_h
         )
         purge_e = self.purge_e_length - wall_e_length
 
@@ -1943,6 +1943,7 @@ class PurgeHandler:
             self.settings.default_speed,
             layer_h,
             extruder=extruder,
+            feed_multi=1.1,
         ), b" infill lip"
 
         for speed in self.infill_speeds:
@@ -1951,7 +1952,7 @@ class PurgeHandler:
             else:
                 direction = horizontal_dir + 360 + infill_angle
             yield gcode.gen_direction_move(
-                direction, infill_path_length, speed, layer_h, extruder=extruder
+                direction, infill_path_length, speed, layer_h, extruder=extruder, feed_multi=1.1
             ), b" infill"
             flip = not flip
 
@@ -2053,6 +2054,7 @@ class PurgeHandler:
             self.settings.default_speed,
             layer_h,
             extruder=extruder,
+            feed_multi=1.1,
         ), b" infill lip"
 
         for index, speed in enumerate(self.infill_speeds):
@@ -2065,6 +2067,7 @@ class PurgeHandler:
                 speed,
                 layer_h,
                 extruder=extruder,
+                feed_multi=1.1,
                 last_line=index == len(self.infill_speeds) - 1,
             ), b" infill"
 
