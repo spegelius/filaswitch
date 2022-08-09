@@ -15,7 +15,7 @@ class Extruder:
         self.retract_speed = 0.0
         self._z_hop = 0.0
         self.z_offset = 0.0
-        self.feed_rate_max = 0.25  # don't go over this
+        self.feed_rate_max = 0.3  # don't go over this
         self.feed_rate_multiplier = 1  # slicer default feed multi
         self.current_z = None
         self.coasting = 0.0
