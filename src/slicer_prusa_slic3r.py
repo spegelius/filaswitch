@@ -138,7 +138,7 @@ class PrusaSlic3rCodeFile(GCodeFile):
                     self.settings.extrusion_width = float(comment.split(b" = ")[1])
                 except:
                     # don't fail if value is percentage
-                    self.settings.extrusion_width = self.extruders[0].nozzle
+                    self.settings.extrusion_width = self.extruders[0].nozzle + 0.05
 
             # elif b"perimeters extrusion width" in comment:
             #     self.perimeter_widths.append(float(comment.split(b"=")[1:].strip()))

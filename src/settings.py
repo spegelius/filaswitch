@@ -270,7 +270,7 @@ class Settings:
         if not self._extrusion_width:
             self._extrusion_width = self.get_hw_config_float_value(
                 "tool.nozzle.diameter"
-            )
+            ) + 0.05
         return self._extrusion_width
 
     @extrusion_width.setter
