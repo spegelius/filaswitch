@@ -929,14 +929,28 @@ class GCodeFile:
     def parse_gcode_pass2(self):
         # create tower instances
         min_z = None
+        max_z = None
         prev_z = 0
 
-        # calculate min z height
+        # calculate min z height for tool change layers
         for z in sorted(self._layers):
+            # only process layers with tool changes
+            if not self._layers[z]:
+                continue
+
             z_h = round(z - prev_z, 5)
             if min_z is None or z_h < min_z:
                 min_z = z_h
             prev_z = z
+
+        # calculate max z height for all layers
+        for z in sorted(self._layers):
+            z_h = round(z - prev_z, 5)
+            if max_z is None or z_h > max_z:
+                max_z = z_h
+            prev_z = z
+
+        min_z = min(min_z, max_z)
 
         # don't go lower than 0.1
         if min_z < 0.1:
