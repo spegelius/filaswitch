@@ -2,6 +2,7 @@ import math
 
 from gcode import GCode, E, S, W, N, NE, NW, SE, SW, TYPE_CARTESIAN, TYPE_DELTA
 from layer import Layer, ACT_SWITCH
+
 from settings import (
     Settings,
     AUTO,
@@ -1380,9 +1381,9 @@ class PurgeHandler:
         :param last_speed: speed for the last line
         :param x_direction: current x direction
         :param y_direction: current y direction
+        :param infill: wall for infill or not
         :return: list of g-code lines
         """
-
 
         x_dir = x_direction
         y_dir = gcode.opposite_dir(y_direction)
@@ -2025,7 +2026,7 @@ class PurgeHandler:
             self.slots[self.slot + s]["last_z"] = tower_z
 
         # infill settings
-        infill_x = (self.wall_width - 2) / len(self.infill_speeds)
+        infill_x = (self.wall_width) / len(self.infill_speeds)
         infill_y = (
             self.wall_height * self.infill_slots
             + (self.infill_slots - 1) * self.settings.extrusion_width
@@ -2043,10 +2044,6 @@ class PurgeHandler:
         self.current_z = tower_z
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
-        # infill 'lip' for better purge base
-        yield gcode.gen_direction_move(
-            horizontal_dir, 1, self.settings.travel_xy_speed, layer_h
-        ), b" infill position"
         yield self._get_prime(extruder)
         yield gcode.gen_direction_move(
             gcode.opposite_dir(vertical_dir),
