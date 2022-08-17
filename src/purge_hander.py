@@ -27,8 +27,7 @@ class PurgeHandler:
         Filament switch tower functionality
         :param logger: Logger object
         :param settings: settings object
-        :param max_slots: maximum number of tower slots
-        :param min_layer_h: minimum layer height
+        :param tower: Towers instance
         """
 
         # localize
@@ -205,9 +204,6 @@ class PurgeHandler:
         self.tool_use_id = self.settings.get_hw_config_bool_value(
             "tool.temperature.use_id"
         )
-
-        # infill slot count
-        self.infill_slots = 0
 
         # infill speeds
         self.infill_speeds = [
@@ -559,9 +555,6 @@ class PurgeHandler:
     def get_pre_switch_gcode_bucket(self):
         """
         Generates pre tool switch g-code
-        :param old_e: active extruder
-        :param new_e: new extruder
-        :param layer_h: current layer height
         :return:
         """
 
@@ -941,8 +934,6 @@ class PurgeHandler:
     def get_post_switch_gcode_bucket(self):
         """
         Generate gcode for actions after tool change
-        :param extruder: extruder
-        :param layer_h: current layer height
         :return:
         """
 
@@ -1059,8 +1050,9 @@ class PurgeHandler:
     def get_brim_lines(self, current_z, layer_h, extruder):
         """
         G-code lines for the brim
-        :param first_layer: first layer
-        :param extruder: first extruder object
+        :param current_z: current layer z
+        :param layer_h: layer height
+        :param extruder: extruder object
         :return: list of cmd, comment tuples
         """
         yield None, b" TOWER BRIM START"
@@ -1334,7 +1326,7 @@ class PurgeHandler:
             self.e_pos = 0
             return extruder.get_prime_gcode(change=-prime, comment=b" tower prime")
 
-    def _get_wall_position_gcode(self, x_direction, y_direction, infill=False):
+    def _get_wall_position_gcode(self, x_direction, y_direction, slots, infill=False):
         """
         Retun g-code line for positioning head for wall print
         :param x_direction: current x direction
@@ -1344,8 +1336,8 @@ class PurgeHandler:
         """
         if infill:
             h = (
-                self.wall_height * self.infill_slots
-                + (self.infill_slots - 1) * self.settings.extrusion_width
+                self.wall_height * slots
+                + (slots - 1) * self.settings.extrusion_width
             )
         else:
             h = self.wall_height
@@ -1372,7 +1364,7 @@ class PurgeHandler:
         )
 
     def _get_wall_gcode(
-        self, extruder, layer_h, last_speed, x_direction, y_direction, infill=False
+        self, extruder, layer_h, last_speed, x_direction, y_direction, slots, infill=False
     ):
         """
         Return g-code for printing the purge tower walls
@@ -1390,8 +1382,8 @@ class PurgeHandler:
 
         if infill:
             h = (
-                self.wall_height * self.infill_slots
-                + (self.infill_slots - 1) * self.settings.extrusion_width
+                self.wall_height * slots
+                + (slots - 1) * self.settings.extrusion_width
             )
         else:
             h = self.wall_height
@@ -1414,18 +1406,6 @@ class PurgeHandler:
         yield gcode.gen_direction_move(
             y_dir, last_y, last_speed, layer_h, extruder=extruder, feed_multi=1.05, last_line=True
         ), b" wall"
-
-    def get_slot(self, layer_z, tool, tool_change):
-        """
-        Get next viable slot, based on lowest z. Start from back
-        :param layer_z: current layer z
-        :return: none
-        """
-        if tool_change:
-            self.slot = self.towers.get_tower_id_by_z_and_tool(layer_z, tool)
-        else:
-            # fill infill slots from the first available slot
-            self.slot = self.towers.get_tower_count(layer_z) - self.infill_slots
 
     def _calculate_purge_values(self, layer_h, extruder):
         """
@@ -1457,7 +1437,7 @@ class PurgeHandler:
         purge_gap = self.purge_gap_default
         line_diff = self.purge_lines - whole_lines
         if line_diff and whole_lines > 1:
-            purge_gap = self.purge_lines / (whole_lines) * purge_gap
+            purge_gap = self.purge_lines / whole_lines * purge_gap
 
         # adjust purge feed multiplier
         purge_multi = self.settings.purge_multi / 100 * lines / whole_lines
@@ -1594,7 +1574,7 @@ class PurgeHandler:
         # TODO: move this to global state
         self.e_pos = e_pos
 
-        self.get_slot(layer_z, new_e.tool, True)
+        self.slot = self.towers.get_tower_id_by_z_and_tool(layer_z, new_e.tool)
 
         # calculate layer height
         if self.settings.sparse_layers:
@@ -1802,6 +1782,7 @@ class PurgeHandler:
         yield self._get_wall_position_gcode(
             self.slots[self.slot]["horizontal_dir"],
             self.slots[self.slot]["vertical_dir"],
+            1
         )
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
@@ -1824,6 +1805,7 @@ class PurgeHandler:
             800,
             self.slots[self.slot]["horizontal_dir"],
             self.slots[self.slot]["vertical_dir"],
+            1,
         ):
             yield line
 
@@ -1857,21 +1839,19 @@ class PurgeHandler:
             self.slots[self.slot]["vertical_dir"]
         )
 
-    def get_infill_lines_zigzag(self, layer_z, e_pos, extruder):
+    def get_infill_lines_zigzag(self, layer_z, e_pos, extruder, slots):
         """
         G-code for switch tower infill
         :param layer_z: current layer z
-        :param z_pos: head z position
         :param e_pos: extruder position
         :param extruder: active extruder
+        :param slots: slot count
         :return: list of cmd, comment tuples
         """
 
         # TODO: move this to global state
         self.current_z = layer_z
         self.e_pos = e_pos
-
-        self.get_slot(layer_z, extruder.tool, False)
 
         # calculate layer height
         layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
@@ -1893,14 +1873,15 @@ class PurgeHandler:
         if z_hop:
             yield z_hop
 
-        for s in range(self.infill_slots):
+        # update last_z for slots
+        for s in range(slots):
             self.slots[self.slot + s]["last_z"] = tower_z
 
         # infill settings
         infill_x = (self.wall_width - 2) / len(self.infill_speeds)
         infill_y = (
-            self.wall_height * self.infill_slots
-            + (self.infill_slots - 1) * self.settings.extrusion_width
+            self.wall_height * slots
+            + (slots - 1) * self.settings.extrusion_width
             - 0.3
         )
         infill_angle = math.degrees(math.atan(infill_y / infill_x))
@@ -1916,7 +1897,7 @@ class PurgeHandler:
             vertical_dir = self.N
             infill_angle = -infill_angle
 
-        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, slots, infill=True)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         self.current_z = tower_z
         yield gcode.gen_relative_positioning(), b" relative positioning"
@@ -1930,6 +1911,7 @@ class PurgeHandler:
             self.settings.default_speed,
             horizontal_dir,
             vertical_dir,
+            slots,
             infill=True,
         ):
             yield line
@@ -1987,20 +1969,19 @@ class PurgeHandler:
             "flipflop_infill"
         ]
 
-    def get_infill_lines_blocky(self, layer_z, e_pos, extruder):
+    def get_infill_lines_blocky(self, layer_z, e_pos, extruder, slots):
         """
         G-code for switch tower infill
         :param layer_z: current layer z
         :param e_pos: extruder position
         :param extruder: active extruder
+        :param slots: slot count
         :return: list of cmd, comment tuples
         """
 
         # TODO: move this to global state
         self.current_z = layer_z
         self.e_pos = e_pos
-
-        self.get_slot(layer_z, extruder.tool, False)
 
         # calculate layer height
         layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
@@ -2022,14 +2003,15 @@ class PurgeHandler:
         if z_hop:
             yield z_hop
 
-        for s in range(self.infill_slots):
+        # update last_z for slots
+        for s in range(slots):
             self.slots[self.slot + s]["last_z"] = tower_z
 
         # infill settings
-        infill_x = (self.wall_width) / len(self.infill_speeds)
+        infill_x = self.wall_width / len(self.infill_speeds)
         infill_y = (
-            self.wall_height * self.infill_slots
-            + (self.infill_slots - 1) * self.settings.extrusion_width
+            self.wall_height * slots
+            + (slots - 1) * self.settings.extrusion_width
         )
 
         flip = self.slots[self.slot]["flipflop_infill"]
@@ -2039,7 +2021,7 @@ class PurgeHandler:
             horizontal_dir = self.W
         vertical_dir = self.S
 
-        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, infill=True)
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, slots, infill=True)
         yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
         self.current_z = tower_z
         yield gcode.gen_relative_positioning(), b" relative positioning"
@@ -2088,10 +2070,108 @@ class PurgeHandler:
             "flipflop_infill"
         ]
 
+    def get_thicc_lines(self, layer_z, e_pos, extruder, slots):
+        """
+        G-code for switch tower thicc infill, used to support the tool change layer
+        :param layer_z: current layer z
+        :param e_pos: extruder position
+        :param extruder: active extruder
+        :param slots: slot count
+        :return: list of cmd, comment tuples
+        """
+
+        # TODO: move this to global state
+        self.current_z = layer_z
+        self.e_pos = e_pos
+
+        # calculate layer height
+        layer_h = round(self.current_z - self.slots[self.slot]["last_z"], 5)
+        if layer_h <= 0.1:
+            # no reason to print infill. Actually no reason to be here...
+            return
+        tower_z = round(layer_h + self.slots[self.slot]["last_z"], 5)
+
+        self.log.debug(
+            "Adding purge tower sparse infill, z: {}, layer_h: {}".format(tower_z, layer_h)
+        )
+        yield None, b" TOWER SPARSE INFILL START"
+
+        # handle retraction
+        yield self._get_retraction(extruder)
+
+        # handle z-hop
+        z_hop = self._get_z_hop()
+        if z_hop:
+            yield z_hop
+
+        # update last_z for slots
+        for s in range(slots):
+            self.slots[self.slot + s]["last_z"] = tower_z
+
+        # infill settings
+        infill_y = (
+            self.wall_height * slots
+            + (slots - 1) * self.settings.extrusion_width
+        )
+
+        horizontal_dir = self.W
+        vertical_dir = self.S
+
+        yield self._get_wall_position_gcode(horizontal_dir, vertical_dir, slots, infill=True)
+        yield gcode.gen_z_move(tower_z, self.settings.travel_z_speed), b" move z close"
+        self.current_z = tower_z
+        yield gcode.gen_relative_positioning(), b" relative positioning"
+
+        yield self._get_prime(extruder)
+
+        # wall gcode
+        for line in self._get_wall_gcode(
+            extruder,
+            layer_h,
+            self.settings.default_speed,
+            horizontal_dir,
+            vertical_dir,
+            slots,
+            infill=True,
+        ):
+            yield line
+
+        yield gcode.gen_direction_move(
+            vertical_dir, 0.3, 25 * 60, layer_h
+        ), b" wall shift"
+
+
+        lines = int((self.wall_width - 1))
+        line_gap = (self.wall_width - 1) / lines
+
+        for _ in range(lines):
+            vertical_dir = gcode.opposite_dir(vertical_dir)
+            yield gcode.gen_direction_move(
+                horizontal_dir, line_gap, 25, layer_h, extruder=extruder, feed_multi=1
+            ), b" infill"
+
+            yield gcode.gen_direction_move(
+                vertical_dir, infill_y, 25, layer_h, extruder=extruder, feed_multi=1.2
+            ), b" infill"
+
+        yield extruder.get_retract_gcode()
+        self.e_pos = -extruder.retract
+        if extruder.wipe:
+            yield gcode.gen_direction_move(
+                gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer_h
+            ), b" wipe"
+
+        yield gcode.gen_absolute_positioning(), b" absolute positioning"
+        yield gcode.gen_relative_e(), b" relative E"
+        yield self._get_z_hop()
+        yield gcode.gen_extruder_reset(), b" reset extruder position"
+        yield None, b" TOWER SPARSE INFILL END"
+
+
     def check_infill(self, layer_z, e_pos, extruder):
         """
         Checks if tower z is too low versus layer and adds infill if needed
-        :param current_z: current layer z
+        :param layer_z: current layer z
         :param e_pos: extruder position
         :param extruder: active extruder
         :return: list of cmd, comment tuples
@@ -2114,15 +2194,26 @@ class PurgeHandler:
 
         # find slots that need work
         count = 0
+        thicc = 0
         zero_count = 0
+        start_slot = -1
         for s in range(self.towers.get_tower_count(layer_z)):
             z = round(layer_z + self.settings.z_offset, 5)
             z_diff = round(z - self.slots[s]["last_z"], 5)
             if z_diff >= self.towers.get_min_layer_h() - 0.05:
+
+                if start_slot == -1:
+                    start_slot = s
+
                 if self.slots[s]["last_z"] == 0:
                     zero_count += 1
                 else:
-                    count += 1
+                    if self.towers.get_tower_by_id(s).z[layer_z] == -2:
+                        thicc += 1
+                    else:
+                        count += 1
+
+        # empty slots, need raft
         if zero_count:
             if not self.raft_done:
                 for line in self.get_raft_lines(
@@ -2130,9 +2221,16 @@ class PurgeHandler:
                 ):
                     yield line
                 self.raft_done = True
+
+        # slots needing infill
+
+        if thicc:
+            self.slot = start_slot
+            for l in self.get_thicc_lines(layer_z, e_pos, extruder, thicc):
+                yield l
+
         if count:
-            self.infill_slots = count
-            for l in self.infill_functions[self.settings.infill_style](
-                layer_z, e_pos, extruder
-            ):
+            self.slot = start_slot + thicc
+            func = self.infill_functions[self.settings.infill_style]
+            for l in func(layer_z, e_pos, extruder, count):
                 yield l

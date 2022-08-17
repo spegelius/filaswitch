@@ -110,7 +110,12 @@ class Towers:
         return self._max_layer_h
 
     def fill_gaps(self, max_infill_h, layers):
-        # find gaps in z list and fill them with infill (-1). Use approximate layer h
+        """
+        Find gaps in z list and fill them with infill (-1). Use approximate layer h
+
+        :param max_infill_h: max infill height
+        :param layers: _layers from main Gcode_file
+        """
 
         all_z_list = sorted(self.infill_checks)
 
@@ -128,11 +133,14 @@ class Towers:
             if first_z not in self.towers[tower].z:
                 self.towers[tower].add(first_z, -1)
 
-        # find and fill gaps
+        # process towers; fill gaps and set proper infill types
         for tower in self.towers:
             prev_z = 0
-            z_list = sorted(self.towers[tower].z)
+
             self.towers[tower].max_z_h = max_infill_h
+
+            # find and fill gaps
+            z_list = sorted(self.towers[tower].z)
             for z in z_list:
                 gap = round(z - prev_z - max_infill_h, 5)
                 if gap >= max_infill_h:
@@ -145,6 +153,17 @@ class Towers:
                         self.towers[tower].add(new_z, -1)
                         current_z = new_z
                 prev_z = z
+
+            # set infill type -2 for z below tool change
+            tool = False
+            z_list = sorted(self.towers[tower].z, reverse=True)
+            for z in z_list:
+                if self.towers[tower].z[z] == -1:
+                    if tool:
+                        self.towers[tower].z[z] = -2
+                    tool = False
+                else:
+                    tool = True
 
     def get_tool_change_z(self):
         z_list = []
