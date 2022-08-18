@@ -839,18 +839,6 @@ class PurgeHandler:
                 "jitter"
             ][vertical_dir]
 
-        # check purge len diff
-        if self.purge_length_diff:
-            direction = (
-                horizontal_dir if rr_wipe else gcode.opposite_dir(horizontal_dir)
-            )
-            yield gcode.gen_direction_move(
-                direction,
-                self.purge_length_diff / 2,
-                self.settings.travel_xy_speed,
-                layer_h,
-            ), b" pre-purge x adjust"
-
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
             if rr_wipe:
@@ -926,6 +914,15 @@ class PurgeHandler:
                 e_length=length,
             ), b" cooling"
             horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
+        # check purge len diff
+        if self.purge_length_diff:
+            yield gcode.gen_direction_move(
+                gcode.opposite_dir(horizontal_dir),
+                self.purge_length_diff / 2,
+                self.settings.travel_xy_speed,
+                layer_h,
+            ), b" pre-purge x adjust"
 
         # update slot horizontal dir
         self.slots[slot]["horizontal_dir"] = horizontal_dir
@@ -1614,6 +1611,7 @@ class PurgeHandler:
         if z_hop:
             yield z_hop
 
+        # start position
         y_pos = (self.wall_height + self.settings.extrusion_width) * slot
         if self.slots[slot]["horizontal_dir"] == self.E:
             x, y = gcode.get_coordinates_by_offsets(
