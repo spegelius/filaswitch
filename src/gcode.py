@@ -39,6 +39,7 @@ class GCode:
     LIN_ADVANCE_RE = re.compile(b"M900\s+K(\d+\.*\d*)")
     PRESSURE_ADVANCE_RE = re.compile(b"M572\s+D([:0-9]+)\s+S(\d.*\d+)")
     FAN_SPEED_RE = re.compile(b"M106\s+S(\d+)")
+    FAN_OFF_RE = re.compile(b"M107")
 
     def __init__(self):
         self.last_match = None
@@ -310,6 +311,20 @@ class GCode:
         m = self.FAN_SPEED_RE.match(line)
         if m:
             self.last_match = int(m.groups()[0])
+        return self.last_match
+
+    def is_fan_off(self, line):
+        """
+        Match given line against fan off regex
+        :param line: g-code line
+        :return: boolean
+        """
+        self.last_match = None
+        m = self.FAN_OFF_RE.match(line)
+        if m:
+            self.last_match = True
+        else:
+            self.last_match = False
         return self.last_match
 
     @staticmethod

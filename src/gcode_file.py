@@ -561,6 +561,8 @@ class GCodeFile:
                         z_move_needed = False
                 elif gcode.is_fan_speed(cmd):
                     fan_speed = gcode.last_match
+                elif gcode.is_fan_off(cmd):
+                    fan_speed = 0
                 elif gcode.is_extruder_move(cmd):
                     if prime_needed and gcode.last_match[0] < 0:
                         # remove retracts after adding tower
