@@ -63,8 +63,8 @@ prerun.prime.extrusion.length: 1.7
 prerun.prime.gap: 0.48
 prerun.prime.speed: 2200
 prerun.prime.xstart: 5.0
-prerun.prime.ystart: 1
-prerun.prime.purge.count: 10
+prerun.prime.ystart: 0
+prerun.prime.purge.count: 11
 
 ## Use this to fine tune filament position after preprime. Neagtive values retract
 prerun.finetune.length: 5
@@ -77,13 +77,17 @@ prerun.finetune.length: 5
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 45
-rapid.retract.initial[0].speed: 1500
+rapid.retract.initial[0].length: 15
+rapid.retract.initial[0].speed: 3500
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 2500
+rapid.retract.initial[2].length: 15
+rapid.retract.initial[2].speed: 1000
 rapid.retract.wipe: True
 rapid.retract.pause: 3500
-rapid.retract.long[0].length: -40
+rapid.retract.long[0].length: -38
 rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 45
+rapid.retract.long[1].length: 43
 rapid.retract.long[1].speed: 2000
 rapid.retract.long[2].length: -15
 rapid.retract.long[2].speed: 1000
