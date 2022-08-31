@@ -1641,13 +1641,13 @@ class PurgeHandler:
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # turn linear advance off, if set
-        if self.settings.linear_advance != 0:
+        if old_e.linear_advance:
             yield gcode.gen_lin_advance(0), b" turn off linear advance"
 
         # turn pressure advance off, if set
-        if self.settings.pressure_advance:
+        if old_e.pressure_advance:
             yield gcode.gen_pressure_advance(
-                self.settings.pressure_advance[0], 0
+                old_e.pressure_advance_drivers, 0
             ), b" turn off pressure advance"
 
         new_temp = new_e.get_temperature(layer_nr)
@@ -1787,15 +1787,15 @@ class PurgeHandler:
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
         # turn linear advance back on, if set
-        if self.settings.linear_advance != 0:
+        if new_e.linear_advance:
             yield gcode.gen_lin_advance(
-                self.settings.linear_advance
+                new_e.linear_advance
             ), b" turn on linear advance"
 
         # turn pressure advance back on, if set
-        if self.settings.pressure_advance:
+        if new_e.pressure_advance:
             yield gcode.gen_pressure_advance(
-                *self.settings.pressure_advance
+                new_e.pressure_advance_drivers, new_e.pressure_advance
             ), b" turn on pressure advance"
 
         # wall gcode

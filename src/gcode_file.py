@@ -715,6 +715,11 @@ class GCodeFile:
         current_tool_temp = None
         tool_index = 0
 
+        # linear advance/pressure advance values
+        current_la_value = None
+        current_pa_value = None
+        current_pa_drivers = None
+
         add_tool = False
 
         self._retracts = {}
@@ -776,10 +781,12 @@ class GCodeFile:
                 self._temperatures[tool][layer_nr] = gcode.last_match[0]
 
             # find linear advance/pressure advance commands
-            elif gcode.is_lin_advance(cmd) and gcode.last_match != 0:
-                self.settings.linear_advance = gcode.last_match
-            elif gcode.is_pressure_advance(cmd) and gcode.last_match[1] != 0:
-                self.settings.pressure_advance = gcode.last_match
+            elif gcode.is_lin_advance(cmd):
+                current_la_value = gcode.last_match
+
+            elif gcode.is_pressure_advance(cmd):
+                current_pa_drivers = gcode.last_match[0]
+                current_pa_value = gcode.last_match[1]
 
             if in_start_gcode:
                 # skip rest of the parsing if in start gcode
@@ -835,8 +842,8 @@ class GCodeFile:
 
             # extrusion i.e. print move
             if gcode.is_extrusion_move(cmd):
-                # check z argument
 
+                # check z argument
                 if gcode.last_match[2] is not None:
                     prev_z = current_z
                     current_z = round(gcode.last_match[2], 5)
@@ -888,6 +895,13 @@ class GCodeFile:
                         ].z_hop = self.settings.get_hw_config_float_value(
                             "tool.tower.zhop"
                         )
+
+                    # update la/pa values
+                    if current_la_value:
+                        self.extruders[current_tool].linear_advance = current_la_value
+                    if current_pa_value:
+                        self.extruders[current_tool].pressure_advance = current_pa_value
+                        self.extruders[current_tool].pressure_advance_drivers = current_pa_drivers
 
                     # replace line with z and tool, if not the first extruder
                     if len(self.extruders.keys()) > 1:
@@ -946,6 +960,17 @@ class GCodeFile:
                     self.extruders[e].coasting += coasting
         except ValueError:
             pass
+
+        # update extruder la/pa values
+        if current_la_value:
+            for e in self.extruders:
+                if not self.extruders[e].linear_advance:
+                    self.extruders[e].linear_advance = current_la_value
+
+        if current_pa_value:
+            for e in self.extruders:
+                if not self.extruders[e].pressure_advance:
+                    self.extruders[e].pressure_advance = current_pa_value
 
     def parse_gcode_pass2(self):
         # create tower instances

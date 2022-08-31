@@ -298,6 +298,7 @@ class GCode:
         self.last_match = None
         m = self.PRESSURE_ADVANCE_RE.match(line)
         if m:
+            # dump driver part as is; currently no way to map the values to tool ids
             self.last_match = m.groups()[0], float(m.groups()[1])
         return self.last_match
 

@@ -25,6 +25,10 @@ class Extruder:
         self.temperature_nr = None
         self.temperature_setpoints = {}
         self.minimum_extrusion = 0.01
+        # linear/pressure advance values
+        self.linear_advance = 0.0
+        self.pressure_advance = 0.0
+        self.pressure_advance_drivers = b""
 
     @property
     def z_hop(self):

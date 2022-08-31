@@ -52,8 +52,6 @@ class Settings:
         self._origin_offset_y = None
         self._z_offset = 0
         self._extrusion_width = None
-        self._linear_advance = 0
-        self._pressure_advance = None
 
         # tower print settings
         self._brim = BRIM_DEFAULT
@@ -290,22 +288,6 @@ class Settings:
     @property
     def sparse_layers(self):
         return self._sparse_layers
-
-    @property
-    def linear_advance(self):
-        return self._linear_advance
-
-    @linear_advance.setter
-    def linear_advance(self, value: int):
-        self._linear_advance = value
-
-    @property
-    def pressure_advance(self):
-        return self._pressure_advance
-
-    @pressure_advance.setter
-    def pressure_advance(self, value: tuple):
-        self._pressure_advance = value
 
     @property
     def purge_multi(self):
