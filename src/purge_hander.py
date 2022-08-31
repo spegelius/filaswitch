@@ -1953,10 +1953,38 @@ class PurgeHandler:
         ), b" infill lip"
 
         yield extruder.get_retract_gcode()
+
+        # middle wall if more than 1 slot
+        vertical_dir = gcode.opposite_dir(vertical_dir)
+        for i in range(slots - 1):
+            yield gcode.gen_direction_move(
+                vertical_dir, self.wall_height,
+                self.settings.travel_xy_speed, layer_h
+            ), b" move to infill wall"
+
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+            yield extruder.get_prime_gcode()
+            yield gcode.gen_direction_move(
+                horizontal_dir,
+                self.wall_width - 2,
+                self.infill_speeds[0],
+                layer_h,
+                extruder=extruder,
+                feed_multi=1.1,
+                last_line=True,
+            ), b" infill wall"
+            yield extruder.get_retract_gcode()
+
+            yield gcode.gen_direction_move(
+                vertical_dir, self.settings.extrusion_width/2,
+                self.settings.travel_xy_speed, layer_h
+            ), b" move to infill wall"
+
         self.e_pos = -extruder.retract
+
         if extruder.wipe:
             yield gcode.gen_direction_move(
-                gcode.opposite_dir(vertical_dir), extruder.wipe, 2000, layer_h
+                gcode.opposite_dir(horizontal_dir), extruder.wipe, 2000, layer_h
             ), b" wipe"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
@@ -2055,10 +2083,37 @@ class PurgeHandler:
             vertical_dir = gcode.opposite_dir(vertical_dir)
 
         yield extruder.get_retract_gcode()
+
+        # middle wall if more than 1 slot
+        for i in range(slots - 1):
+            yield gcode.gen_direction_move(
+                vertical_dir, self.wall_height + self.settings.extrusion_width/2,
+                self.settings.travel_xy_speed, layer_h
+            ), b" move to infill wall"
+
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+            yield extruder.get_prime_gcode()
+            yield gcode.gen_direction_move(
+                horizontal_dir,
+                self.wall_width,
+                self.infill_speeds[0],
+                layer_h,
+                extruder=extruder,
+                feed_multi=1.1,
+                last_line=True,
+            ), b" infill wall"
+            yield extruder.get_retract_gcode()
+
+            yield gcode.gen_direction_move(
+                vertical_dir, self.settings.extrusion_width/2,
+                self.settings.travel_xy_speed, layer_h
+            ), b" move to infill wall"
+
         self.e_pos = -extruder.retract
+
         if extruder.wipe:
             yield gcode.gen_direction_move(
-                vertical_dir, extruder.wipe, 2000, layer_h
+                gcode.opposite_dir(horizontal_dir), extruder.wipe, 2000, layer_h
             ), b" wipe"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
