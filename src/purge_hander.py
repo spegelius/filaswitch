@@ -219,11 +219,8 @@ class PurgeHandler:
             INFILL_BLOCKY: self.get_infill_lines_blocky,
         }
 
-        # wall speed
-        if self.settings.purge_speed * 60 < self.settings.default_speed:
-            self.wall_speed = self.settings.purge_speed * 60
-        else:
-            self.wall_speed = self.settings.default_speed
+        # wall speed same as purge speed
+        self.wall_speed = self.settings.purge_speed * 60
 
     def initialize_slots(self):
         """
@@ -1909,7 +1906,7 @@ class PurgeHandler:
         for line in self._get_wall_gcode(
             extruder,
             layer_h,
-            self.settings.default_speed,
+            800,
             horizontal_dir,
             vertical_dir,
             slots,
