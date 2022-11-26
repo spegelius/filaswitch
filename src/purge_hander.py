@@ -677,7 +677,7 @@ class PurgeHandler:
             pre_retract_speed = None
             pre_retract_pause = None
 
-        horizontal_dir = self.slots[slot]["horizontal_dir"]
+        horizontal_dir = None
         vertical_dir = self.slots[slot]["vertical_dir"]
 
         if motor_current:
@@ -695,6 +695,7 @@ class PurgeHandler:
 
         if pre_retract:
             if rr_wipe:
+                horizontal_dir = self.slots[slot]["horizontal_dir"]
                 yield gcode.gen_direction_move(
                     horizontal_dir,
                     pre_retract_wipe_length,
@@ -718,8 +719,9 @@ class PurgeHandler:
                         speed,
                         layer_h,
                     ), b" pre-retract initial pause wipe"
+                    horizontal_dir = gcode.opposite_dir(horizontal_dir)
                     yield gcode.gen_direction_move(
-                        gcode.opposite_dir(horizontal_dir), self.width, speed, layer_h
+                        horizontal_dir, self.width, speed, layer_h
                     ), b" pre-retract initial pause wipe"
                 else:
                     yield gcode.gen_pause(
@@ -727,8 +729,9 @@ class PurgeHandler:
                     ), b" pre-retract initial pause"
             if not pre_retract_pause and rr_wipe:
                 # reset nozzle position after wipe
+                horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 yield gcode.gen_direction_move(
-                    gcode.opposite_dir(horizontal_dir),
+                    horizontal_dir,
                     pre_retract_wipe_length,
                     self.settings.travel_xy_speed,
                     layer_h,
@@ -741,8 +744,13 @@ class PurgeHandler:
                 pre_retract, speed
             ), b" prepurge initial prime"
 
+        # purge sweeps
+        if not horizontal_dir:
+            horizontal_dir = gcode.opposite_dir(self.slots[slot]["horizontal_dir"])
+
         sweeps = self.settings.get_hw_config_int_value("prepurge.sweep.count")
         for i in range(sweeps):
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
             yield gcode.gen_direction_move(
                 horizontal_dir,
                 self.width,
@@ -751,7 +759,7 @@ class PurgeHandler:
                 extruder=old_e,
                 e_length=e_length,
             ), b" purge trail"
-            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
             # in wipe mode, save last vertical move to wipe
             if i < sweeps - 1 or not rr_wipe:
                 yield gcode.gen_direction_move(
@@ -778,6 +786,9 @@ class PurgeHandler:
                 self.log.warning(
                     "No rapid.retract.initial[N].length or .speed found. Please check the HW-config"
                 )
+
+        if rr_wipe:
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
         for i, values in enumerate(zip(rr_lengths, rr_speeds)):
             length, speed = values
@@ -836,19 +847,24 @@ class PurgeHandler:
                 "jitter"
             ][vertical_dir]
 
+        # pause section
         pause = self.settings.get_hw_config_float_value("rapid.retract.pause")
         if pause:
             if rr_wipe:
+                horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 speed = self.purge_length * 2 / pause * 1000 * 60
                 yield gcode.gen_direction_move(
-                    gcode.opposite_dir(horizontal_dir), self.width, speed, layer_h
+                    horizontal_dir, self.width, speed, layer_h
                 ), b" cooling period move"
+
+                horizontal_dir = gcode.opposite_dir(horizontal_dir)
                 yield gcode.gen_direction_move(
                     horizontal_dir, self.width, speed, layer_h
                 ), b" cooling period move"
             else:
                 yield gcode.gen_pause(pause), b" cooling period"
 
+        # rapid retract long section
         rr_long_lengths = self.settings.get_hw_config_array(
             "rapid.retract.long[].length", float
         )
@@ -867,11 +883,14 @@ class PurgeHandler:
                     "No rapid.retract.long[N].length or .speed found. Please check the HW-config"
                 )
 
+        if rr_wipe:
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
+
         rr_wipe_length = self.width / len(rr_long_lengths)
         for length, speed in zip(rr_long_lengths, rr_long_speeds):
             if rr_wipe:
                 yield gcode.gen_direction_move(
-                    gcode.opposite_dir(horizontal_dir),
+                    horizontal_dir,
                     rr_wipe_length,
                     speed,
                     layer_h,
@@ -882,7 +901,8 @@ class PurgeHandler:
             else:
                 yield gcode.gen_extruder_move(-length, speed), b" long retract"
 
-        # Cooling movements, as seen in Slic3r gcode, need to override length values from extruder, modified in gcode.py
+        # Cooling movements, as seen in Slic3r gcode, need to override length values from
+        # extruder, modified in gcode.py
         rr_cool_lengths = self.settings.get_hw_config_array(
             "rapid.retract.cool[].length", float
         )
@@ -891,6 +911,7 @@ class PurgeHandler:
         )
 
         #  TODO: move to settings hwcfg parsing
+        # cooling section
         if len(rr_cool_lengths) != len(rr_cool_speeds):
             raise ValueError(
                 "not equal amount of rapid.retract.cool length and speed parameters. Check hwcfg"
@@ -902,6 +923,7 @@ class PurgeHandler:
             self.log.debug("Cooling movements enabled")
 
         for length, speed in zip(rr_cool_lengths, rr_cool_speeds):
+            horizontal_dir = gcode.opposite_dir(horizontal_dir)
             yield gcode.gen_direction_move(
                 horizontal_dir,
                 self.width,
@@ -910,19 +932,18 @@ class PurgeHandler:
                 extruder=old_e,
                 e_length=length,
             ), b" cooling"
-            horizontal_dir = gcode.opposite_dir(horizontal_dir)
 
         # check purge len diff
         if self.purge_length_diff:
             yield gcode.gen_direction_move(
-                gcode.opposite_dir(horizontal_dir),
+                horizontal_dir,
                 self.purge_length_diff / 2,
                 self.settings.travel_xy_speed,
                 layer_h,
             ), b" pre-purge x adjust"
 
         # update slot horizontal dir
-        self.slots[slot]["horizontal_dir"] = horizontal_dir
+        self.slots[slot]["horizontal_dir"] = gcode.opposite_dir(horizontal_dir)
 
     def get_post_switch_gcode_bucket(self):
         """
@@ -983,7 +1004,7 @@ class PurgeHandler:
                     )
                     yield gcode.gen_direction_move(
                         horizontal_dir,
-                        self.width,
+                        self.purge_length,
                         feed_speed,
                         layer_h,
                         extruder=extruder,
@@ -1026,7 +1047,7 @@ class PurgeHandler:
         prime_trail_speed = self.settings.get_hw_config_float_value("prime.trail.speed")
         yield gcode.gen_direction_move(
             self.slots[slot]["horizontal_dir"],
-            self.width,
+            self.purge_length,
             prime_trail_speed,
             layer_h,
             extruder=extruder,
@@ -1701,7 +1722,7 @@ class PurgeHandler:
                 speed = speeds[i]
                 if i == 0:
                     yield gcode.gen_direction_move(
-                        self.slots[slot]["horizontal_dir"],
+                        self.slots[slot]["vertical_dir"],
                         self.purge_line_width / 2,
                         self.settings.travel_xy_speed,
                         layer_h,
@@ -2259,7 +2280,7 @@ class PurgeHandler:
         thicc = 0
         zero_count = 0
         start_slot = -1
-        for s in range(self.towers.get_tower_count(layer_z)):
+        for s in self.towers.get_towers_with_z(layer_z):
             z = round(layer_z + self.settings.z_offset, 5)
             z_diff = round(z - self.slots[s]["last_z"], 5)
             if z_diff >= self.towers.get_min_layer_h() - 0.05:
@@ -2285,7 +2306,6 @@ class PurgeHandler:
                 self.raft_done = True
 
         # slots needing infill
-
         if thicc:
             for l in self.get_thicc_lines(layer_z, e_pos, extruder, start_slot, thicc):
                 yield l

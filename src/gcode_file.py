@@ -86,12 +86,12 @@ class Towers:
     def add_tower(self, _id, tower):
         self.towers[_id] = tower
 
-    def get_tower_count(self, z):
-        count = 0
-        for _, t in self.towers.items():
+    def get_towers_with_z(self, z):
+        towers = []
+        for _id, t in self.towers.items():
             if z in t.z:
-                count += 1
-        return count
+                towers.append(_id)
+        return towers
 
     def get_tower_by_id(self, _id):
         return self.towers.get(_id)
