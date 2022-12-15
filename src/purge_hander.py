@@ -1658,15 +1658,16 @@ class PurgeHandler:
 
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
-        # turn linear advance off, if set
-        if old_e.linear_advance:
-            yield gcode.gen_lin_advance(0), b" turn off linear advance"
+        if self.settings.pressure_advance_off:
+            # turn linear advance off, if set
+            if old_e.linear_advance:
+                yield gcode.gen_lin_advance(0.0), b" turn off linear advance"
 
-        # turn pressure advance off, if set
-        if old_e.pressure_advance:
-            yield gcode.gen_pressure_advance(
-                old_e.pressure_advance_drivers, 0
-            ), b" turn off pressure advance"
+            # turn pressure advance off, if set
+            if old_e.pressure_advance:
+                yield gcode.gen_pressure_advance(
+                    old_e.pressure_advance_drivers, 0
+                ), b" turn off pressure advance"
 
         new_temp = new_e.get_temperature(layer_nr)
         old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer_nr))
@@ -1804,17 +1805,18 @@ class PurgeHandler:
         )
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
-        # turn linear advance back on, if set
-        if new_e.linear_advance:
-            yield gcode.gen_lin_advance(
-                new_e.linear_advance
-            ), b" turn on linear advance"
+        if self.settings.pressure_advance_off:
+            # turn linear advance back on, if set
+            if new_e.linear_advance:
+                yield gcode.gen_lin_advance(
+                    new_e.linear_advance
+                ), b" turn on linear advance"
 
-        # turn pressure advance back on, if set
-        if new_e.pressure_advance:
-            yield gcode.gen_pressure_advance(
-                new_e.pressure_advance_drivers, new_e.pressure_advance
-            ), b" turn on pressure advance"
+            # turn pressure advance back on, if set
+            if new_e.pressure_advance:
+                yield gcode.gen_pressure_advance(
+                    new_e.pressure_advance_drivers, new_e.pressure_advance
+                ), b" turn on pressure advance"
 
         # wall gcode
         for line in self._get_wall_gcode(
@@ -1842,7 +1844,6 @@ class PurgeHandler:
         # restore correct model z position
         self.current_z = layer_z
         yield self._get_z_hop(slot)
-        yield None, b" TOWER END"
 
         # readjust motor current
         motor_current = self.settings.get_hw_config_int_value("motor.current.run")
@@ -1856,6 +1857,7 @@ class PurgeHandler:
         self.slots[slot]["vertical_dir"] = gcode.opposite_dir(
             self.slots[slot]["vertical_dir"]
         )
+        yield None, b" TOWER END"
 
     def get_infill_lines_zigzag(self, layer_z, e_pos, extruder, slot, slots):
         """

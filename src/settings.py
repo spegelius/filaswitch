@@ -61,6 +61,7 @@ class Settings:
         self._tower_fan_off = None
         self._infill_style = INFILL_ZIGZAG
         self._sparse_layers = True
+        self._pressure_advance_off = None
 
         self.hw_configurations = {}
         self.read_hw_configs()
@@ -290,6 +291,18 @@ class Settings:
         return self._sparse_layers
 
     @property
+    def pressure_advance_off(self):
+        if self._pressure_advance_off is None:
+            self._pressure_advance_off = self.get_hw_config_bool_value(
+                "pressure_advance_off", True
+            )
+        return self._pressure_advance_off
+
+    @pressure_advance_off.setter
+    def pressure_advance_off(self, value: bool):
+        self._pressure_advance_off = value
+
+    @property
     def purge_multi(self):
         return self._purge_multi
 
@@ -345,13 +358,13 @@ class Settings:
         except (ValueError, TypeError):
             raise ValueError("Cannot parse int value for key '{}'".format(key))
 
-    def get_hw_config_bool_value(self, key):
+    def get_hw_config_bool_value(self, key, default=False):
         val = self.get_hw_config_value(key)
         try:
             return val.lower() == "true"
         except:
             pass
-        return False
+        return default
 
     def get_hw_config_array(self, key, _type):
 

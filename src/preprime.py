@@ -213,15 +213,16 @@ class PrePrime:
             # get extruder object from tool number
             extruder = self.extruders[tool]
 
-            # turn linear advance off, if set
-            if extruder.linear_advance != 0:
-                yield gcode.gen_lin_advance(0), b" turn off linear advance"
+            if self.settings.pressure_advance_off:
+                # turn linear advance off, if set
+                if extruder.linear_advance != 0:
+                    yield gcode.gen_lin_advance(0.0), b" turn off linear advance"
 
-            # turn pressure advance off, if set
-            if extruder.pressure_advance:
-                yield gcode.gen_pressure_advance(
-                    extruder.pressure_advance_drivers, 0
-                ), b" turn off pressure advance"
+                # turn pressure advance off, if set
+                if extruder.pressure_advance:
+                    yield gcode.gen_pressure_advance(
+                        extruder.pressure_advance_drivers, 0
+                    ), b" turn off pressure advance"
 
             # print(extruder.tool)
             yield gcode.gen_tool_change(tool), b" change tool"
@@ -299,17 +300,18 @@ class PrePrime:
 
             self.last_tool = tool
 
-        # turn linear advance back on, if set
-        extruder = self.extruders[self.last_tool]
-        if extruder.linear_advance != 0:
-            yield gcode.gen_lin_advance(
-                extruder.linear_advance
-            ), b" turn on linear advance"
+        if self.settings.pressure_advance_off:
+            # turn linear advance back on, if set
+            extruder = self.extruders[self.last_tool]
+            if extruder.linear_advance != 0:
+                yield gcode.gen_lin_advance(
+                    extruder.linear_advance
+                ), b" turn on linear advance"
 
-        # turn pressure advance back on, if set
-        if extruder.pressure_advance:
-            yield gcode.gen_pressure_advance(
-                extruder.pressure_advance_drivers, extruder.pressure_advance
-            ), b" turn on pressure advance"
+            # turn pressure advance back on, if set
+            if extruder.pressure_advance:
+                yield gcode.gen_pressure_advance(
+                    extruder.pressure_advance_drivers, extruder.pressure_advance
+                ), b" turn on pressure advance"
 
         yield None, b"PRIME END"
