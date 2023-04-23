@@ -513,10 +513,11 @@ class GCodeFile:
                         continue
                     elif cmd.action == ActionPoint.INFILL:
                         # tower infill
-                        lines = self.purge_handler.check_infill(
+                        lines = list(self.purge_handler.check_infill(
                             cmd.data, self.e_pos, self.active_e
-                        )
+                        ))
                         if lines:
+
                             # disable fan
                             if fan_speed and self.settings.tower_fan_off:
                                 index += self.insert_line(
