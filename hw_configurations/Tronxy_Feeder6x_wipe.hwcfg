@@ -36,9 +36,9 @@ motor.current.run: 0
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
-prepurge.initial.retract: 35
-prepurge.initial.retract.speed: 2000
-prepurge.initial.pause: 2500
+#prepurge.initial.retract: 35
+#prepurge.initial.retract.speed: 2000
+#prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
 ## - temperature = change temperature of the nozzle this amount before doing the prepurge. Negative value lowers the temperature

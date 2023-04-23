@@ -15,6 +15,10 @@ tool.nozzle.diameter: 0.4
 ## Overridden for S3D, Slic3r and KISS
 tool.tower.zhop: 0.6
 
+## Linear/pressure advance handling. By default advance setting is set to 0 during ramming.
+## Disable advance handling by setting this False
+pressure_advance_off: False
+
 ## Machine properties. Used with slicers (Cura) that do not provide settings in gcode files.
 # 0 is cartesian, 1 delta
 machine.type: 0
@@ -31,14 +35,14 @@ machine.default.speed: 2400
 ## load = motor current for load/unload
 ## run = motor current for normal operation
 ## These can be set to 0 if not applicable
-motor.current.load: 750
+motor.current.load: 700
 motor.current.run: 500
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
-prepurge.initial.retract: 25
-prepurge.initial.retract.speed: 2000
-prepurge.initial.pause: 2500
+#prepurge.initial.retract: 25
+#prepurge.initial.retract.speed: 2000
+#prepurge.initial.pause: 2500
 
 ## Prepurge means the fast purge movements that purge old material before tool change
 ## - temperature = change temperature of the nozzle this amount before doing the prepurge. Negative value lowers the temperature
@@ -79,22 +83,28 @@ prerun.finetune.length: 5
 
 rapid.retract.initial[0].length: 15
 rapid.retract.initial[0].speed: 4000
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 2000
+rapid.retract.initial[2].length: 15
+rapid.retract.initial[2].speed: 1000
 rapid.retract.wipe: True
-rapid.retract.pause: 0
-rapid.retract.long[0].length: 24.5
-rapid.retract.long[0].speed: 4000
-rapid.retract.long[1].length: 7
-rapid.retract.long[1].speed: 1200
-rapid.retract.long[2].length: 3.5
-rapid.retract.long[2].speed: 1000
+rapid.retract.pause: 3500
+rapid.retract.long[0].length: -38
+rapid.retract.long[0].speed: 2000
+rapid.retract.long[1].length: 31.5
+rapid.retract.long[1].speed: 4000
+rapid.retract.long[2].length: 7
+rapid.retract.long[2].speed: 1200
+rapid.retract.long[3].length: 3.5
+rapid.retract.long[3].speed: 1000
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0
 ## Serves as a wipe
 rapid.retract.cool[0].length: 20
-rapid.retract.cool[0].speed: 346
+rapid.retract.cool[0].speed: 1000
 rapid.retract.cool[1].length: -20
-rapid.retract.cool[1].speed: 230
+rapid.retract.cool[1].speed: 1000
 rapid.retract.cool[2].length: 20
 rapid.retract.cool[2].speed: 2000
 rapid.retract.cool[3].length: -20
