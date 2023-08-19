@@ -129,14 +129,18 @@ class KISSlicerGCodeFile(GCodeFile):
                 self.settings.first_layer_speed = float(comment.split(b" = ")[1]) * 60
 
             elif b" Perimeter Speed =" in comment:
-                # ; Perimeter Speed = 32.50
+                # ; Perimeter Speed = 32.50 mm/s
+                val = comment.split(b" = ")[1]
+                val = val.split()[0]
                 self.settings.outer_perimeter_speed = (
-                    float(comment.split(b" = ")[1]) * 60
+                    float(val) * 60
                 )
 
             elif b" Loops Speed =" in comment:
-                # ; Loops Speed = 45.50
-                self.settings.default_speed = float(comment.split(b" = ")[1]) * 60
+                # ; Loops Speed = 45.50 mm/s
+                val = comment.split(b" = ")[1]
+                val = val.split()[0]
+                self.settings.default_speed = float(val) * 60
 
             elif b" extrusion_width =" in comment:
                 # ; extrusion_width = 0.45
