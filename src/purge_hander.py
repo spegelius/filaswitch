@@ -1552,7 +1552,7 @@ class PurgeHandler:
         yield gcode.gen_extruder_move(10, 80), b" slow purge"
 
         # retract
-        yield gcode.gen_pause(3000), b" ooze pause"
+        yield gcode.gen_pause(1000), b" ooze pause"
         yield new_e.get_retract_gcode(change=self.bucket_retract_extra)
         self.e_pos = -new_e.retract
 
