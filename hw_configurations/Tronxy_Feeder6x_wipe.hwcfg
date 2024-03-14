@@ -28,11 +28,14 @@ machine.default.speed: 2400
 
 ## Extruder motor current values. Adjusts motor current using M907. Values are
 ## for load/unload and for normal operation.
+## command = M907 (default, Prusa) or M906 (RRF)
 ## load = motor current for load/unload
 ## run = motor current for normal operation
 ## These can be set to 0 if not applicable
-motor.current.load: 0
-motor.current.run: 0
+motor.current.command: M906
+motor.current.motors: 6
+motor.current.load: 950
+motor.current.run: 880
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
@@ -77,24 +80,35 @@ prerun.finetune.length: 5
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 45
-rapid.retract.initial[0].speed: 2000
-rapid.retract.wipe: True
+rapid.retract.initial[0].length: 15
+rapid.retract.initial[0].speed: 4000
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 2000
+rapid.retract.initial[2].length: 15
+rapid.retract.initial[2].speed: 1000
 rapid.retract.pause: 3500
-rapid.retract.long[0].length: -40
+rapid.retract.long[0].length: -38
 rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 45
-rapid.retract.long[1].speed: 2000
-rapid.retract.long[2].length: -15
-rapid.retract.long[2].speed: 1000
-rapid.retract.long[3].length: 15
-rapid.retract.long[3].speed: 1000
-rapid.retract.long[4].length: -15
-rapid.retract.long[4].speed: 1000
-rapid.retract.long[5].length: 15
-rapid.retract.long[5].speed: 1000
-rapid.retract.long[6].length: 205
+rapid.retract.long[1].length: 31.5
+rapid.retract.long[1].speed: 4000
+rapid.retract.long[2].length: 7
+rapid.retract.long[2].speed: 600
+rapid.retract.long[3].length: 3.5
+rapid.retract.long[3].speed: 360
+rapid.retract.long[4].length: -20
+rapid.retract.long[4].speed: 340
+rapid.retract.long[5].length: 20
+rapid.retract.long[5].speed: 230
+rapid.retract.long[6].length: -20
 rapid.retract.long[6].speed: 2000
+rapid.retract.long[7].length: 20
+rapid.retract.long[7].speed: 2400
+rapid.retract.long[8].length: -40
+rapid.retract.long[8].speed: 2000
+rapid.retract.long[9].length: 40
+rapid.retract.long[9].speed: 4000
+rapid.retract.long[10].length: 206
+rapid.retract.long[10].speed: 2000
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0

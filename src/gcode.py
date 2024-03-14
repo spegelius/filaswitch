@@ -530,6 +530,16 @@ class GCode:
         return ("M907 %s%d" % (axis, current)).encode()
 
     @staticmethod
+    def gen_motor_current_RRF(axis, currents):
+        """
+        Send M906 to adjust motor current
+        :param axis: the axis to adjust (usually E)
+        :param currents: motor current per motor
+        :return: byte string
+        """
+        return ("M906 %s%s" % (axis, currents)).encode()
+
+    @staticmethod
     def gen_absolute_positioning():
         """
         Generate g-code line for absolute positioning.

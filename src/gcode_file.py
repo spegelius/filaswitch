@@ -833,7 +833,8 @@ class GCodeFile:
                     self._travel_speeds.append(round(gcode.last_match[3]))
 
                 # add negative e position list and reset e position
-                if e_pos < 0:
+                # TODO: figure out if this is in correct position
+                if e_pos < 0 and e_speed:
                     if not current_tool in self._retracts:
                         self._retracts[current_tool] = []
                     self._retracts[current_tool].append((e_pos, e_speed))

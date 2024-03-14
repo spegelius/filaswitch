@@ -44,12 +44,27 @@ class PurgeHandler:
         self.log = logger
         self.towers = towers
 
+        # purge bucket values
         try:
             self.bucket_retract_extra = settings.get_hw_config_float_value(
                 "purge.bucket.retract.extra"
             )
         except ValueError:
             self.bucket_retract_extra = 0.0
+
+        try:
+            self.bucket_ooze_pause = settings.get_hw_config_int_value(
+                "purge.bucket.ooze.pause"
+            )
+        except ValueError:
+            self.bucket_ooze_pause = 0
+
+        try:
+            self.bucket_pulsing = settings.get_hw_config_bool_value(
+                "purge.bucket.pulse"
+            )
+        except ValueError:
+            self.bucket_pulsing = False
 
         if self.settings.get_hw_config_value("purge.handling") == "bucket":
             self.purge_handling = PURGE_HANDLING_BUCKET
@@ -221,6 +236,23 @@ class PurgeHandler:
 
         # wall speed same as purge speed
         self.wall_speed = self.settings.purge_speed * 60
+
+        # motor current settings
+        self.motor_current_load = self.settings.get_hw_config_int_value("motor.current.load")
+        self.motor_current_run = self.settings.get_hw_config_int_value("motor.current.run")
+        self.motor_current_cmd = self.settings.get_hw_config_value("motor.current.command")
+        if self.motor_current_cmd is None:
+            self.motor_current_cmd = "M907"
+        elif self.motor_current_cmd not in ["M906", "M907"]:
+            raise ValueError(
+                "Unknown motor current command %s"
+                % self.motor_current_cmd
+            )
+
+        if self.motor_current_cmd == "M906":
+            motor_current_motors = self.settings.get_hw_config_int_value("motor.current.motors")
+            self.motor_current_load = ":".join([ str(self.motor_current_load) for _ in range(motor_current_motors) ])
+            self.motor_current_run = ":".join([ str(self.motor_current_run) for _ in range(motor_current_motors) ])
 
     def initialize_slots(self):
         """
@@ -559,7 +591,6 @@ class PurgeHandler:
         purge_speed = self.settings.get_hw_config_float_value(
             "prepurge.extrusion.speed"
         )
-        motor_current = self.settings.get_hw_config_int_value("motor.current.load")
 
         try:
             pre_retract = self.settings.get_hw_config_int_value(
@@ -576,8 +607,11 @@ class PurgeHandler:
             pre_retract_speed = None
             pre_retract_pause = None
 
-        if motor_current:
-            yield gcode.gen_motor_current("E", motor_current), b" adjust current"
+        if self.motor_current_load:
+            if self.motor_current_cmd == "M907":
+                yield gcode.gen_motor_current("E", self.motor_current_load), b" adjust current"
+            else:
+                yield gcode.gen_motor_current_RRF("E", self.motor_current_load), b" adjust current RRF"
 
         # pre-purge section
         if pre_retract:
@@ -660,7 +694,6 @@ class PurgeHandler:
         sweep_gap_speed = self.settings.get_hw_config_float_value(
             "prepurge.sweep.gap.speed"
         )
-        motor_current = self.settings.get_hw_config_int_value("motor.current.load")
 
         try:
             pre_retract = self.settings.get_hw_config_int_value(
@@ -680,8 +713,11 @@ class PurgeHandler:
         horizontal_dir = None
         vertical_dir = self.slots[slot]["vertical_dir"]
 
-        if motor_current:
-            yield gcode.gen_motor_current("E", motor_current), b" adjust current"
+        if self.motor_current_load:
+            if self.motor_current_cmd == "M907":
+                yield gcode.gen_motor_current("E", self.motor_current_load), b" adjust current"
+            else:
+                yield gcode.gen_motor_current_RRF("E", self.motor_current_load), b" adjust current RRF"
 
         # jitter
         if self.pre_purge_jitter and self.slots[slot]["jitter"][vertical_dir]:
@@ -1496,6 +1532,8 @@ class PurgeHandler:
         new_temp = new_e.get_temperature(layer_nr)
         old_temp = self.temperatures.get(old_e.tool, old_e.get_temperature(layer_nr))
         self.temperatures[new_e.tool] = new_temp
+        temp_change = abs(new_temp - old_temp) - 10
+        wait = temp_change > 5
         if new_temp == old_temp:
             new_temp = None
 
@@ -1524,7 +1562,7 @@ class PurgeHandler:
         if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
             yield b"G4 S0", b" wait"
 
-        yield gcode.gen_tool_change(new_e.tool), b" change tool"
+        yield gcode.gen_tool_change(new_e.tool), " change tool {}".format(current_z).encode()
 
         if self.settings.get_hw_config_bool_value("tool.reset_feed"):
             yield b"M220 S100", b" reset feedrate"
@@ -1545,14 +1583,54 @@ class PurgeHandler:
             ):
                 yield line
 
+        purge_len = self.purge_e_length - 10
+
         # purge
-        yield gcode.gen_extruder_move(
-            self.purge_e_length - 10, self.purge_e_speed
-        ), b" purge"
+        if self.bucket_pulsing:
+            pulse_len = 20
+            pulses = math.floor(purge_len / pulse_len)
+            remaining = purge_len - pulses * pulse_len
+            for i in range(pulses):
+                if i == 1 and wait:
+                    yield gcode.gen_pause(
+                        temp_change * 500
+                    ), b" temperature pause"
+
+                yield gcode.gen_extruder_move(
+                    pulse_len, self.purge_e_speed
+                ), b" purge"
+
+                yield new_e.get_retract_gcode()
+                yield gcode.gen_pause(100), b" purge pulse pause"
+                yield new_e.get_prime_gcode()
+
+            yield gcode.gen_extruder_move(
+                remaining, self.purge_e_speed
+            ), b" purge remainer"
+        else:
+            if wait:
+                yield gcode.gen_extruder_move(
+                    15, self.purge_e_speed
+                ), b" purge"
+
+                yield gcode.gen_pause(
+                    temp_change * 500
+                ), b" temperature pause"
+
+                yield gcode.gen_extruder_move(
+                    purge_len - 15, self.purge_e_speed
+                ), b" purge"
+
+            else:
+                yield gcode.gen_extruder_move(
+                    purge_len, self.purge_e_speed
+                ), b" purge"
+
+        # slow purge
         yield gcode.gen_extruder_move(10, 80), b" slow purge"
 
         # retract
-        yield gcode.gen_pause(1000), b" ooze pause"
+        yield gcode.gen_pause(self.bucket_ooze_pause), b" ooze pause"
         yield new_e.get_retract_gcode(change=self.bucket_retract_extra)
         self.e_pos = -new_e.retract
 
@@ -1571,9 +1649,11 @@ class PurgeHandler:
         yield None, b" PURGE END"
 
         # readjust motor current
-        motor_current = self.settings.get_hw_config_int_value("motor.current.run")
-        if motor_current:
-            yield gcode.gen_motor_current("E", motor_current), b" adjust current"
+        if self.motor_current_run:
+            if self.motor_current_cmd == "M907":
+                yield gcode.gen_motor_current("E", self.motor_current_run), b" adjust current"
+            else:
+                yield gcode.gen_motor_current_RRF("E", self.motor_current_run), b" adjust current RRF"
 
     def _get_tower_lines(self, layer_z, e_pos, old_e, new_e, layer_nr):
         """
@@ -1702,6 +1782,7 @@ class PurgeHandler:
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
 
         if self.settings.get_hw_config_bool_value("tool.reset_feed"):
+            yield b"M220 B", b" some Prusa thing"
             yield b"M220 S100", b" reset feedrate"
 
         if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
@@ -1846,9 +1927,11 @@ class PurgeHandler:
         yield self._get_z_hop(slot)
 
         # readjust motor current
-        motor_current = self.settings.get_hw_config_int_value("motor.current.run")
-        if motor_current:
-            yield gcode.gen_motor_current("E", motor_current), b" adjust current"
+        if self.motor_current_run:
+            if self.motor_current_cmd == "M907":
+                yield gcode.gen_motor_current("E", self.motor_current_run), b" adjust current"
+            else:
+                yield gcode.gen_motor_current_RRF("E", self.motor_current_run), b" adjust current RRF"
 
         # flip the directions
         self.slots[slot]["horizontal_dir"] = gcode.opposite_dir(

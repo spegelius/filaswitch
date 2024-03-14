@@ -5,22 +5,28 @@ purge.handling: bucket
 
 ## If handling is bucket, define bucket gcode for moving head to bucket
 ## before tool change
-purge.bucket.pre.line[0]: G1 X204 Y10 F10000
-purge.bucket.pre.line[1]: G1 X204 Y0 F10000
+purge.bucket.pre.line[0]: G1 X276 Y10 F10000
+purge.bucket.pre.line[1]: G1 X276 Y0 F10000
 
 ## If handling is bucket, define bucket gcode for moving head from bucket
 ## after tool change. Wipes movement can be defined here
-purge.bucket.post.line[0]: G1 X249 Y0 F5000
-purge.bucket.post.line[1]: G1 X210 Y0 F5000
-purge.bucket.post.line[2]: G1 X249 Y0 F5000
-purge.bucket.post.line[3]: G1 X210 Y0 F5000
-purge.bucket.post.line[4]: G1 X249 Y0 F5000
-purge.bucket.post.line[5]: G1 X249 Y20 F5000
-purge.bucket.post.line[6]: G1 X204 Y20 F5000
+purge.bucket.post.line[0]: G1 X321 Y0 F5000
+purge.bucket.post.line[1]: G1 X281 Y0 F5000
+purge.bucket.post.line[2]: G1 X321 Y0 F5000
+purge.bucket.post.line[3]: G1 X281 Y0 F5000
+purge.bucket.post.line[4]: G1 X321 Y0 F5000
+purge.bucket.post.line[5]: G1 X321 Y20 F5000
+purge.bucket.post.line[6]: G1 X281 Y20 F5000
 
 ## Bucket retract extra length. Maybe useful for compensating retracts in linear advance enabled
 ## and disabled states
 purge.bucket.retract.extra: 0.1
+
+## Purge bucket ooze pause after purge (milliseconds)
+purge.bucket.ooze.pause: 1000
+
+## Purge bucket pulse control
+purge.bucket.pulse: False
 
 ## Temperature handling
 ## use_id: should M104 commands have tool id. M104 S210 or M104 S210 T1. Firmware dependent
@@ -50,11 +56,14 @@ machine.default.speed: 2400
 
 ## Extruder motor current values. Adjusts motor current using M907. Values are
 ## for load/unload and for normal operation.
+## command = M907 (default, Prusa) or M906 (RRF)
 ## load = motor current for load/unload
 ## run = motor current for normal operation
 ## These can be set to 0 if not applicable
-motor.current.load: 0
-motor.current.run: 0
+motor.current.command: M906
+motor.current.motors: 6
+motor.current.load: 950
+motor.current.run: 880
 
 ## These prepurge steps are executed before the actual prepurge. They seem to help with tip formation on some cases
 ## Disabled by default
@@ -95,23 +104,35 @@ prerun.finetune.length: 5
 ## pause = how long to let filament cool in throat (ms)
 ## long retract = pulling filament fully out of way
 
-rapid.retract.initial[0].length: 45
-rapid.retract.initial[0].speed: 2000
+rapid.retract.initial[0].length: 15
+rapid.retract.initial[0].speed: 4000
+rapid.retract.initial[1].length: 15
+rapid.retract.initial[1].speed: 2000
+rapid.retract.initial[2].length: 15
+rapid.retract.initial[2].speed: 1000
 rapid.retract.pause: 3500
-rapid.retract.long[0].length: -40
+rapid.retract.long[0].length: -38
 rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 45
-rapid.retract.long[1].speed: 2000
-rapid.retract.long[2].length: -15
-rapid.retract.long[2].speed: 1000
-rapid.retract.long[3].length: 15
-rapid.retract.long[3].speed: 1000
-rapid.retract.long[4].length: -15
-rapid.retract.long[4].speed: 1000
-rapid.retract.long[5].length: 15
-rapid.retract.long[5].speed: 1000
-rapid.retract.long[6].length: 205
+rapid.retract.long[1].length: 31.5
+rapid.retract.long[1].speed: 4000
+rapid.retract.long[2].length: 7
+rapid.retract.long[2].speed: 600
+rapid.retract.long[3].length: 3.5
+rapid.retract.long[3].speed: 360
+rapid.retract.long[4].length: -20
+rapid.retract.long[4].speed: 340
+rapid.retract.long[5].length: 20
+rapid.retract.long[5].speed: 230
+rapid.retract.long[6].length: -20
 rapid.retract.long[6].speed: 2000
+rapid.retract.long[7].length: 20
+rapid.retract.long[7].speed: 2400
+rapid.retract.long[8].length: -40
+rapid.retract.long[8].speed: 2000
+rapid.retract.long[9].length: 40
+rapid.retract.long[9].speed: 4000
+rapid.retract.long[10].length: 206
+rapid.retract.long[10].speed: 2000
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
