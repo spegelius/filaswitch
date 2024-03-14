@@ -71,7 +71,7 @@ prerun.prime.ystart: 0
 prerun.prime.purge.count: 11
 
 ## Use this to fine tune filament position after preprime. Neagtive values retract
-prerun.finetune.length: 5
+prerun.finetune.length: 0
 
 ## Rapid retract means pulling the filament out of the nozzle.
 ## Various stages can be defined.
@@ -94,17 +94,17 @@ rapid.retract.long[0].speed: 2000
 rapid.retract.long[1].length: 31.5
 rapid.retract.long[1].speed: 4000
 rapid.retract.long[2].length: 7
-rapid.retract.long[2].speed: 1200
+rapid.retract.long[2].speed: 600
 rapid.retract.long[3].length: 3.5
-rapid.retract.long[3].speed: 1000
+rapid.retract.long[3].speed: 360
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0
 ## Serves as a wipe
 rapid.retract.cool[0].length: 20
-rapid.retract.cool[0].speed: 1000
+rapid.retract.cool[0].speed: 340
 rapid.retract.cool[1].length: -20
-rapid.retract.cool[1].speed: 1000
+rapid.retract.cool[1].speed: 230
 rapid.retract.cool[2].length: 20
 rapid.retract.cool[2].speed: 2000
 rapid.retract.cool[3].length: -20
@@ -114,13 +114,13 @@ rapid.retract.cool[3].speed: 2400
 rapid.retract.cool[4].length: 40
 rapid.retract.cool[4].speed: 2400
 rapid.retract.cool[5].length: -40
-rapid.retract.cool[5].speed: 3000
+rapid.retract.cool[5].speed: 4000
 
 #Final retract to get past IR sensor
 rapid.retract.cool[6].length: -40
 rapid.retract.cool[6].speed: 2400
-#rapid.retract.cool[5].length: -3
-#rapid.retract.cool[5].speed: 2400
+rapid.retract.cool[7].length: -3
+rapid.retract.cool[7].speed: 2400
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:
