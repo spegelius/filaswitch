@@ -15,9 +15,15 @@ tool.nozzle.diameter: 0.4
 ## Overridden for S3D, Slic3r and KISS
 tool.tower.zhop: 0.6
 
+## Wait before issuing tools change command
+tool.wait_on_change: True
+
+## Reset feerate during tool change
+tool.reset_feed: True
+
 ## Linear/pressure advance handling. By default advance setting is set to 0 during ramming.
 ## Disable advance handling by setting this False
-pressure_advance_off: False
+pressure_advance_off: True
 
 ## Machine properties. Used with slicers (Cura) that do not provide settings in gcode files.
 # 0 is cartesian, 1 delta

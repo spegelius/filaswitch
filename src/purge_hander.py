@@ -1738,6 +1738,10 @@ class PurgeHandler:
 
         yield gcode.gen_relative_positioning(), b" relative positioning"
 
+        if self.settings.get_hw_config_bool_value("tool.reset_feed"):
+            yield b"M220 B", b" backup current feedrate"
+            yield b"M220 S100", b" reset feedrate"
+
         if self.settings.pressure_advance_off:
             # turn linear advance off, if set
             if old_e.linear_advance:
@@ -1780,10 +1784,6 @@ class PurgeHandler:
             yield b"G4 S0", b" wait"
 
         yield gcode.gen_tool_change(new_e.tool), b" change tool"
-
-        if self.settings.get_hw_config_bool_value("tool.reset_feed"):
-            yield b"M220 B", b" some Prusa thing"
-            yield b"M220 S100", b" reset feedrate"
 
         if self.settings.get_hw_config_bool_value("tool.wait_on_change"):
             yield b"G4 S0", b" wait"
@@ -1917,6 +1917,9 @@ class PurgeHandler:
             yield gcode.gen_direction_move(
                 wipe_dir, new_e.wipe, gap_speed, layer_h
             ), b" wipe"
+
+        if self.settings.get_hw_config_bool_value("tool.reset_feed"):
+            yield b"M220 R", b" restore feedrate"
 
         yield gcode.gen_absolute_positioning(), b" absolute positioning"
         yield gcode.gen_relative_e(), b" relative E"
