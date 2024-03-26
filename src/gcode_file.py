@@ -580,7 +580,7 @@ class GCodeFile:
                             index -= 1
 
                         # in case of partial retraction, replace with the missing length
-                        retract_needed = self.e_pos + self.active_e.retract
+                        retract_needed = gcode.last_match[0] + self.e_pos + self.active_e.retract
                         if retract_needed > 0.1:
                             index += self.insert_line(
                                 index,
