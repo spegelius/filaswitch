@@ -47,6 +47,8 @@ class TestGcode(unittest.TestCase):
         )
         self.assertEqual((2.0, 2700), self.test_object.is_extruder_move(b"G1 F2700 E2"))
 
+        self.assertEqual((-0.2, 2700), self.test_object.is_extruder_move(b"G1 F2700 E-.2"))
+
     def test_read_gcode_line(self):
         self.assertEqual(
             (b"G1 E5 F1500  ", b" juu"),
@@ -292,6 +294,7 @@ class TestGcodeFile(unittest.TestCase):
     def setUp(self):
         self.test_files_dir = os.path.join(prog_dir, "test_data")
         self.settings = Settings()
+        self.settings.hw_config = "Prometheus-PTFE-PRO-12"
         self.logger = MagicMock()
 
     def test_open_file(self):
@@ -481,11 +484,11 @@ class TestTowers(unittest.TestCase):
     def setUp(self):
         towers = []
         for i in pass3_testmodel1_towers_Cura:
-            t = Tower()
+            t = Tower(0.1, 0.3)
             for k, v in i.items():
                 t.add(k, v)
             towers.append(t)
-        self.towers = Towers()
+        self.towers = Towers(True, 0.3)
         self.towers.add_tower(0, towers[0])
         self.towers.add_tower(1, towers[1])
         self.towers.add_tower(2, towers[2])
@@ -494,7 +497,7 @@ class TestTowers(unittest.TestCase):
         pass
 
     def test_tower_calculate_min_z(self):
-        tower = Tower()
+        tower = Tower(0.1, 0.3)
         test_data = {0.3: 1, 0.4: 0, 0.5: 1, 0.65: 0, 0.75: 1, 0.9: 0}
         for k, v in test_data.items():
             tower.add(k, v)
@@ -503,19 +506,19 @@ class TestTowers(unittest.TestCase):
         self.assertEqual(0.1, tower.min_z_h)
 
     def test_towers_get_tower_count(self):
-        self.assertEqual(3, self.towers.get_tower_count(0.3))
-        self.assertEqual(3, self.towers.get_tower_count(2.1))
-        self.assertEqual(1, self.towers.get_tower_count(3.3))
-        self.assertEqual(0, self.towers.get_tower_count(26.3))
+        self.assertEqual(3, len(self.towers.get_towers_with_z(0.3)))
+        self.assertEqual(3, len(self.towers.get_towers_with_z(2.1)))
+        self.assertEqual(1, len(self.towers.get_towers_with_z(3.3)))
+        self.assertEqual(0, len(self.towers.get_towers_with_z(26.3)))
 
     def test_towers_get_min_layer_h(self):
-        self.assertEqual(0.2, self.towers.get_min_layer_h())
+        self.assertEqual(0.1, self.towers.get_min_layer_h())
 
     def test_towers_fill_gaps(self):
-        towers = Towers()
+        towers = Towers(True, 0.3)
         index = 0
         for i in pass2_testmodel1_towers_Cura:
-            t = Tower()
+            t = Tower(0.1, 0.3)
             for k, v in i.items():
                 t.add(k, v)
             towers.add_tower(index, t)
