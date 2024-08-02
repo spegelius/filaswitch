@@ -733,6 +733,8 @@ class GCodeFile:
 
         layer_nr = 0
 
+        omit = False
+
         # find z-heights and tool changes
         index = 0
         while True:
@@ -751,6 +753,17 @@ class GCodeFile:
                     self.insert_line(index, ActionPoint(ActionPoint.PREPRIME, None))
                 elif comment.strip() == b"START SCRIPT START":
                     self.start_gcode_start = index
+                elif comment.strip() == b"FILASWITCH OMIT":
+                    omit = True
+                elif comment.strip() == b"FILASWITCH OMIT END":
+                    omit = False
+                    self.lines.pop(index)
+                    continue
+
+            # omit section, skip lines
+            if omit:
+                self.lines.pop(index)
+                continue
 
             # need command and one that's not in start gcode section
             if cmd is None:
