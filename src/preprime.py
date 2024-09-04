@@ -47,6 +47,42 @@ class PrePrime:
         else:
             self.purge_handling = PURGE_HANDLING_TOWER
 
+        # temp settings
+        self.g10 = (
+            self.settings.get_hw_config_value("tool.temperature.command") == "G10"
+        )
+        self.tool_use_id = self.settings.get_hw_config_bool_value(
+            "tool.temperature.use_id"
+        )
+        self.prev_temp = 0
+
+    def get_temperature_gcode(self, extruder):
+        """
+        Generate temperature control gcode based on hw settings
+        :param extruder: extruder object
+        :return: gcode lines
+        """
+        temperature = extruder.get_temperature(0)
+        comment = b" set preprime tool temp"
+        temp_diff = 0
+
+        if self.tool_use_id:
+            yield gcode.gen_temperature_nowait_tool(
+                temperature, extruder.tool, g10=self.g10
+            ), comment
+        else:
+            yield gcode.gen_temperature_nowait(temperature), comment
+
+        if self.prev_temp:
+            temp_diff = abs(temperature - self.prev_temp)
+        else:
+            temp_diff = 0
+
+        if temp_diff > 20:
+            yield gcode.gen_pause(round(temp_diff/3 * 1000)), b" temp change wait"
+        self.prev_temp = temperature
+
+
     def get_prime_gcode(self, extruder):
         """"""
         sweep_speed = self.settings.get_hw_config_float_value("prerun.prime.speed")
@@ -208,6 +244,9 @@ class PrePrime:
         yield gcode.gen_relative_e(), b" relative E"
         z_pos = round(0.2 + self.settings.z_offset, 5)
 
+        # first layer intial temp
+        self.prev_temp = self.extruders[tools[0]].get_temperature(0)
+
         # Reverse order
         for tool in tools[::-1]:
             # get extruder object from tool number
@@ -224,8 +263,9 @@ class PrePrime:
                         extruder.pressure_advance_drivers, 0
                     ), b" turn off pressure advance"
 
-            # print(extruder.tool)
             yield gcode.gen_tool_change(tool), b" change tool"
+            for line in self.get_temperature_gcode(extruder):
+                yield line
 
             # move to start position
             if self.purge_handling == PURGE_HANDLING_TOWER:
