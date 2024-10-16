@@ -82,7 +82,7 @@ motor.current.run: 880
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
-prepurge.extrusion.length: 10
+prepurge.extrusion.length: 9
 prepurge.extrusion.speed: 540
 
 ## Prime extruders
