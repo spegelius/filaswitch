@@ -82,7 +82,7 @@ motor.current.run: 880
 ## - count = how many sweeps
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
-prepurge.extrusion.length: 9
+prepurge.extrusion.length: 5
 prepurge.extrusion.speed: 540
 
 ## Prime extruders
@@ -113,29 +113,37 @@ rapid.retract.initial[1].length: 15
 rapid.retract.initial[1].speed: 2000
 rapid.retract.initial[2].length: 15
 rapid.retract.initial[2].speed: 1000
-rapid.retract.pause: 3500
-rapid.retract.long[0].length: -38
-rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 31.5
-rapid.retract.long[1].speed: 4000
-rapid.retract.long[2].length: 7
-rapid.retract.long[2].speed: 600
-rapid.retract.long[3].length: 3.5
-rapid.retract.long[3].speed: 360
-rapid.retract.long[4].length: -20
-rapid.retract.long[4].speed: 340
-rapid.retract.long[5].length: 20
-rapid.retract.long[5].speed: 230
-rapid.retract.long[6].length: -20
-rapid.retract.long[6].speed: 2000
-rapid.retract.long[7].length: 20
-rapid.retract.long[7].speed: 2400
-rapid.retract.long[8].length: -40
-rapid.retract.long[8].speed: 2000
-rapid.retract.long[9].length: 40
-rapid.retract.long[9].speed: 4000
-rapid.retract.long[10].length: 206
+rapid.retract.pause: 0
+rapid.retract.long[0].length: -20
+rapid.retract.long[0].speed: 446
+rapid.retract.long[1].length: 20
+rapid.retract.long[1].speed: 330
+rapid.retract.long[2].length: -20
+rapid.retract.long[2].speed: 2200
+rapid.retract.long[3].length: 20
+rapid.retract.long[3].speed: 2600
+rapid.retract.long[4].length: -38
+rapid.retract.long[4].speed: 2000
+rapid.retract.long[5].length: 31.5
+rapid.retract.long[5].speed: 4000
+rapid.retract.long[6].length: 7
+rapid.retract.long[6].speed: 600
+rapid.retract.long[7].length: 3.5
+rapid.retract.long[7].speed: 360
+rapid.retract.long[8].length: -20
+rapid.retract.long[8].speed: 340
+rapid.retract.long[9].length: 20
+rapid.retract.long[9].speed: 230
+rapid.retract.long[10].length: -20
 rapid.retract.long[10].speed: 2000
+rapid.retract.long[11].length: 20
+rapid.retract.long[11].speed: 2400
+rapid.retract.long[12].length: -40
+rapid.retract.long[12].speed: 2000
+rapid.retract.long[13].length: 40
+rapid.retract.long[13].speed: 4000
+rapid.retract.long[14].length: 206
+rapid.retract.long[14].speed: 2000
 
 ## After tool change, feed new filament
 ## Use one or more stages (array). Feeding is recommended to do in different speeds:

@@ -9,7 +9,7 @@ tool.temperature.command: G10
 
 ## Nozzle diameter. Used with slicers (Cura) that do not provide settings in gcode files.
 ## Overridden for S3D, Slic3r and KISS
-tool.nozzle.diameter: 0.4
+tool.nozzle.diameter: 0.6
 
 ## Z-hop when moving to and from the tower. Used with slicers (Cura) that do not provide settings in gcode files.
 ## Overridden for S3D, Slic3r and KISS
@@ -55,8 +55,8 @@ motor.current.run: 880
 ## - gap = distance to next sweep line
 prepurge.temperature.change: 0
 prepurge.sweep.length: 60
-prepurge.sweep.extrusion.length: 9
-prepurge.sweep.speed: 3600
+prepurge.sweep.extrusion.length: 5
+prepurge.sweep.speed: 6400
 prepurge.sweep.count: 1
 prepurge.sweep.gap: 1
 prepurge.sweep.gap.speed: 3000
@@ -90,29 +90,37 @@ rapid.retract.initial[1].speed: 2000
 rapid.retract.initial[2].length: 15
 rapid.retract.initial[2].speed: 1000
 rapid.retract.wipe: True
-rapid.retract.pause: 3500
-rapid.retract.long[0].length: -38
-rapid.retract.long[0].speed: 2000
-rapid.retract.long[1].length: 31.5
-rapid.retract.long[1].speed: 4000
-rapid.retract.long[2].length: 7
-rapid.retract.long[2].speed: 600
-rapid.retract.long[3].length: 3.5
-rapid.retract.long[3].speed: 360
-rapid.retract.long[4].length: -20
-rapid.retract.long[4].speed: 340
-rapid.retract.long[5].length: 20
-rapid.retract.long[5].speed: 230
-rapid.retract.long[6].length: -20
-rapid.retract.long[6].speed: 2000
-rapid.retract.long[7].length: 20
-rapid.retract.long[7].speed: 2400
-rapid.retract.long[8].length: -40
-rapid.retract.long[8].speed: 2000
-rapid.retract.long[9].length: 40
-rapid.retract.long[9].speed: 4000
-rapid.retract.long[10].length: 206
+rapid.retract.pause: 0
+rapid.retract.long[0].length: -20
+rapid.retract.long[0].speed: 446
+rapid.retract.long[1].length: 20
+rapid.retract.long[1].speed: 330
+rapid.retract.long[2].length: -20
+rapid.retract.long[2].speed: 2200
+rapid.retract.long[3].length: 20
+rapid.retract.long[3].speed: 2600
+rapid.retract.long[4].length: -38
+rapid.retract.long[4].speed: 2000
+rapid.retract.long[5].length: 31.5
+rapid.retract.long[5].speed: 4000
+rapid.retract.long[6].length: 7
+rapid.retract.long[6].speed: 600
+rapid.retract.long[7].length: 3.5
+rapid.retract.long[7].speed: 360
+rapid.retract.long[8].length: -20
+rapid.retract.long[8].speed: 340
+rapid.retract.long[9].length: 20
+rapid.retract.long[9].speed: 230
+rapid.retract.long[10].length: -20
 rapid.retract.long[10].speed: 2000
+rapid.retract.long[11].length: 20
+rapid.retract.long[11].speed: 2400
+rapid.retract.long[12].length: -40
+rapid.retract.long[12].speed: 2000
+rapid.retract.long[13].length: 40
+rapid.retract.long[13].speed: 4000
+rapid.retract.long[14].length: 206
+rapid.retract.long[14].speed: 2000
 
 ## Various filament cooling movements after major retract. Uncomment to enable. Make sure that there are even amount
 ## of cooling movements and the total length is 0
