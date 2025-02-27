@@ -241,7 +241,7 @@ class GCodeFile:
         self.x_min = None
         self.y_min = None
 
-        # max layer h to use in generated tower structures
+        # initial calculated max layer h to use in generated tower structures
         self.max_layer_h = round(
             self.settings.get_hw_config_float_value("tool.nozzle.diameter") * 0.625, 5
         )
@@ -1012,6 +1012,10 @@ class GCodeFile:
             prev_z = z
 
         min_z = min(min_z, max_z)
+
+        # update tower max layer h if print max z h is higher that calculated
+        if (max_z > self.max_layer_h):
+            self.max_layer_h = max_z
 
         # don't go lower than 0.1
         if min_z < 0.1:
